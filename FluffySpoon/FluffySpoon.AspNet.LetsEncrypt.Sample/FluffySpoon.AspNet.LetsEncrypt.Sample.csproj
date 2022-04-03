@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <StartupObject>FluffySpoon.AspNet.LetsEncrypt.Sample.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include=".well-known\FluffySpoonAspNetLetsEncryptCertificate_Account" />
+    <Content Include=".well-known\FluffySpoonAspNetLetsEncryptChallenge_Account" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include=".well-known\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Certes" Version="2.3.3" />
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.2.0" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.AspNetCore.Server.WebListener" Version="1.1.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FluffySpoon.AspNet.LetsEncrypt\FluffySpoon.AspNet.LetsEncrypt.csproj" />
+  </ItemGroup>
+
+</Project>
