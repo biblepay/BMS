@@ -44,6 +44,12 @@ Features/Properties/PublishProfiles/FolderProfile.pubxml.user
 FluffySpoon/.vs/*
 *.cache
 
+bin/Debug/netcoreapp3.1/*
+BMSCommon/BMSCommon/obj/*
+
+obj/*
+
+
 FluffySpoon/FluffySpoon.AspNet.LetsEncrypt.Azure/obj/*
 FluffySpoon/FluffySpoon.AspNet.LetsEncrypt.EntityFramework.Sample/bin/Debug/netcoreapp2.2/FluffySpoon.AspNet.LetsEncrypt.EntityFramework.pdb
 FluffySpoon/FluffySpoon.AspNet.LetsEncrypt.EntityFramework.Sample/bin/*
