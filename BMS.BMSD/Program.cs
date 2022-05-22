@@ -14,14 +14,14 @@ namespace BiblePay.BMSD
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Welcome to the BiblePay BMS System v2.4");
-            Console.WriteLine("1. DEFENSE");
+            Console.WriteLine("Welcome to the BiblePay BMS System v2.5");
+            Console.WriteLine("1. PDF");
             Console.WriteLine("F4. Reserved");
             Console.WriteLine("<ESC>.  Exit Program");
             MainAsync(args).Wait();
             Environment.Exit(0);
         }
-        
+
         public static async void HandleKeyboard()
         {
             try
@@ -31,11 +31,12 @@ namespace BiblePay.BMSD
                 switch (K)
                 {
                     case ConsoleKey.F1:
+                        pdf();
                         break;
                     case ConsoleKey.F3:
                         break;
                     case ConsoleKey.F4:
-                        
+
                         break;
                     case ConsoleKey.F5:
                         break;
@@ -43,27 +44,45 @@ namespace BiblePay.BMSD
                         System.Environment.Exit(0);
                         break;
                     case ConsoleKey.D1:
-                        
+
                         break;
                     case ConsoleKey.D4:
                         break;
                     case ConsoleKey.D2:
-                        
+
                         break;
 
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 if (!ex.Message.Contains("/output error"))
                 {
                     Common.Log("HandleKB::" + ex.Message);
                 }
-                
+
             }
         }
 
+        private static void pdf()
+        {
+            /*
+            string html = "<html><br>Hi there<br></html>";
+            Common.Log("1");
 
+            byte[] content = Pdf.From(html).Portrait().Content();
+            Common.Log("2");
+
+            var contentLength = content.Length;
+
+            string folder2 = "mypdf.pdf";
+            System.IO.File.WriteAllBytes(folder2, content);
+            Common.Log("3");
+            */
+
+
+
+        }
 
         private static void UpgNode()
         {
@@ -82,6 +101,8 @@ namespace BiblePay.BMSD
 
         public static void BackgroundThread()
         {
+            Common.Log("BMSD is starting up...");
+
             while (1 == 1)
             {
                 try

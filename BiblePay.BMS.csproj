@@ -1,0 +1,89 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>aspnet-BiblePay.BMS-1757DFEF-8A50-4CF6-A39D-79B9DFFE19FC</UserSecretsId>
+    <AssemblyName>BiblePay.BMS</AssemblyName>
+    <RootNamespace>BiblePay.BMS</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>1701;1702</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="BMS.BMSD\**" />
+    <Compile Remove="BMSCommon\**" />
+    <Compile Remove="Views\Docs\**" />
+    <Compile Remove="Views\FormPlugins\**" />
+    <Compile Remove="Views\Statistics\**" />
+    <Compile Remove="Views\Utilities\**" />
+    <Content Remove="BMS.BMSD\**" />
+    <Content Remove="BMSCommon\**" />
+    <Content Remove="Views\Docs\**" />
+    <Content Remove="Views\FormPlugins\**" />
+    <Content Remove="Views\Statistics\**" />
+    <Content Remove="Views\Utilities\**" />
+    <EmbeddedResource Remove="BMS.BMSD\**" />
+    <EmbeddedResource Remove="BMSCommon\**" />
+    <EmbeddedResource Remove="Views\Docs\**" />
+    <EmbeddedResource Remove="Views\FormPlugins\**" />
+    <EmbeddedResource Remove="Views\Statistics\**" />
+    <EmbeddedResource Remove="Views\Utilities\**" />
+    <None Remove="BMS.BMSD\**" />
+    <None Remove="BMSCommon\**" />
+    <None Remove="Views\Docs\**" />
+    <None Remove="Views\FormPlugins\**" />
+    <None Remove="Views\Statistics\**" />
+    <None Remove="Views\Utilities\**" />
+    
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Controllers\DatatablesController.cs" />
+    <Compile Remove="Controllers\DocsController.cs" />
+    <Compile Remove="Controllers\DocumentationController.cs" />
+    <Compile Remove="Controllers\FormController.cs" />
+    <Compile Remove="Controllers\FormPluginsController.cs" />
+    <Compile Remove="Controllers\IconsController.cs" />
+    <Compile Remove="Controllers\MiscellaneousController.cs" />
+    <Compile Remove="Controllers\PluginsController.cs" />
+    <Compile Remove="Controllers\SettingsController.cs" />
+    <Compile Remove="Controllers\StatisticsController.cs" />
+    <Compile Remove="Controllers\TablesController.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Views\AspNetCore\Editions.cshtml" />
+    <Content Remove="wwwroot\templates\updLeaderboard.htm" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <None Update="xapp.db" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="3.1.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="3.1.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="3.1.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.24" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.2" />
+    <PackageReference Include="Nethereum.Signer.EIP712" Version="4.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="B:\BiblePay\BBPTestHarness\BBPTestHarness\BBPTestHarness\BBPTestHarness.csproj" />
+    <ProjectReference Include="B:\BiblePay\BiblePayBMS\BMS\BMSCommon\BMSCommon\BMSCommon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Views\Upload\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\templates\updLeaderboard.htm" />
+  </ItemGroup>
+
+</Project>

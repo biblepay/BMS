@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using BiblePay.BMS.Data;
@@ -11,6 +12,9 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,17 +28,50 @@ using static BMSCommon.Common;
 
 namespace BiblePay.BMS
 {
-
+    
     public class BWS
     {
+
+        public class ViewBagActionFilter : ActionFilterAttribute
+        {
+
+            
+            public override void OnResultExecuting(ResultExecutingContext context)
+            {
+                // for razor pages
+                if (context.Controller is PageModel)
+                {
+                    var controller = context.Controller as PageModel;
+                    controller.ViewData.Add("b1", $"~/avatar/empty.png");
+                }
+                // for Razor Views
+                if (context.Controller is Controller)
+                {
+                    var controller = context.Controller as Controller;
+                    //controller.ViewData.Add("b", $"~/avatar/empty.png");
+                    
+                    controller.ViewBag.Chain = DSQL.UI.GetChain(controller.HttpContext);
+                    controller.ViewBag.ChainColor = DSQL.UI.GetChainColor(controller.HttpContext);
+                    controller.ViewBag.LoginStatus = DSQL.UI.GetLogInStatus(controller.HttpContext);
+                    controller.ViewBag.BioURL = DSQL.UI.GetBioURL(controller.HttpContext);
+                    controller.ViewBag.Balance = DSQL.UI.GetAvatarBalance(controller.HttpContext, false);
+                    BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(controller.HttpContext);
+                    controller.ViewBag.NickName = u.NickName;
+                    //also you have access to the httpcontext & route in controller.HttpContext & controller.RouteData
+                }
+
+                base.OnResultExecuting(context);
+            }
+        }
+
+
         public IConfigurationRoot Configuration { get; }
 
         public BWS(IHostingEnvironment env)
         {
             //string sContentRoot = BMSCommon.Common.GetFolder("wwwroot");
 
-            string sData = env.ContentRootPath;
-
+            BMSCommon.Database.msContentRootPath = env.ContentRootPath;
 
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
@@ -47,12 +84,21 @@ namespace BiblePay.BMS
         public void ConfigureServices(IServiceCollection services)
         {
 
+
+            //session info
+            services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(60*8);//We set Time here 
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
+            // end of session area
             services.Configure<SmartSettings>(Configuration.GetSection(SmartSettings.SectionName));
             services.AddSingleton(s => s.GetRequiredService<IOptions<SmartSettings>>().Value);
 
             services.Configure<CookiePolicyOptions>(options =>
             {
-                // This lambda determines whether user consent for non-essential cookies is needed for a given request.
+                // This lambda determines whether user consent for non-essential cookies is needed for a given 
                 options.CheckConsentNeeded = context => true;
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
@@ -64,10 +110,15 @@ namespace BiblePay.BMS
 
             services.AddTransient<IEmailSender, EmailSender>();
 
-            services
-                .AddControllersWithViews();
+            //services.AddControllersWithViews();
+            services.AddControllersWithViews(options => {
+                options.Filters.Add<BiblePay.BMS.BWS.ViewBagActionFilter>();
+            });
 
-            services.AddRazorPages();
+            //services.AddRazorPages();
+            //services.AddAntiforgery(o => o.HeaderName = "XSRF-TOKEN");
+
+            services.AddRazorPages().AddRazorRuntimeCompilation();
 
             services.ConfigureApplicationCookie(options =>
             {
@@ -136,9 +187,10 @@ namespace BiblePay.BMS
 
             app.UseStaticFiles();
             app.UseRouting();
-
-
+          
             app.UseCors("CorsPolicy");
+
+            app.UseSession();
 
             /*
             app.UseEndpoints(endpoints =>
@@ -174,6 +226,8 @@ namespace BiblePay.BMS
                     FileProvider = new PhysicalFileProvider(BMSCommon.Common.GetFolder("sql")),
                     RequestPath = "/sql"
                 });
+
+
                 // End of Biblepay MVC
             }
             catch (Exception ex)
@@ -443,7 +497,7 @@ namespace BiblePay.BMS
                 else if (sourcepath == "/")
                 {
                     // The web root
-                    context.Response.Redirect("/BMS/Status");
+                    context.Response.Redirect("/gospel/about");
                 }
                 else if (sourcepath.Contains("/favicon.ico"))
                 {

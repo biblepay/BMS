@@ -22,7 +22,6 @@ namespace BiblePay.BMS.Models
             var jsonText = File.ReadAllText("nav.json");
             var navigation = NavigationBuilder.FromJson(jsonText);
             var menu = FillProperties(navigation.Lists, seedOnly);
-
             return new SmartNavigation(menu);
         }
 

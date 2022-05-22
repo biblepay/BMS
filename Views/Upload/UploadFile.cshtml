@@ -1,0 +1,48 @@
+﻿@{ ViewData["Title"] = "Upload File";
+    ViewData["PageName"] = "upload_uploadfile";
+    ViewData["Heading"] = "<i class='fal fa-cross'></i> &nbsp;Upload File";
+    ViewData["Category1"] = "Upload";
+    ViewData["PageDescription"] = "Tithing 10% of all Block Chain Emissions to Orphan Charity"; }
+
+@section HeadBlock {
+<script>
+    function mechanged() {
+        //alert('1');
+        //document.forms[1].submit();
+        document.getElementById("f1").submit();
+    };
+</script>
+
+}
+
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+ 
+    <form id="f1" action="" method="post" enctype="multipart/form-data">
+        <button class="btn btn-primary" onclick="document.getElementById('file').click(); return false;">Click it</button>
+        <input style="visibility:hidden;" type="file" name="file" id="file" onchange="mechanged();" />
+        <div>
+            <input style="visibility:hidden;" type="submit" value="Upload" />
+        </div>
+    </form>
+
+    <div>
+        @ViewBag.Message
+        </div>
+
+
+</div>
+    
+
+
+
+</div>
+
+@section ScriptsBlock {
+
+   
+
+
+}
+
+

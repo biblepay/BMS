@@ -16,7 +16,7 @@ namespace BMSCommon
     {
         // Chain Params
 
-        public static BigInteger POW_LIMIT = ToBigInteger("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); 
+        public static BigInteger POW_LIMIT = ToBigInteger("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         public static int POW_TARGET_SPACING = 60 * 1;  // 1 minute blocks
         public static Dictionary<string, Block> mapBlockIndex = new Dictionary<string, Block>();
         public static Block GenesisBlock = null;
@@ -69,6 +69,11 @@ namespace BMSCommon
             {
                 string s = Version.ToString() + PreviousBlockHash + MerkleRoot + Time.ToString() + ToHexString(Target) + Nonce.ToString();
                 string hash = Common.GetSha256String(s);
+                if (hash== "8a270795f2fa98694e95f5e143cd8dfbd3b80a1d496a9dccf2abf066768efb66")
+                {
+                    // block 171 is bad, so we fix this in 172
+                    hash = "000047aeb2a015ba903b3279ae2dfcc183e035eeb11ead618ca3a9fadc59bdee";
+                }
                 return hash;
             }
             public string GetTransactions()
@@ -84,7 +89,7 @@ namespace BMSCommon
                 return sList;
             }
 
-            public bool AddBlockIndex()
+            public bool AddBlockIndex(bool fLoadingIndex)
             {
 
                 if (this.PreviousBlockHash != null)
@@ -98,9 +103,10 @@ namespace BMSCommon
 
                 }
 
+                // block already in map
                 if (mapBlockIndex.ContainsKey(this.GetBlockHash()))
                 {
-                    return false;
+                        return false;
                 }
                 Block bAncestor = null;
                 bool fGotAncestor = false;
@@ -263,7 +269,9 @@ namespace BMSCommon
             while (true)
             {
                 if (currentBlock.NextBlockHash == null)
+                {
                     return currentBlock;
+                }
 
                 if (mapBlockIndex.ContainsKey(currentBlock.NextBlockHash))
                 {
@@ -276,7 +284,12 @@ namespace BMSCommon
                     return currentBlock;
                 }
                 if (currentBlock == null)
+                {
                     return null;
+                }
+
+
+
             }
         }
 
@@ -393,6 +406,9 @@ namespace BMSCommon
             b.MerkleRoot = r.Field<string>("MerkleRoot");
             b.Nonce = r.Field<int>("nonce");
             b.PreviousBlockHash = r.Field<string>("PreviousBlockHash");
+
+            
+
             b.Target = ToBigInteger(r.Field<string>("Target"));
             b.Time = r.Field<int>("Time");
             b.Version = r.Field<int>("Version");
@@ -409,6 +425,12 @@ namespace BMSCommon
             }
             if (b.GetBlockHash() == "00000e7ddf4a6c60f059f3c6343aed82cb5353a87f8bfe6df57fb482049af9a5")
                 b.IsGenesis = true;
+
+            if (b.GetBlockHash() == "000047aeb2a015ba903b3279ae2dfcc183e035eeb11ead618ca3a9fadc59bdee")
+            {
+                // Blocks 170, 171 are not valid, so we patch the chain here to make 172 point to 169
+                b.PreviousBlockHash = "0000b3cbbcb6688d41728fed7ceef05a83c01107a9dc936722bfbf639ce274ce";
+            }
             string sMR = CalculateMerkleRoot(b);
             if (b.MerkleRoot != sMR)
             {
@@ -419,9 +441,10 @@ namespace BMSCommon
 
         public static async Task<bool> LoadBlockIndex()
         {
+            CryptoUtils.CheckDatabase();
+
             try
             {
-                CryptoUtils.CheckDatabase();
                 mapBlockIndex.Clear();
                 API.dMemoryPool.Clear();
                 string sql = "Select * from blocks order by time;";
@@ -430,22 +453,30 @@ namespace BMSCommon
                 for (int i = 0; i < dt.Rows.Count; i++)
                 {
                     Block b = DeserializeBlock(dt.Rows[i]);
+                    if (b==null)
+                    {
+                        bool f20000 = false;
+                    }
                     if (b != null)
                     {
-                        if (b.PreviousBlockHash != null)
+                        if (false)
                         {
-                            Block ancestorBlock = GetBlock(b.PreviousBlockHash);
-                            if (ancestorBlock != null)
+                            if (b.PreviousBlockHash != null)
                             {
-                                ancestorBlock.NextBlockHash = b.GetBlockHash();
-                                mapBlockIndex[ancestorBlock.GetBlockHash()] = ancestorBlock;
+                                Block ancestorBlock = GetBlock(b.PreviousBlockHash);
+                                if (ancestorBlock != null)
+                                {
+                                    ancestorBlock.NextBlockHash = b.GetBlockHash();
+                                    mapBlockIndex[ancestorBlock.GetBlockHash()] = ancestorBlock;
+                                }
                             }
                         }
-                        b.AddBlockIndex();
+                        bool fAdded =  b.AddBlockIndex(true);
+                        Block bestBlock = GetBestBlock();
                     }
                 }
                 return true;
-            }catch(Exception ex)
+            } catch (Exception ex)
             {
                 Common.Log("LoadBlockIndex::" + ex.Message);
                 return false;
@@ -454,6 +485,18 @@ namespace BMSCommon
 
         public static void CheckDatabase()
         {
+            //Busy wait while web server warms up
+            for (int i = 0; i < 30; i++)
+            {
+                {
+                    System.Threading.Thread.Sleep(1000);
+                    string n = Database.msContentRootPath;
+                    if (n != null)
+                        break;
+                }
+            }
+            Console.WriteLine("Base content path=" + Database.msContentRootPath);
+
             string sDBName = Database.GetDatabaseName();
             bool fDBExists = Database.DatabaseExists(false, sDBName);
             if (!fDBExists)
@@ -477,8 +520,183 @@ namespace BMSCommon
                 if (!fSuccess)
                     throw new Exception("Unable to create table blocks");
             }
-            fBlocks = Database.TableExists(false, sDBName, "transactions");
-            if (!fBlocks)
+
+            bool fHR = Database.TableExists(false, sDBName, "hashrate");
+            if (!fHR)
+            {
+                string sql = "create table hashrate (id varchar(64) primary key, MinerCount int, HashRate float, Added datetime, Height int, SolvedCount int);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table HR");
+            }
+
+            bool ftHR = Database.TableExists(false, sDBName, "thashrate");
+            if (!ftHR)
+            {
+                string sql = "create table thashrate (id varchar(64) primary key, MinerCount int, HashRate float, Added datetime, Height int, SolvedCount int);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table tHR");
+            }
+
+            bool fW = Database.TableExists(false, sDBName, "tworker");
+            if (!fW)
+            {
+                string sql = "create table tworker (id varchar(64) primary key, bbpaddress varchar(128), moneroaddress varchar(128), Added datetime, IP varchar(50));";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table tHR");
+            }
+
+            bool fW2 = Database.TableExists(false, sDBName, "worker");
+            if (!fW2)
+            {
+                string sql = "create table worker (id varchar(64) primary key, bbpaddress varchar(128), moneroaddress varchar(128), Added datetime, IP varchar(50));";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table W");
+            }
+
+
+
+            bool fShare = Database.TableExists(false, sDBName, "share");
+            if (!fShare)
+            {
+                string sql = "create table share (bbpaddress varchar(64), shares float, fails int, height int, updated datetime, Reward float, Percentage float, Subsidy float, SucXMR float, "
+                    + "FailXMR float, SucXMRC float, FailXMRC float, TXID varchar(128), Paid datetime, Solved int, BXMR float, BXMRC int, PRIMARY KEY (bbpaddress, height));";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table share");
+            }
+
+            bool ftShare = Database.TableExists(false, sDBName, "tshare");
+            if (!ftShare)
+            {
+                string sql = "create table tshare (bbpaddress varchar(64), shares float, fails int, height int, updated datetime, Reward float, Percentage float, Subsidy float, SucXMR float, "
+                    + "FailXMR float, SucXMRC float, FailXMRC float, TXID varchar(128), Paid datetime, Solved int, BXMR float, BXMRC int, PRIMARY KEY (bbpaddress, height));";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table share");
+            }
+
+
+            bool fSPInsShare = Database.SPExists(false, sDBName, "insShare");
+            if (!fSPInsShare)
+            {
+                string data = BMSCommon.DSQL.GetSQLTemplate("insShare.htm");
+                data = data.Replace("@share1", "share");
+                string sFullName = "`insShare`";
+                data = data.Replace("`insShare`", sFullName);
+                MySqlCommand cmd1 = new MySqlCommand(data);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create stored procedure insShare");
+            }
+
+            bool fSPInsShareTestNet = Database.SPExists(false, sDBName, "tinsShare");
+            if (!fSPInsShareTestNet)
+            {
+                string data = BMSCommon.DSQL.GetSQLTemplate("insShare.htm");
+                data = data.Replace("`insShare`", "`tinsShare`");
+
+                data = data.Replace("@share1", "tshare");
+
+                MySqlCommand cmd1 = new MySqlCommand(data);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create stored procedure tinsShare");
+            }
+
+            bool fSPUpdLeaderboard = Database.SPExists(false, sDBName, "updLeaderboard");
+            if (!fSPUpdLeaderboard)
+            {
+                string data = BMSCommon.DSQL.GetSQLTemplate("updLeaderboard.htm");
+
+                data = data.Replace("tbl_share", "share");
+                data = data.Replace("tbl_worker", "worker");
+                data = data.Replace("tbl_hashrate", "hashrate");
+
+                MySqlCommand cmd1 = new MySqlCommand(data);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create stored procedure updLeaderboard");
+            }
+
+
+            bool fSPUpdtLeaderboard = Database.SPExists(false, sDBName, "updtLeaderboard");
+            if (!fSPUpdtLeaderboard)
+            {
+                string data = BMSCommon.DSQL.GetSQLTemplate("updLeaderboard.htm");
+                data = data.Replace("Leaderboard", "tLeaderboard");
+
+                data = data.Replace("tbl_share", "tshare");
+                data = data.Replace("tbl_worker", "tworker");
+                data = data.Replace("tbl_hashrate", "thashrate");
+
+                MySqlCommand cmd1 = new MySqlCommand(data);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create stored procedure upd-t-Leaderboard");
+            }
+
+
+            bool fBanDetails = Database.TableExists(false, sDBName, "bandetails");
+            if (!fBanDetails)
+            {
+                string sql = "create table bandetails (id varchar(64) primary key, IP varchar(128), Notes varchar(512), Added datetime, level float);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create bandetails.");
+            }
+
+            bool fSystem = Database.TableExists(false, sDBName, "sys");
+            if (!fSystem)
+            {
+                string sql = "create table sys (id varchar(64) primary key, systemkey varchar(200), value varchar(200), updated DateTime);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table system.");
+            }
+            bool fQH = Database.TableExists(false, sDBName, "quotehistory");
+            if (!fQH)
+            {
+                string sql = "create table quotehistory (id varchar(64) primary key,added datetime, ticker varchar(50),USD float, BTC float);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table quotehistory.");
+            }
+
+            bool fDH = Database.TableExists(false, sDBName, "DifficultyHistory");
+            if (!fDH)
+            {
+                string sql = "create table DifficultyHistory (id varchar(64) primary key, height int, recipient varchar(64), subsidy float, Added datetime, Difficulty float);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table dh.");
+            }
+
+            bool fDH2 = Database.TableExists(false, sDBName, "tDifficultyHistory");
+            if (!fDH2)
+            {
+                string sql = "create table tDifficultyHistory (id varchar(64) primary key, height int, recipient varchar(64), subsidy float, Added datetime, Difficulty float);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table dh.");
+            }
+
+            bool fTransactions = Database.TableExists(false, sDBName, "transactions");
+            if (!fTransactions)
             {
                 string sql = "create table transactions (hash varchar(64) primary key, time int, blockhash varchar(64), height int, Data mediumtext, Added datetime);";
                 MySqlCommand cmd1 = new MySqlCommand(sql);
@@ -498,7 +716,7 @@ namespace BMSCommon
                     if (CryptoUtils.CheckProofOfWork(b))
                     {
                         b.BlockNumber = 1;
-                        bool f =    API.InsertBlock(b);
+                        bool f = API.InsertBlock(b);
                         if (!f)
                         {
                             throw new Exception("Unable to store genesis block.");
@@ -509,6 +727,76 @@ namespace BMSCommon
                 }
             }
         }
+
+        public class User
+        {
+            public string ERC20Address = "";
+            public string table = "user";
+            public string EmailAddress = "";
+            public string PrimaryKey = "ERC20Address";
+            public string BBPSignature = "";
+            public string BBPSignAddress = "";
+            public string BBPSignatureTime = "";
+            public string NickName = "";
+            public string Updated = "";
+            public string BioURL = "";
+            public string PortfolioBuilderAddress = "";
+            public string tPortfolioBuilderAddress = "";
+            public string PBSignature = "";
+            public string tPBSignature = "";
+            public string BBPAddress = "";
+            public bool LoggedIn = false;
+        };
+
+        public static bool PersistUser(User u)
+        {
+            if (u.ERC20Address == null || u.ERC20Address == "")
+            {
+                return false;
+            }
+            Transaction t = new Transaction();
+            t.Time = Common.UnixTimestamp();
+            t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(u);
+            bool f =  BMSCommon.API.AddToMemoryPool(t, true);
+            return f;
+        }
+
+        public static User DepersistUser(string sERC20Address)
+        {
+            string sql = "Select * from user where ERC20Address=@e;";
+            User u = new User();
+            try
+            {
+                MySqlCommand m1 = new MySqlCommand(sql);
+                m1.Parameters.AddWithValue("@e", sERC20Address);
+                DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+                if (dt.Rows.Count == 0)
+                    return u;
+                u.ERC20Address = dt.Rows[0]["ERC20Address"].ToString();
+                u.EmailAddress = dt.Rows[0]["EmailAddress"].ToString();
+                u.NickName = dt.Rows[0]["NickName"].ToString();
+                u.Updated = dt.Rows[0]["Updated"].ToString();
+                u.BioURL = dt.Rows[0]["BioURL"].ToString();
+
+
+                u.PBSignature = dt.Rows[0]["PBSignature"].ToString();
+                u.PortfolioBuilderAddress = dt.Rows[0]["PortfolioBuilderAddress"].ToString();
+                u.tPBSignature = dt.Rows[0]["tPBSignature"].ToString();
+                u.tPortfolioBuilderAddress = dt.Rows[0]["tPortfolioBuilderAddress"].ToString();
+
+
+
+                u.LoggedIn = false;
+                return u;
+            }
+            catch(Exception ex)
+            {
+                Common.Log("DU::" + ex.Message);
+                return u;
+            }
+        }
+
+
         private struct FakeTable
         {
             public string id;
@@ -540,7 +828,7 @@ namespace BMSCommon
                 {
                     Transaction t = new Transaction();
                     t.Time = Common.UnixTimestamp();
-                    API.Junk2 j = new API.Junk2();
+                    API.FakeTx j = new API.FakeTx();
                     j.field1 = "https://" + Guid.NewGuid().ToString();
                     j.field2 = "https://" + Guid.NewGuid().ToString();
                     j.me_id = i * 1000;

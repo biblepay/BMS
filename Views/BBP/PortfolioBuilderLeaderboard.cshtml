@@ -1,0 +1,39 @@
+﻿@{ ViewData["Title"] = "Portfolio Builder - Leaderboard";
+    ViewData["PageName"] = "bbp_portfoliobuilderleaderboard";
+    ViewData["Heading"] = "<i class='fal fa-credit-card'></i> &nbsp;Portfolio Builder - Leaderboard - " + ViewBag.PortfolioBuilderMode;
+    ViewData["Category1"] = "BBP";
+    ViewData["PageDescription"] = "Earning Dual Stake Rewards"; }
+@section HeadBlock {
+    <script src="~/lib/bbp/bbpcore.js"></script>
+
+    <style>
+        table.saved td {
+            background: linear-gradient( rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.14) );
+            margin: 12px 12px 12px 12px;
+            padding: 12px 12px 12px 12px;
+        }
+
+            table.saved td a:link {
+                color: Maroon;
+            }
+
+        table.saved {
+            border-collapse: separate;
+            border-spacing: 10px;
+            *border-collapse: expression('separate', cellSpacing = '10px');
+        }
+    </style>
+}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+
+    <button onclick="DoCallback('PortfolioBuilder_ToggleMode');">Toggle View</button>
+    
+    @Html.Raw(ViewBag.PortfolioBuilderLeaderboard)
+
+    <br>
+    <span><small><font color="red">Alert:  <a href='https://wiki.biblepay.org/Signed_Stake'>Stakes must be signed</a> </font></span></small>
+
+
+</div>
+@section ScriptsBlock {}

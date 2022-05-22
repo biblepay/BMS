@@ -8,6 +8,40 @@ namespace BMSCommon
 {
     public static class Encryption
     {
+        public struct KeyType
+        {
+            public string PrivKey;
+            public string PubKey;
+        }
+        public static KeyType DeriveKey(bool fTestNet, string sSha)
+        {
+            NBitcoin.Mnemonic m = new NBitcoin.Mnemonic(sSha);
+            NBitcoin.ExtKey k = m.DeriveExtKey(null);
+            KeyType k1 = new KeyType();
+            k1.PrivKey = k.PrivateKey.GetWif(fTestNet ? NBitcoin.Network.TestNet : NBitcoin.Network.Main).ToWif().ToString();
+            k1.PubKey = k.ScriptPubKey.GetDestinationAddress(fTestNet ? NBitcoin.Network.TestNet : NBitcoin.Network.Main).ToString();
+            return k1;
+        }
+
+
+        public static string GetSha256HashI(string rawData)
+        {
+            if (rawData == null)
+            {
+                rawData = String.Empty;
+            }
+            // The I means inverted (IE to match a uint256)
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
+                StringBuilder builder = new StringBuilder();
+                for (int i = bytes.Length - 1; i >= 0; i--)
+                {
+                    builder.Append(bytes[i].ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
         private static string GetContentType(string sFullPath)
         {
             FileInfo fi = new FileInfo(sFullPath);

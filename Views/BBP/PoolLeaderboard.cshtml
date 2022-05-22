@@ -1,0 +1,30 @@
+﻿@{ ViewData["Title"] = "Pool - Leaderboard";
+    ViewData["PageName"] = "bbp_poolleaderboard";
+    ViewData["Heading"] = "<i class='fal fa-tachometer'></i> &nbsp;Pool - Leaderboard";
+    ViewData["Category1"] = "BBP";
+    ViewData["PageDescription"] = "RandomX Mining with Orphan Charity"; }
+@section HeadBlock {
+    <style>
+        table.saved td {
+            background:linear-gradient( rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.14) );
+            margin: 12px 12px 12px 12px;
+            padding: 12px 12px 12px 12px;
+        }
+
+        table.saved td a:link {
+               color: Maroon;
+        }
+
+        table.saved {
+            border-collapse: separate;
+            border-spacing: 10px;
+            *border-collapse: expression('separate', cellSpacing = '10px');
+        }
+    </style>
+}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+    @Html.Raw(ViewBag.PoolLeaderboard)
+
+</div>
+@section ScriptsBlock {}

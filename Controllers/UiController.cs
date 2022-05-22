@@ -1,14 +1,20 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BiblePay.BMS.Controllers
 {
     public class UiController : Controller
     {
 
+       
+        public IActionResult Accordion()
+        {
+            // View bag for accordian
+            ViewBag.Accordian = DSQL.UI.GetAccordian("a1", "This is an accordian", "<br>I find myself programming things for biblepay....<br><br><br>Now is the time for<br><br>all good men<br>to come to the aid of the party");
 
-
-
-        public IActionResult Accordion() => View();
+            return View();
+        }
         public IActionResult Alerts()
         {
 
@@ -22,23 +28,18 @@ namespace BiblePay.BMS.Controllers
         public IActionResult Cards() => View();
         public IActionResult Carousel() => View();
         public IActionResult Collapse() => View();
-        public IActionResult Dropdowns() => View();
+        public IActionResult Dropdowns() {
+            ViewBag.Notifications = DSQL.UI.GetNotifications();
+            return View();
+        }
         public IActionResult ListFilter() => View();
+
         public IActionResult Modal() => View();
         public IActionResult Navbars() => View();
         public IActionResult Pagination() => View();
         public IActionResult Panels() => View();
-        public IActionResult Popovers() => View();
         public IActionResult ProgressBars() => View();
-        public IActionResult Scrollspy() => View();
-        public IActionResult SidePanel() => View();
-        public IActionResult Spinners() => View();
-        public IActionResult TabsAccordions() => View();
 
-
-
-        public IActionResult TabsPills() => View();
-        public IActionResult Toasts() => View();
         public IActionResult Tooltips() => View();
         public IActionResult TooltipsPopovers() => View();
     }

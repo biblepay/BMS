@@ -10,7 +10,7 @@ namespace BiblePay.BMS
 {
     public static class Common
     {
-        public static int BMS_VERSION = 1047;
+        public static int BMS_VERSION = 1055;
         public static int MIN_BMS_VERSION = 1001;
         public static int DEFAULT_PORT = 8443;
         public static bool fDebug = false;

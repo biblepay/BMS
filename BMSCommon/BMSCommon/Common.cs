@@ -215,7 +215,7 @@ namespace BMSCommon
                 {
                     string sKey = vRow[0];
                     string sValue = vRow[1];
-                    if (sKey == _Key)
+                    if (sKey.ToLower() == _Key.ToLower())
                         return sValue;
                 }
 
@@ -223,6 +223,87 @@ namespace BMSCommon
             return string.Empty;
         }
 
+        public static byte[] StringToByteArr(string hex)
+        {
+            try
+            {
+                if (hex == null)
+                {
+                    byte[] b1 = new byte[0];
+                    return b1;
+                }
+                if (hex.Length % 2 == 1)
+                    throw new Exception("The binary key cannot have an odd number of digits");
+
+                byte[] arr = new byte[hex.Length >> 1];
+
+                for (int i = 0; i < hex.Length >> 1; ++i)
+                {
+                    arr[i] = (byte)((GetHexVal(hex[i << 1]) << 4) + (GetHexVal(hex[(i << 1) + 1])));
+                }
+                return arr;
+            }
+            catch (Exception ex)
+            {
+                Log(" STBA " + ex.Message);
+                byte[] b = new byte[0];
+                return b;
+            }
+        }
+
+
+
+        public static int GetHexVal(char hex)
+        {
+            try
+            {
+                int val = (int)hex;
+                return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
+            }
+            catch (Exception ex)
+            {
+                Log("GHV " + ex.Message);
+                return 0;
+            }
+        }
+
+        public static bool InList(string sTypes, string sType)
+        {
+            if (sTypes == "all")
+            {
+                return true;
+            }
+            string[] vTypes = sTypes.Split(",");
+            for (int i = 0; i < vTypes.Length; i++)
+            {
+                if (vTypes[i] == sType)
+                    return true;
+            }
+            return false;
+        }
+
+
+        public static string ReverseHexString(string hexString)
+        {
+            var sb = new StringBuilder();
+            for (var i = hexString.Length - 2; i > -1; i = i - 2)
+            {
+                string hexChar = hexString.Substring(i, 2);
+                sb.Append(hexChar);
+            }
+            return sb.ToString();
+        }
+
+
+
+        public static string GE(string sData, string sDelim, int iEle)
+        {
+            string[] vGE = sData.Split(sDelim);
+            if (vGE.Length > iEle)
+                return vGE[iEle];
+            else
+                return "";
+        }
         public static bool IsPrimary()
         {
             string sBindURL = GetConfigurationKeyValue("bindurl");

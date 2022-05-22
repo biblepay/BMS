@@ -15,12 +15,6 @@ namespace BiblePay.BMS.Controllers
     public class BMSController : Controller
     {
 
-        [Route("Home/Welcome")]
-        [Route("Home/Welcome/{id?}")]
-        public string Welcome()
-        {
-            return "Welcome ...<EOF></HTML></html>\r\n\r\n";
-        }
         public struct UnchainedReply
         {
             public string error;
@@ -132,7 +126,6 @@ namespace BiblePay.BMS.Controllers
                 return Content(sJson3);
             }
         }
-
 
 
 
@@ -336,6 +329,39 @@ namespace BiblePay.BMS.Controllers
             return n;
         }
 
+        public struct PriceQuote
+        {
+            public string Price;
+            public string XML;
+        }
+        [Route("BMS/GetPriceQuote")]
+        public string GetPriceQuote()
+        {
+            string sPair = Request.Query["pair"];
+            PriceQuote q = new PriceQuote();
+            double dPrice = BMSCommon.Pricing.GetPriceQuote(sPair);
+            q.Price = dPrice.ToString("0." + new string('#', 339));
+            q.XML = "<MIDPOINT>" + q.Price + "</MIDPOINT><EOF>";
+            String sJson = Newtonsoft.Json.JsonConvert.SerializeObject(q, Newtonsoft.Json.Formatting.Indented);
+            return sJson;
+        }
+        public struct MobileAPI1
+        {
+            public double BTCUSD;
+            public double BBPUSD;
+            public string BBPBTC;
+        }
+        [Route("BMS/MobileAPI")]
+        public string MobileAPI()
+        {
+            MobileAPI1 m = new MobileAPI1();
+            m.BTCUSD = BMSCommon.Pricing.GetPriceQuote("BTC/USD");
+            double nBBPBTC = BMSCommon.Pricing.GetPriceQuote("BBP/BTC");
+            m.BBPUSD = m.BTCUSD * nBBPBTC;
+            m.BBPBTC = nBBPBTC.ToString("0." + new string('#', 339));
+            String sJson = Newtonsoft.Json.JsonConvert.SerializeObject(m);
+            return sJson;
+        }
 
         [Route("BMS/GetMemPoolCount")]
         public int GetMemPoolCount()
@@ -471,7 +497,7 @@ namespace BiblePay.BMS.Controllers
             return "86";
         }
 
-        
+       
 
         private static int nLastUpgradeManifest = 0;
         private static string msUpgradeManifest = String.Empty;

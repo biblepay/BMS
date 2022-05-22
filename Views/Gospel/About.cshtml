@@ -1,0 +1,56 @@
+﻿@{ ViewData["Title"] = "About";
+    ViewData["PageName"] = "gospel_about";
+    ViewData["Heading"] = "";
+    ViewData["Category1"] = "Gospel";
+    ViewData["PageDescription"] = ""; }
+@section HeadBlock {}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+    <div style="text-align:center">
+        <h3>     Welcome to BiblePay Unchained    </h3>
+    </div>
+    <div class="container global-header" style="background-size:cover;min-width:50%;min-height:200px;width:95%;height:350px"></div>
+
+    <div id="AboutBiblePay1">
+
+        <br />
+        <ul>
+            <li>A social media system with a Timeline (like facebook) and Videos (like youtube).
+            <li>Immutable posts stored on our sidechain.  Provable sha256 hashes and timestamps.
+            <li>Censorship resistance.
+            <li>Technology stack is web3 and not tied to big tech or big media.
+            <li>S3AAS, DbAAS, API Services.
+            <li>Defi contracts, NFTs, ERC20 Wallet and BBP Wallet.
+            <br />
+
+            </li>
+
+        </ul>
+
+    </div>
+
+</div>
+@section ScriptsBlock {
+
+<script>
+    //Array of images which you want to show: Use path you want.
+    var images = new Array('img/jc2.png', 'img/jc3.jpg');
+    var nextimage = 0;
+    var slide = 0;
+    doSlideshow();
+    function doSlideshow()
+    {
+    if(nextimage>=images.length){nextimage=0;}
+    $('.global-header').css('background-image', 'url("' + images[nextimage++] + '")');
+    slide++;
+
+    if (slide == 1) {
+    setTimeout(doSlideshow, 777);
+    }
+    else {
+    setTimeout(doSlideshow, 24000);
+    }
+    }
+
+    </script>
+}

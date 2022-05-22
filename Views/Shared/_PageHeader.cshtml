@@ -35,52 +35,66 @@
 			</a>
 		</form>
 	</div>
-	<div class="ml-auto d-flex">
-		<div class="hidden-sm-up">
-			<a href="#" class="header-icon" data-action="toggle" data-class="mobile-search-on" data-focus="search-field" title="Search">
-				<i class="@(Settings.Theme.IconPrefix) fa-search"></i>
-			</a>
-		</div>
-		@if (Settings.Features.LayoutSettings)
-{
-		<div class="hidden-md-down">
-			<a href="#" class="header-icon" data-toggle="modal" data-target=".js-modal-settings">
-				<i class="@(Settings.Theme.IconPrefix) fa-cog"></i>
-			</a>
-		</div>	
-		}
-		<div>
-			<a href="#" class="header-icon" data-toggle="dropdown" title="My Apps">
-				<i class="@(Settings.Theme.IconPrefix) fa-cube"></i>
-			</a>
-			<div class="dropdown-menu dropdown-menu-animated w-auto h-auto">
-				<partial name="_DropdownApp"/>
-			</div>
-		</div>
-		@if (Settings.Features.ChatInterface && false)
-{
-		<a href="#" class="header-icon" data-toggle="modal" data-target=".js-modal-messenger">
-			<i class="@(Settings.Theme.IconPrefix) fa-globe"></i>
-			<span class="badge badge-icon">!</span>
-		</a>
-		}
-		<div>
-			<a href="#" class="header-icon" data-toggle="dropdown" title="You got 11 notifications">
-				<i class="@(Settings.Theme.IconPrefix) fa-bell"></i>
-				<span class="badge badge-icon">11</span>
-			</a>
-			<div class="dropdown-menu dropdown-menu-animated dropdown-xl">
-				<partial name="_DropdownNotification"/>
-			</div>
-		</div>
-		<div>
-			<a href="#" data-toggle="dropdown" title="@(Settings.Theme.Email)" class="header-icon d-flex align-items-center justify-content-center ml-2">
-				<img src="~/img/demo/avatars/@(Settings.Theme.Avatar)" class="profile-image rounded-circle" alt="@(Settings.Theme.User)"> 
-			</a>
-			<div class="dropdown-menu dropdown-menu-animated dropdown-lg">
-				<partial name="_DropdownMenu"/>
-			</div>
-		</div>
-	</div>
+    <div class="ml-auto d-flex">
+        <div class="hidden-sm-up">
+            <a href="#" class="header-icon" data-action="toggle" data-class="mobile-search-on" data-focus="search-field" title="Search">
+                <i class="@(Settings.Theme.IconPrefix) fa-search"></i>
+            </a>
+        </div>
+
+
+        <div class="hidden-md-down">
+            <a href="#" class="header-icon" data-toggle="modal" data-target="" onclick="alert('2');">
+                <span class="badge badge-secondary">@ViewBag.LoginStatus</span>&nbsp;
+            </a>
+        </div>
+
+
+        <div class="hidden-md-down">
+            <a href="#" class="header-icon" data-toggle="modal" data-target="" onclick="DoCallback('Profile_ChangeChain');">
+                <span class="badge badge-secondary" style="@Html.Raw(ViewBag.ChainColor)">@ViewBag.Chain</span>
+            </a>
+        </div>
+
+
+        @if (Settings.Features.LayoutSettings)
+        {
+    <div class="hidden-md-down">
+        <a href="#" class="header-icon" data-toggle="modal" data-target=".js-modal-settings">
+            <i class="@(Settings.Theme.IconPrefix) fa-cog"></i>
+        </a>
+    </div>}
+        <div>
+            <a href="#" class="header-icon" data-toggle="dropdown" title="My Apps">
+                <i class="@(Settings.Theme.IconPrefix) fa-cube"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-animated w-auto h-auto">
+                <partial name="_DropdownApp" />
+            </div>
+        </div>
+        @if (Settings.Features.ChatInterface && false)
+        {
+    <a href="#" class="header-icon" data-toggle="modal" data-target=".js-modal-messenger">
+        <i class="@(Settings.Theme.IconPrefix) fa-globe"></i>
+        <span class="badge badge-icon">!</span>
+    </a>}
+        <div>
+            <a href="#" class="header-icon" data-toggle="dropdown" title="You got 11 notifications">
+                <i class="@(Settings.Theme.IconPrefix) fa-bell"></i>
+                <span class="badge badge-icon">1</span>
+            </a>
+            <div class="dropdown-menu dropdown-menu-animated dropdown-xl">
+                <partial name="_DropdownNotification" />
+            </div>
+        </div>
+        <div>
+            <a href="#" data-toggle="dropdown" title="@ViewBag.NickName" class="header-icon d-flex align-items-center justify-content-center ml-2">
+                <img src="@ViewBag.BioURL" class="profile-image rounded-circle" alt="@ViewBag.NickName">
+            </a>
+            <div class="dropdown-menu dropdown-menu-animated dropdown-lg">
+                <partial name="_DropdownMenu" />
+            </div>
+        </div>
+    </div>
 </header>
 }

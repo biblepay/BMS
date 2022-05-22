@@ -1,0 +1,257 @@
+{
+  "version": "4.5",
+  "lists": [
+    {
+      "title": "BiblePay",
+      "roles": []
+    },
+    {
+      "title": "Authentication",
+      "icon": "fal fa-shield-alt",
+      "roles": [
+        "Administrator"
+      ],
+      "items": [
+        {
+          "title": "Log In",
+          "href": "javascript:void();",
+          "disabled": true,
+          "roles": []
+        },
+        {
+          "title": "Profile",
+          "href": "page_profile.html",
+          "roles": []
+        }
+
+      ]
+    },
+
+
+    {
+      "title": "Home",
+      "icon": "fal fa-home",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Home Page",
+          "href": "gospel_about.html",
+          "roles": []
+        }
+
+      ]
+    },
+    {
+      "title": "Portfolio",
+      "icon": "fal fa-credit-card",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Portfolio Builder",
+          "href": "bbp_portfoliobuilder.html",
+          "roles": []
+        },
+        {
+          "title": "PB Leaderboard",
+          "href": "bbp_portfoliobuilderleaderboard.html",
+          "roles": []
+        }
+
+
+      ]
+    },
+    {
+      "title": "BBP University",
+      "icon": "fal fa-school",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "BiblePay University",
+          "href": "bbp_univ.html",
+          "roles": []
+        },
+        {
+          "title": "Scripture Memorizer",
+          "href": "memorizescriptures_memorizescriptures.html",
+          "roles": []
+        }
+
+      ]
+    },
+
+    {
+      "title": "Accountability",
+      "icon": "fal fa-table",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Accountability Reports",
+          "href": "gospel_accountability.html",
+          "roles": []
+        },
+        {
+          "title": "Orphan Collage",
+          "href": "gospel_collage.html",
+          "roles": []
+        },
+        {
+          "title": "Water Wells for Children",
+          "href": "gospel_wells.html",
+          "roles": []
+        }
+
+
+
+      ]
+    },
+
+
+
+    {
+      "title": "Pool",
+      "icon": "fal fa-water",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Pool Metrics",
+          "href": "bbp_poolabout.html",
+          "roles": []
+        },
+        {
+          "title": "Leaderboard",
+          "href": "bbp_poolleaderboard.html",
+          "roles": []
+        },
+        {
+          "title": "Getting Started",
+          "href": "bbp_poolgettingstarted.html",
+          "roles": []
+        },
+        {
+          "title": "XMR Owed",
+          "href": "gospel/viewer?type=xmrinquiry",
+          "roles": []
+        },
+        {
+          "title": "Block History",
+          "href": "bbp_blockhistory.html",
+          "roles": []
+        }
+      ]
+    },
+
+
+
+
+    {
+      "title": "Gospel of Jesus",
+      "roles": [
+        "Administrator"
+      ]
+    },
+    {
+      "title": "Gospel",
+      "icon": "fal fa-cross",
+      "roles": [
+        "Administrator"
+      ],
+      "items": [
+        {
+          "title": "Core Beliefs",
+          "href": "gospel_coregospel.html",
+          "roles": []
+        },
+        {
+          "title": "Illustrations",
+          "href": "gospel_illustrations.html",
+          "roles": []
+        },
+        {
+          "title": "Wiki Theology",
+          "href": "gospel_wikitheology.html",
+          "roles": []
+        },
+        {
+          "title": "Theological Studies",
+          "href": "gospel_theologicalstudy.html",
+          "roles": []
+        },
+        {
+          "title": "Bible Viewer",
+          "href": "https://www.biblegateway.com/passage/?search=Genesis+1&version=NKJV",
+          "roles": []
+        }
+      ]
+    },
+
+    {
+      "title": "Videos",
+      "icon": "fal fa-tv",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Watch Videos",
+          "href": "javascript:void();",
+          "disabled": true,
+          "roles": []
+        }
+      ]
+    },
+    {
+      "title": "In Development",
+      "roles": []
+    },
+    {
+      "title": "Demos",
+      "text": "In Development",
+      "icon": "fal fa-plus-circle",
+      "roles": [],
+      "items": [
+        {
+          "title": "Users",
+          "href": "page_contacts.html",
+          "roles": []
+        },
+        {
+          "title": "Add new NFT",
+          "href": "bbp_nftadd.html",
+          "roles": []
+        },
+        {
+          "title": "Demo Dashboard",
+          "icon": "fal fa-info-circle",
+          "roles": [],
+          "items": [
+            {
+              "title": "Demo Table",
+              "showOnSeed": false,
+              "href": "intel_marketing_dashboard.html",
+              "roles": []
+            },
+            {
+              "title": "Demo Upload",
+              "showOnSeed": false,
+              "href": "upload_uploadfile.html",
+              "roles": []
+            }
+
+          ]
+        }
+
+
+      ]
+    }
+  ]
+}

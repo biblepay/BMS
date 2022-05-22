@@ -2,12 +2,20 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Text;
 
 namespace BMSCommon
 {
     public static class DSQL
     {
+        public static string GetSQLTemplate(string sName)
+        {
+            //string projectRootPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string sLoc = Path.Combine(Database.msContentRootPath, "wwwroot/templates/" + sName);
+            string data = System.IO.File.ReadAllText(sLoc);
+            return data;
+        }
 
         public static string GetURL(string sPath)
         {
