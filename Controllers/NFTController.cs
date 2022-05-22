@@ -122,8 +122,6 @@ namespace BiblePay.BMS.Controllers
         }
 
 
-
-
 		[HttpPost]
 		public async Task<IActionResult> UploadFileNFT(List<IFormFile> file)
 		{

@@ -115,7 +115,7 @@ namespace BiblePay.BMS.Controllers
             }
             else if (o.Action == "PortfolioBuilder_ToggleMode")
             {
-                if (HttpContext.Session.GetString("PortfolioBuilderLeaderboardMode") == "Summary")
+                if (HttpContext.Session.GetString("PortfolioBuilderLeaderboardMode") != "Detail")
                 {
                     HttpContext.Session.SetString("PortfolioBuilderLeaderboardMode", "Detail");
                 }

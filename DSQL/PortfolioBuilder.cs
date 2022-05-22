@@ -152,7 +152,7 @@ namespace BiblePay.BMS.DSQL
                     html += sRow;
                     if (sMode.ToLower() == "detail")
                     {
-                        string sTD = "<td style='background-color:grey;'>";
+                        string sTD = "<td class='highlight'>";
                         for (int i = 0; i < pp.Value.lPortfolios.Count; i++)
                         {
                             if (pp.Value.lPortfolios[i].AmountBBP > 0 || pp.Value.lPortfolios[i].AmountForeign > 0)
