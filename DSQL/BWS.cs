@@ -371,7 +371,7 @@ namespace BiblePay.BMS
                         {
                             throw new Exception("API Key invalid.  To obtain a key, go to unchained.biblepay.org | Wallet.");
                         }
-                        List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents("", "", sKey);
+                        List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents(BiblePay.BMS.DSQL.UI.IsTestNet(context),"", "", sKey);
                         string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(s);
                         //mission critical: test the video display with await
                         await context.Response.WriteAsync(sJson3);

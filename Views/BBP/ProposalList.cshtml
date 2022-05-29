@@ -1,8 +1,8 @@
-﻿@{ ViewData["Title"] = "Pool - Leaderboard";
-    ViewData["PageName"] = "bbp_poolleaderboard";
-    ViewData["Heading"] = "<i class='fal fa-tachometer'></i> &nbsp;Pool - Leaderboard";
-    ViewData["Category1"] = "BBP";
-    ViewData["PageDescription"] = "Dual Merge-Mined Rewards"; }
+﻿@{ ViewData["Title"] = "Proposal List";
+    ViewData["PageName"] = "bbp_proposallist";
+    ViewData["Heading"] = "<i class='fal fa-vote-yea'></i> &nbsp;Proposal List";
+    ViewData["Category1"] = "Governance";
+    ViewData["PageDescription"] = "10% to Orphan Charity"; }
 @section HeadBlock {
     <style>
         table.saved td {
@@ -24,7 +24,7 @@
 }
 <div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
 
-    @Html.Raw(ViewBag.PoolLeaderboard)
+    @Html.Raw(ViewBag.ProposalList)
 
 </div>
 @section ScriptsBlock {}

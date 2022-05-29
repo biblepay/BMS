@@ -104,7 +104,7 @@ namespace BiblePay.BMS.Controllers
                             u.BioURL = sURL;
                             u.Updated = System.DateTime.Now.ToString();
                             DSQL.UI.SetUser(u, HttpContext);
-                            bool f = BMSCommon.CryptoUtils.PersistUser(u);
+                            bool f = BMSCommon.CryptoUtils.PersistUser(DSQL.UI.IsTestNet(HttpContext),u);
                             break;
                         }
                         else

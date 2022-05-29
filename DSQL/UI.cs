@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace BiblePay.BMS.DSQL
 {
+
 
     public static class SessionExtensions
     {
@@ -32,6 +34,25 @@ namespace BiblePay.BMS.DSQL
 
     public static class UI
     {
+        public struct ServerToClient
+        {
+            public string returnbody;
+            public string returntype;
+            public string returnurl;
+        }
+
+        public class DropDownItem
+        {
+            public string key;
+            public string text;
+            public DropDownItem(string _key, string _text)
+            {
+                key = _key;
+                text = _text;
+            }
+        }
+
+        
 
         public static BMSCommon.WebRPC.DACResult SendBBP(HttpContext h, string sToAddress, double nAmount, string sOptPayload = "")
         {
@@ -119,22 +140,90 @@ namespace BiblePay.BMS.DSQL
             }
             return false;
         }
-        public static string ListToHTMLSelect(List<string> s, string sSelected)
+        public static string ListToHTMLSelect(List<DropDownItem> s, string sSelected)
         {
             string html = "";
             for (int i = 0; i < s.Count; i++)
             {
-                string data = s[i];
+                DropDownItem di = s[i];
                 string narr = "";
-                if (data.ToLower() == sSelected.ToLower())
+                if (s[i].key.ToLower() == sSelected.ToLower())
                     narr = " SELECTED";
-                string row = "<option " + narr + " value='" + data + "'>" + data + "</option>";
+                string row = "<option " + narr + " value='" + s[i].key + "'>" + s[i].text + "</option>";
                 html += row + "\r\n";
             }
             return html;
         }
 
+        public static string GetStandardButton(string sID, string sCaption, string sEvent, string sArgs, string sConfirmNarrative)
+        {
+            string sConfirmNarr = "";
+            if (sConfirmNarrative != "")
+            {
+                sConfirmNarr = "var bConfirm=confirm('" + sConfirmNarrative + "');if (!bConfirm) return false;";
 
+            }
+            string sButton = "<button id='" + sID + "' onclick=\"" + sConfirmNarr + sArgs + "DoCallback('" + sEvent + "',e);\" >" + sCaption + "</button>";
+            return sButton;
+        }
+
+        public static bool ContainsReservedWord(string sData)
+        {
+            string data = sData.ToLower();
+            Regex rgx = new Regex("[^a-zA-Z0-9]");
+            data = rgx.Replace(data, "");
+            if (data.Contains("javascript") || data.Contains("script") || data.Contains("javas"))
+            {
+                return true;
+            }
+            return false;
+        }
+        public static string CleanseXSSAdvanced(string sData, bool fNeutralizeJS = false)
+        {
+            // Here is an evil one:
+            // https://unchained.biblepay.org/PrayerBlog?entity=townhall111%22%20onpointermove=alert%28document.cookie%29%3e
+            // Note how the attacker does not use the word javascript.. And he encodes the left and right parentheses; and the semicolon.
+            // So we catch the word script in other places, but we dont catch this.  Lets remove the %01-%99
+
+            // Note: Microsofts XSS method, htmlencode, does NOT protect against this!           
+            sData = sData.Replace("document.", "");
+            sData = sData.Replace(".domain", "");
+            sData = sData.Replace(".cookie", "");
+            sData = sData.Replace("javascript", "");
+            sData = sData.Replace("%22", "");
+            sData = sData.Replace("%20", "");
+            sData = sData.Replace("%2528", "");
+            sData = sData.Replace("%2529", "");
+            sData = sData.Replace("alert", "");
+
+            sData = sData.Replace("<", "");
+            sData = sData.Replace(">", "");
+            sData = sData.Replace("(", "{");
+            sData = sData.Replace(")", "}");
+            if (fNeutralizeJS)
+            {
+                sData = sData.Replace("$(", "");
+                sData = sData.Replace("${", "");
+                sData = sData.Replace("\"", "");
+                sData = sData.Replace("'", "");
+                sData = sData.Replace("`", "");
+                sData = sData.Replace("{", "");
+                sData = sData.Replace("}", "");
+                sData = sData.Replace("onpointer", "");
+            }
+            sData = sData.Replace("script:", "");
+            sData = sData.Replace("\\", "");
+            sData = sData.Replace("%25", "");
+            sData = sData.Replace("%28", "");
+            sData = sData.Replace("%29", "");
+            sData = sData.Replace("%3e", "");
+            sData = sData.Replace("onmouse", "");
+            sData = sData.Replace("onpointer", "");
+            bool fCRW = ContainsReservedWord(sData);
+            if (fCRW)
+                return "blocked";
+            return sData;
+        }
 
         private static long nLastBalanceMain = 0;
         private static long nLastBalanceTest = 0;
@@ -197,7 +286,8 @@ namespace BiblePay.BMS.DSQL
         
         public static BMSCommon.CryptoUtils.User GetUser(HttpContext s)
         {
-            BMSCommon.CryptoUtils.User u = s.Session.GetObject<BMSCommon.CryptoUtils.User>("User");
+            string sKey = IsTestNet(s) ? "tUser" : "User";
+            BMSCommon.CryptoUtils.User u = s.Session.GetObject<BMSCommon.CryptoUtils.User>(sKey);
             if (u == null)
                 u = new BMSCommon.CryptoUtils.User();
 
@@ -205,17 +295,15 @@ namespace BiblePay.BMS.DSQL
             
             if (u.ERC20Address=="" || u.ERC20Address == null)
             {
-                // 5-14-2022
                 s.Request.Cookies.TryGetValue("erc20address", out u.ERC20Address);
             }
 
             if (!u.LoggedIn && u.ERC20Address != "")
             {
-                u = BMSCommon.CryptoUtils.DepersistUser(u.ERC20Address);
-                s.Session.SetObject("User", u);
+                u = BMSCommon.CryptoUtils.DepersistUser(IsTestNet(s),u.ERC20Address);
+                s.Session.SetObject(sKey, u);
                 if (u.ERC20Address == "" || u.ERC20Address == null)
                 {
-                    // 5-14-2022
                     s.Request.Cookies.TryGetValue("erc20address", out u.ERC20Address);
                 }
 
@@ -239,7 +327,9 @@ namespace BiblePay.BMS.DSQL
 
         public static void SetUser(BMSCommon.CryptoUtils.User u, HttpContext s)
         {
-            s.Session.SetObject("User", u);
+            string sKey = IsTestNet(s) ? "tUser" : "User";
+
+            s.Session.SetObject(sKey, u);
         }
 
         public static string GetLogInStatus(HttpContext s)
@@ -257,8 +347,8 @@ namespace BiblePay.BMS.DSQL
                 status = "LOGGED IN";
             }
             return status;
-
         }
+
 
         public static BMSCommon.Encryption.KeyType GetKeyPair(HttpContext h)
         {
@@ -296,6 +386,26 @@ namespace BiblePay.BMS.DSQL
             return data;
         }
 
+        public static string GetModalDialogJson(string title, string body, string optjs="")
+        {
+            ServerToClient returnVal = new ServerToClient();
+            string modal = DSQL.UI.GetModalDialog(title, body);
+            returnVal.returnbody = modal;
+            returnVal.returntype = "modal";
+            string outdata = JsonConvert.SerializeObject(returnVal);
+            return outdata;
+        }
+
+        public static string MsgBoxJson(HttpContext h, string sTitle, string sHeading, string sBody)
+        {
+            MsgBox(h, sTitle, sHeading, sBody, false);
+            ServerToClient returnVal = new ServerToClient();
+            string m = "location.href='/bbp/messagepage';";
+            returnVal.returnbody = m;
+            returnVal.returntype = "javascript";
+            string o1 = JsonConvert.SerializeObject(returnVal);
+            return o1;
+        }
         public static string GetAccordian(string id, string title, string body)
         {
             string data = GetTemplate("accordian.htm");

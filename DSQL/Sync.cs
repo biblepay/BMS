@@ -50,7 +50,30 @@ namespace BiblePay.BMS.DSQL
             }
         }
 
+        public class TSFileParams
+        {
+            public int nStart = 099999;
+            public int nEnd = 0;
+        }
 
+        public static List<string> GetTSFileParams(string sPath)
+        {
+            List<string> t = new List<string>();
+
+            if (!System.IO.File.Exists(sPath))
+               return t;
+            string sData = System.IO.File.ReadAllText(sPath);
+            string[] vData = sData.Split("\n");
+            for (int i = 0; i < vData.Length; i++)
+            {
+                string line = vData[i];
+                if (line.Contains(".ts"))
+                {
+                    t.Add(line);
+                }
+            }
+            return t;
+        }
         public static int nLoopCount = 0;
         public static bool fHobbledState = false;
         public static long METRIC_FILECOUNT = 0;
@@ -72,7 +95,8 @@ namespace BiblePay.BMS.DSQL
                 return;
             }
 
-            List<string> l = BMSCommon.DSQL.QueryIPFSFolderContents("", "", "");
+            bool fTestNet = true; // MISSION CRITICAL: SWITCH TO MAIN during go live
+            List<string> l = BMSCommon.DSQL.QueryIPFSFolderContents(fTestNet, "", "", "");
             MemorizeNickNames();
 
             MyWebClient wc = new MyWebClient();
@@ -113,16 +137,42 @@ namespace BiblePay.BMS.DSQL
 
                     wc.DownloadFile(sPullURL, sFullPath);
                     iRepl++;
-                    if (!sFullPath.Contains(".ts") || (iRepl % 10 == 0))
+
+                    if ((iRepl % 10 == 0))
                     {
                         Log("Sync::Replicated " + sFullPath + "  __ " + i.ToString());
                     }
                     nProcessed++;
+
                     if (nProcessed > nMax)
                     {
-                        Log("Processed>nMax,exiting at " + i.ToString());
+                        Log("Processed > nMax, exiting at " + i.ToString());
                         return;
                     }
+
+                    if (sPullURL.ToLower().Contains("1.m3u8"))
+                    {
+                        // we need to pull the entire file.
+                        List<string> t = GetTSFileParams(sFullPath);
+                        if (t.Count > 0)
+                        {
+                            for (int z = 0; z < t.Count; z++)
+                            {
+                                sPullURL = BMSCommon.DSQL.GetURL(l[i]);
+                                sPullURL = sPullURL.Replace("1.m3u8", t[z]);
+                                string sOrigFileName = l[i];
+                                sOrigFileName = sOrigFileName.Replace("1.m3u8", t[z]);
+                                sFullPath = Path.Combine(sVideoPath, sOrigFileName);
+                                bool fExists = System.IO.File.Exists(sOrigFileName);
+                                if (!fExists)
+                                {
+                                    wc.DownloadFile(sPullURL, sFullPath);
+                                    iRepl++;
+                                }
+                            }
+                        }
+                    }
+
                 }
                 catch (Exception ex)
                 {

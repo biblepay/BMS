@@ -725,7 +725,7 @@ namespace NBitcoin
 
 		public bool IsDust()
 		{
-			return (Value < GetDustThreshold());
+			return (Value*100 < GetDustThreshold());
 		}
 
 		[Obsolete("Use IsDust() instead. The minRelayTxFee is now ignored.")]
@@ -778,7 +778,7 @@ namespace NBitcoin
 			else
 			{
 				// BIBLEPAY - ADD ABILITY TO DESERIALIZE TXOUT
-				byte[] pull = new byte[7000];
+				byte[] pull = new byte[70000];
 				stream.ReadWriteAsVarString(ref pull);
 				this.sTxOutMessage = pull;
 			}

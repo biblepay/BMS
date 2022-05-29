@@ -390,6 +390,15 @@ namespace BMSCommon
             var hash = System.Security.Cryptography.SHA256.Create().ComputeHash(arrData);
             return ByteArrayToHexString(hash);
         }
+
+        public static string DoubleToString(double nDouble, int nPlaces)
+        {
+            double nNewDouble = Math.Round(nDouble, nPlaces);
+            string sData = ((decimal)nNewDouble).ToString();
+            return sData;
+        }
+
+
         public static double GetDouble(object o)
         {
             try

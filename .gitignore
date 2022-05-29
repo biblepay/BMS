@@ -66,3 +66,6 @@ FluffySpoon/FluffySpoon.AspNet.LetsEncrypt.Redis/obj/*
 /FluffySpoon/FluffySpoon.AspNet.LetsEncrypt.Sample/obj/*
 /FluffySpoon/FluffySpoon.AspNet.LetsEncrypt/obj/*
 Stratis.Bitcoin.FullNode.suo
+BMSCommon/.vs/BBPTestHarness/v16/.suo
+BMSCommon/.vs/BBPTestHarness/DesignTimeBuild/.dtbcache.v2
+Properties/PublishProfiles/FolderProfile.pubxml.user

@@ -24,6 +24,13 @@ namespace BMSCommon
         }
 
 
+
+        public static string GetBurnAddress(bool fTestNet)
+        {
+            // These are hardcoded in the biblepaycore wallet:
+            string sBurnAddress = !fTestNet ? "B4T5ciTCkWauSqVAcVKy88ofjcSasUkSYU" : "yLKSrCjLQFsfVgX8RjdctZ797d54atPjnV";
+            return sBurnAddress;
+        }
         public static string GetSha256HashI(string rawData)
         {
             if (rawData == null)

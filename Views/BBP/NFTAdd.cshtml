@@ -1,6 +1,6 @@
-﻿@{ ViewData["Title"] = "Add new NFT";
+﻿@{ ViewData["Title"] = ViewBag.Title;
     ViewData["PageName"] = "bbp_nftadd";
-    ViewData["Heading"] = "<i class='fal fa-palette'></i>&nbsp;Add New NFT";
+    ViewData["Heading"] = "<i class='fal fa-palette'></i>&nbsp;" + ViewBag.Title;
     ViewData["Category1"] = "BBP";
     ViewData["PageDescription"] = "NFTs with Integrity"; }
 @section HeadBlock 
@@ -13,9 +13,15 @@
 
     Image:
     <br>
-    <img id='imgNFT' width='400px' height='400px' src="@ViewBag.AssetURL" class="rounded-circle shadow-2 img-thumbnail" onclick="document.getElementById('file').click();" alt="">
+    <img id='imgNFT' style="max-width:400px;max-height:400px;" width='400px' height='400px' src="@ViewBag.AssetURL" class="rounded-circle shadow-2 img-thumbnail" onclick="document.getElementById('file').click();" alt="">
     &nbsp;Click on Image to Upload your Asset
     <br>
+    Name:
+    <br />
+    <input id='txtName' style='width:450px;' value='@ViewBag.txtName' />
+
+    <br />
+
 
     Description:
     <br />
@@ -26,11 +32,16 @@
     Asset URL:
     <br />
     <input id='txtURL' style='width:600px;' value='@ViewBag.txtURL' />
+    <br />
+    Buy It Now Amount:
+    <br>
+    <input id="txtBuyItNowAmount" type="number" value="@ViewBag.txtBuyItNowAmount" />
+    <br />
+    Reserve Price:
+    <br />
+    <input id="txtReserveAmount" type="number" value="@ViewBag.txtReserveAmount" />
+    <br />
 
-    <br />
-    Description:
-    <br />
-    <textarea id='txtDescription' cols=120 rows=7>@ViewBag.txtDescription</textarea>
 
 
     <br />
@@ -38,19 +49,22 @@
     NFT Type:
     <br />
     <select id='ddNFTType'>
-    @Html.Raw(ViewBag.ddNFTType);
+        @Html.Raw(ViewBag.ddNFTType);
     </select>
-    <br />
-
-    <input id='chkMarketable' value='1' type='checkbox'>&nbsp;Marketable?
 
     <br />
-    
 
-    <button class="btn btn-info xshadow-0 ml-auto" id='btnSubmit' onclick="DoCallback('nft_add');">Submit</button>
+    <input id='chkMarketable' value='1' @ViewBag.chkMarketableChecked type='checkbox'>&nbsp;Marketable?
+
+    <br />
+    <input id='chkDelete' value='1' @ViewBag.chkDeleteChecked type='checkbox'>&nbsp;Delete this NFT?
     <br />
 
-<span>@ViewBag.lblInfo</span>
+
+    <button class="btn btn-info xshadow-0 ml-auto" id='btnSubmit' onclick="DoCallback('nft_@ViewBag.Mode');">Submit</button>
+    <br />
+
+    <span>@ViewBag.lblInfo</span>
 
 </div>
 

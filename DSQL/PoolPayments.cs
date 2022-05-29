@@ -57,7 +57,7 @@ namespace BiblePay.BMS.DSQL
                 command = new MySqlCommand(sql);
                 command.Parameters.AddWithValue("@batchid", batchid);
 
-                DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, command, "");
+                DataTable dt = BMSCommon.Database.GetDataTable(command);
                 List<BMSCommon.WebRPC.Payment> Payments = new List<BMSCommon.WebRPC.Payment>();
                 double nTotal = 0;
 

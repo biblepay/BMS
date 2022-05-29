@@ -54,11 +54,12 @@ namespace BiblePay.BMS.Controllers
 			UpdateDisplay();
 		}
 
-		void PopulateNewVerse()
+		void PopulateNewVerse(bool fTestNet)
 		{
-			string sql = "Select * from VerseMemorizer where 1=1";
+			string sTable = fTestNet ? "tVerseMemorizer" : "VerseMemorizer";
+			string sql = "Select * from " + sTable + " where 1=1";
 			MySqlCommand m1 = new MySqlCommand(sql);
-			DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+			DataTable dt = BMSCommon.Database.GetDataTable(m1);
 			if (dt.Rows.Count < 1)
 					return;
 			Random r = new Random();
@@ -122,11 +123,11 @@ namespace BiblePay.BMS.Controllers
 
 			// Populate the dropdown values with the books
 			List<string> lBooks = BibleRef._bible.GetBookList();
-			List<string> ddBook = new List<string>();
-			ddBook.Add("");
+			List<DropDownItem> ddBook = new List<DropDownItem>();
+			ddBook.Add(new DropDownItem("", ""));
 			for (int i = 0; i < lBooks.Count; i++)
 			{
-				ddBook.Add(lBooks[i].ToUpper());
+				ddBook.Add(new DropDownItem(lBooks[i].ToUpper(), lBooks[i].ToUpper()));
 			}
 			ViewBag.ddBook = ListToHTMLSelect(ddBook, sLocalBook);
 			// end of dropdown values
@@ -192,7 +193,7 @@ namespace BiblePay.BMS.Controllers
 				string sInfo = sMode + "<br><br>Welcome to the Scripture Memorizer, " + DSQL.UI.GetUser(HttpContext).NickName + "!";
 				ViewBag.lblInfo = sInfo;
 				// Find the first verse to do the initial population.
-				PopulateNewVerse();
+				PopulateNewVerse(IsTestNet(HttpContext));
 		}
 
 		void clear()

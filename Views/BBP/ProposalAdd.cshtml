@@ -1,0 +1,57 @@
+﻿@{ ViewData["Title"] = "Proposal - Add";
+    ViewData["PageName"] = "bbp_proposaladd";
+    ViewData["Heading"] = "<i class='fal fa-vote-yea'></i> &nbsp;Proposal Add";
+    ViewData["Category1"] = "Governance";
+    ViewData["PageDescription"] = "10% to Orphan Charity"; }
+@section HeadBlock {
+    <style>
+    </style>
+}
+
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+    <h3><font color="red"><small>Note: It costs 2500 BBP to submit a proposal.</small></font></h3>
+
+
+    <br />
+
+    <table>
+
+            <tr>
+                <td>Proposal Name:</td>
+                <td><input id="txtName" style="width: 900px" value="@ViewBag.txtName"></input></td>
+            </tr>
+
+            <tr>
+                <td>Amount:</td>
+                <td><input id="txtAmount" style="width: 250px" value="@ViewBag.txtAmount"></input></td>
+            </tr>
+
+            <tr>
+                <td>Discussion URL:</td>
+                <td><input id="txtURL" style="width: 900px" value="@ViewBag.txtURL"></input></td>
+            </tr>
+
+            <tr>
+                <td>Funding Receive Address:</td>
+                <td><input id="txtAddress" style="width: 900px" value="@ViewBag.txtAddress"></input></td>
+            </tr>
+
+            <tr>
+                <td>Expense Type:</td>
+                <td>
+                    <select id="ddCharity">
+                    @Html.Raw(@ViewBag.ddCharity)
+                    </select>
+                </td>
+            </tr>
+
+    </table>
+    <br />
+
+    <button id='btnSubmit' onclick="DoCallback('proposal_add');">Submit</button>
+
+
+
+</div>
+@section ScriptsBlock {}

@@ -1,20 +1,23 @@
 ﻿@{ ViewData["Title"] = "Portfolio Builder";
                 ViewData["PageName"] = "bbp_portfoliobuilder";
-                ViewData["Heading"] = "<i class='fal fa-credit-card'></i> &nbsp;Portfolio Builder";
+                ViewData["Heading"] = "<i class='fal fa-chart-bar'></i> &nbsp;Portfolio Builder";
                 ViewData["Category1"] = "BBP";
-                ViewData["PageDescription"] = "Enhancing the Block Chain"; }
+                ViewData["PageDescription"] = "Self Directed Crypto Retirement Accounts"; }
 @section HeadBlock {}
 <div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
 
     @Html.Raw(ViewBag.CryptoCurrencyIndex)
 
+    Portfolio Builder Annual ROI:   <span ToolTip="The estimated annual Return on your staked BiblePay.">@ViewBag.DWU</span>
+    <br />
+    Masternode (Sanctuary) Annual ROI:     <span ToolTip="The estimated annual Return on your sanctuary.">@ViewBag.SanctuaryDWU</span>
 
-    <span ToolTip="(Dynamic-Whale-Unit): The estimated annual Return on your staked BiblePay.">@ViewBag.DWU</span>
     <br />
-    <br />
+    Masternode Initial Investment: <span ToolTip="The initial investment cost to create a sanctuary.">@ViewBag.SanctuaryCost</span>
+    <br /><br />
+
     NOTE:<br />
     <br />
-
     To enable portfolio builder for your core biblepay wallet, please follow these instructions:
     <br />
     <br />

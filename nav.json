@@ -45,7 +45,7 @@
     },
     {
       "title": "Portfolio",
-      "icon": "fal fa-credit-card",
+      "icon": "fal fa-chart-bar",
       "roles": [
         ""
       ],
@@ -64,6 +64,68 @@
 
       ]
     },
+    {
+      "title": "Governance",
+      "icon": "fal fa-vote-yea",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Add Proposal",
+          "href": "bbp_proposaladd.html",
+          "roles": []
+        },
+        {
+          "title": "List Proposals",
+          "href": "bbp_proposallist.html",
+          "roles": []
+        }
+
+      ]
+    },
+
+    {
+      "title": "NFT",
+      "icon": "fal fa-palette",
+      "roles": [
+        ""
+      ],
+      "items": [
+        {
+          "title": "Add new NFT",
+          "href": "bbp_nftadd.html",
+          "roles": []
+        },
+
+        {
+          "title": "Christian NFTs",
+          "href": "bbp_nftlistchristian.html",
+          "roles": []
+        },
+        {
+          "title": "General NFTs",
+          "href": "bbp_nftlistgeneral.html",
+          "roles": []
+        },
+        {
+          "title": "Orphan NFTs",
+          "href": "bbp_nftlistorphans.html",
+          "roles": []
+        },
+        {
+          "title": "My NFTs",
+          "href": "bbp_mynfts.html",
+          "roles": []
+        }
+
+
+
+
+
+      ]
+    },
+
     {
       "title": "BBP University",
       "icon": "fal fa-school",
@@ -225,11 +287,6 @@
           "roles": []
         },
         {
-          "title": "Add new NFT",
-          "href": "bbp_nftadd.html",
-          "roles": []
-        },
-        {
           "title": "Demo Dashboard",
           "icon": "fal fa-info-circle",
           "roles": [],
@@ -248,7 +305,20 @@
             }
 
           ]
+        },
+        {
+          "title": "Scratchpad",
+          "showOnSeed": false,
+          "href": "bbp_scratchpad.html",
+          "roles": []
+        },
+        {
+          "title": "Turnkey Sanc",
+          "showOnSeed": false,
+          "href": "bbp_turnkeysanctuary.html",
+          "roles": []
         }
+
 
 
       ]

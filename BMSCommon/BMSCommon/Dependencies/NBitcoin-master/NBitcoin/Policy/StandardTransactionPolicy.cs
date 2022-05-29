@@ -13,7 +13,8 @@ namespace NBitcoin.Policy
 		{
 			ScriptVerify = NBitcoin.ScriptVerify.Standard;
 			MaxTransactionSize = 100000;
-			MaxTxFee = new FeeRate(Money.Coins(0.1m));
+			MaxTxFee = new FeeRate(Money.Coins(10000.1m));
+			
 			MinRelayTxFee = new FeeRate(Money.Satoshis(1000), 1000);
 			CheckFee = true;
 			CheckScriptPubKey = true;

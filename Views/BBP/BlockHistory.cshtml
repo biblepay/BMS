@@ -1,8 +1,8 @@
 ﻿@{ ViewData["Title"] = "Pool - Block History";
-    ViewData["PageName"] = "bbp_poolleaderboard";
+    ViewData["PageName"] = "bbp_blockhistory";
     ViewData["Heading"] = "<i class='fal fa-tachometer'></i> &nbsp;Pool - Block History";
     ViewData["Category1"] = "BBP";
-    ViewData["PageDescription"] = "RandomX Mining with Orphan Charity"; }
+    ViewData["PageDescription"] = "This report shows the last 7 days of block history."; }
 @section HeadBlock {
     <style>
         table.saved td {
@@ -24,7 +24,7 @@
 }
 <div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
 
-    @Html.Raw(ViewBag.BlockHistory)
+    @Html.Raw(ViewBag.BlockHistoryReport)
 
 </div>
 @section ScriptsBlock {}

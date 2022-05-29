@@ -229,6 +229,49 @@ namespace NBitcoin
 			return SignCompact(hash, true);
 		}
 
+		public string SignMessage(String message)
+		{
+			return SignMessage(Encoding.UTF8.GetBytes(message));
+		}
+
+		public byte[] SignCompact2(uint256 hash)
+		{
+			ECDSASignature sig = this._ECKey.Sign(hash);
+			// Now we have to work backwards to figure out the recId needed to recover the signature.
+			int recId = -1;
+			for (int i = 0; i < 4; i++)
+			{
+				ECKey k = ECKey.RecoverFromSignature(i, sig, hash);
+				if (k != null && k.GetPubKey(this.IsCompressed).ToHex() == this.PubKey.ToHex())
+				{
+					recId = i;
+					break;
+				}
+			}
+
+			if (recId == -1)
+				throw new InvalidOperationException("Could not construct a recoverable key. This should never happen.");
+
+			int headerByte = recId + 27 + (this.IsCompressed ? 4 : 0);
+
+			var sigData = new byte[65];  // 1 header + 32 bytes for R + 32 bytes for S
+
+			sigData[0] = (byte)headerByte;
+
+			Array.Copy(Utils.BigIntegerToBytes(sig.R, 32), 0, sigData, 1, 32);
+			Array.Copy(Utils.BigIntegerToBytes(sig.S, 32), 0, sigData, 33, 32);
+			return sigData;
+		}
+
+
+		public string SignMessage(byte[] messageBytes)
+		{
+			byte[] data = Utils.FormatMessageForSigning(messageBytes);
+			uint256 hash = Hashes.Hash256(data);
+			byte[] c = SignCompact2(hash);
+			return Convert.ToBase64String(c);
+		}
+
 		public CompactSignature SignCompact(uint256 hash, bool forceLowR)
 		{
 			if (hash is null)

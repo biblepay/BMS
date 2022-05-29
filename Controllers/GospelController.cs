@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static BiblePay.BMS.DSQL.UI;
 
 namespace BiblePay.BMS.Controllers
 {
@@ -66,11 +67,12 @@ namespace BiblePay.BMS.Controllers
             return sData;
         }
 
-        protected string GetStudies()
+        protected string GetStudies(bool fTestNet)
         {
-            string sql = "Select * from Articles order by Name,Description;";
+            string sTable = fTestNet ? "tArticles" : "Articles";
+            string sql = "Select * from " + sTable + " order by Name,Description;";
             MySqlCommand cmd = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, cmd, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(cmd);
             string html = "";
             for (int i = 0; i < dt.Rows.Count; i++)
             {
@@ -86,11 +88,12 @@ namespace BiblePay.BMS.Controllers
             }
             return html;
         }
-        protected string GetOrphanCollage()
+        protected string GetOrphanCollage(bool fTestNet)
         {
-            string sql = "Select * from SponsoredOrphan2 where active=1 And Charity not in ('sai') and ChildId not in ('Genevieve Umba') order by Charity,Name;";
+            string sTable = fTestNet ? "tSponsoredOrphan2" : "SponsoredOrphan2";
+            string sql = "Select * from " + sTable + " where active=1 And Charity not in ('sai') and ChildId not in ('Genevieve Umba') order by Charity,Name;";
             MySqlCommand m = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(m);
             string sHTML = "<table><tr>";
             int iTD = 0;
             string sErr = "";
@@ -122,13 +125,14 @@ namespace BiblePay.BMS.Controllers
         }
 
 
-        protected string GetArticles(string type)
+        protected string GetArticles(bool fTestNet,string type)
         {
             string prefix = "";
-            string table = type == "wiki" ? "Wiki" : "Illustrations";
+            string sPrefix = fTestNet ? "t" : "";
+            string table = type == "wiki" ? sPrefix+"Wiki" : sPrefix+"Illustrations";
             string sql = "Select * from " + table + " order by Name,Description";
             MySqlCommand cmd = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, cmd, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(cmd);
             string html = "";
             for (int i = 0; i < dt.Rows.Count; i++)
             {
@@ -193,7 +197,7 @@ namespace BiblePay.BMS.Controllers
                 + " union all  select _id, STR_TO_DATE(added,'%m/%d/%Y') as a1, DATE_FORMAT(STR_TO_DATE(added,'%m/%d/%Y'), '%b-%y'), 'CR' as Type,Amount, Charity, Notes from Revenue ) b where year(b.a1)='"
                 + nYear.ToString() + "' order by a1 ";
             MySqlCommand command3 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, command3, "biblepay.org");
+            DataTable dt = BMSCommon.Database.GetDataTable(command3);
             string html = Report.GetTableHTML("Accounting Report", dt, "Added;Type;Amount;Notes", "Amount", true);
             string accName = "BiblePay Accounting Year " + nYear.ToString() + ".pdf";
             return await ConvertHtmlToPDF(html,accName);
@@ -208,7 +212,7 @@ namespace BiblePay.BMS.Controllers
                 + "  ) b group by added, Type  order by max(dt1)";
             MySqlCommand command3 = new MySqlCommand(sql);
             BMSCommon.Common.Log("1");
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, command3, "biblepay.org");
+            DataTable dt = BMSCommon.Database.GetDataTable(command3);
             string html = Report.GetTableHTML("All Time", dt, "Amount;Added;Type;Charity", "Amount", true);
             string sName = "Totals.pdf";
             return await ConvertHtmlToPDF(html,sName);
@@ -216,9 +220,12 @@ namespace BiblePay.BMS.Controllers
 
         public async Task<IActionResult> GenerateCharityReport(string sCharity)
         {
+            string sOE = DSQL.UI.IsTestNet(HttpContext) ? "tOrphanExpense3" : "OrphanExpense3";
+            string sSO2 = DSQL.UI.IsTestNet(HttpContext) ? "tSponsoredOrphan2" : "SponsoredOrphan2";
+
             string sql = "SELECT OrphanExpense._id,OrphanExpense.Amount,OrphanExpense.Notes,STR_TO_DATE(OrphanExpense.Added,'%m/%d/%Y') as ADDED,OrphanExpense.Charity,OrphanExpense.ChildID,OrphanExpense.Balance,SponsoredOrphan2.Name "
-                + " from OrphanExpense3 as OrphanExpense "
-                +" INNER JOIN SponsoredOrphan2 on SponsoredOrphan2.childid=OrphanExpense.ChildID where SponsoredOrphan2.charity = @charity order by ADDED";
+                + " from " + sOE + " as OrphanExpense "
+                +" INNER JOIN " + sSO2 + " as SO2 on SO2.childid=OrphanExpense.ChildID where SO2.charity = @charity order by ADDED";
             MySqlCommand command3 = new MySqlCommand(sql);
             command3.Parameters.AddWithValue("@charity", sCharity);
             string html = Report.GetCharityTableHTML(command3, 0);
@@ -237,13 +244,13 @@ namespace BiblePay.BMS.Controllers
 
         public IActionResult Illustrations()
         {
-            ViewBag.Illustrations = GetArticles("Illustrations");
+            ViewBag.Illustrations = GetArticles(IsTestNet(HttpContext),"Illustrations");
             return View();
         }
-
+        
         public IActionResult Collage()
         {
-            ViewBag.Collage = GetOrphanCollage();
+            ViewBag.Collage = GetOrphanCollage(IsTestNet(HttpContext));
             return View();
         }
 
@@ -277,13 +284,13 @@ namespace BiblePay.BMS.Controllers
 
         public IActionResult WikiTheology()
         {
-            ViewBag.Wiki = GetArticles("wiki");
+            ViewBag.Wiki = GetArticles(IsTestNet(HttpContext),"wiki");
             return View();
         }
 
         public IActionResult TheologicalStudy()
         {
-            ViewBag.TheologicalStudy = GetStudies();
+            ViewBag.TheologicalStudy = GetStudies(IsTestNet(HttpContext));
             return View();
         }
         public IActionResult About()

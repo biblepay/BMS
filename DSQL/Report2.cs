@@ -55,7 +55,7 @@ namespace BiblePay.BMS
             DataTable dt;
             try
             {
-                dt = BMSCommon.Database.GetMySqlDataTable(false, c, "biblepay.org");
+                dt = BMSCommon.Database.GetDataTable(c);
             }
             catch (Exception)
             {

@@ -290,7 +290,7 @@ namespace NBitcoin.Crypto
         }*/
 
 
-		private static string GetPubKeyFromPrivKey(bool fTestNet, string sPrivKey)
+		public static string GetPubKeyFromPrivKey(bool fTestNet, string sPrivKey)
 		{
 			Network n = fTestNet ? Network.TestNet : Network.Main;
 			NBitcoin.BitcoinSecret scSpendingKey = new NBitcoin.BitcoinSecret(sPrivKey, n);
