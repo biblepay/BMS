@@ -2337,7 +2337,7 @@ namespace NBitcoin
 				{
 					Money margin = Money.Zero;
 					if (DustPrevention)
-						margin = GetDust() * 2;
+						margin = GetDust() * 20;
 					if (!fees.Almost(expectedFees, margin))
 						exceptions.Add(new NotEnoughFundsPolicyError("Fees different than expected", expectedFees - fees));
 				}

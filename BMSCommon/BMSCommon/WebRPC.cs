@@ -27,6 +27,81 @@ namespace BMSCommon
                 return false;
             }
         }
+
+        private static string GetFDPair(bool fTestNet)
+        {
+            // pub BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM
+            // testnet pub yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN
+            string sProd = BMSCommon.Common.GetConfigurationKeyValue("foundationprivkey");
+            string sTest = BMSCommon.Common.GetConfigurationKeyValue("foundationtestprivkey");
+            return fTestNet ? sTest : sProd;
+        }
+
+        public static string SignMessage(bool fTestNet, string sPrivKey, string sMessage)
+        {
+            try
+            {
+                if (sPrivKey == null || sMessage == String.Empty || sMessage == null)
+                    return string.Empty;
+
+                BitcoinSecret bsSec;
+                if (!fTestNet)
+                {
+                    bsSec = Network.Main.CreateBitcoinSecret(sPrivKey);
+                }
+                else
+                {
+                    bsSec = Network.TestNet.CreateBitcoinSecret(sPrivKey);
+                }
+                string sSig = bsSec.PrivateKey.SignMessage(sMessage);
+                string sPK = bsSec.GetAddress().ToString();
+                var fSuc = VerifySignature(fTestNet, sPK, sMessage, sSig);
+                return sSig;
+            }
+            catch (Exception ex)
+            {
+                return "";
+            }
+        }
+
+        public static string InsertDataIntoChain(bool fTestNet, string sMessageKey, string sUTXOData, string sSpendPrivKey)
+        {
+            try
+            {
+                // <MK>GSC</MK> = Daily GSC contract
+                string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
+                string sError = "";
+                double nAmount = 102;
+                // mission critical todo for go-live: work out "signing" vs "paying" for security model (IE sanc owner pays and user signs, and certain messages are restricted such as UTXO signed stakes, NFT transfers, etc).
+                string sFoundationSignPrivKey = GetFDPair(fTestNet);
+                string sFoundationPubKey = NBitcoin.Crypto.BBPTransaction.GetPubKeyFromPrivKey(fTestNet, sFoundationSignPrivKey);
+                sSpendPrivKey = sFoundationSignPrivKey;
+                string sPubSpendKey = NBitcoin.Crypto.BBPTransaction.GetPubKeyFromPrivKey(fTestNet, sSpendPrivKey);
+                string sSignMessage = Guid.NewGuid().ToString();
+                string sSig = SignMessage(fTestNet, sFoundationSignPrivKey, sSignMessage);
+                string sXML = "<MK>" + sMessageKey + "</MK><MV>" + sUTXOData + "</MV><BOMSG>" + sSignMessage + "</BOMSG><BOSIG>" + sSig + "</BOSIG>";
+                string OutData = "";
+                string sUnspentData = WebRPC.GetAddressUTXOs(fTestNet, sPubSpendKey);
+                bool f = NBitcoin.Crypto.BBPTransaction.PrepareFundingTransaction(fTestNet, nAmount, sFoundationPubKey, sSpendPrivKey, sXML, sUnspentData, out sError, out OutData);
+                if (!f)
+                {
+                    BMSCommon.Common.Log("An error occurred while preparing the funding tx::"  + sError);
+                    return "";
+                }
+                DACResult r0 = WebRPC.SendRawTx(fTestNet, OutData);
+                return r0.TXID;
+            }
+            catch (Exception)
+            {
+                BMSCommon.Common.Log("An error occured in the daily utxo report. ");
+                return "";
+            }
+        }
+
+
+
+
+
         public static bool VerifySignature(bool fTestNet, string BBPAddress, string sMessage, string sSig)
         {
             if (BBPAddress == null || sSig == String.Empty || BBPAddress == "" || BBPAddress == null || sSig == null || BBPAddress.Length < 20)
@@ -102,21 +177,16 @@ namespace BMSCommon
                 object[] oParams = new object[2];
                 oParams[0] = sTxid;
                 oParams[1] = 1;
-
                 dynamic oOut = n.SendCommand("getrawtransaction", oParams);
                 // Loop Through the Vouts and get the recip ids and the amounts
                 string sOut = "";
                 double locktime = oOut.Result["locktime"] == null ? 0 : GetDouble(oOut.Result["locktime"].ToString());
                 double height1 = oOut.Result["height"] == null ? 0 : GetDouble(oOut.Result["height"].ToString());
-
                 double height = 0;
                 height = height1 > 0 ? height1 : locktime;
-
-
                 for (int y = 0; y < oOut.Result["vout"].Count; y++)
                 {
                     string sPtr = "";
-
                     try
                     {
                         sPtr = (oOut.Result["vout"][y] ?? "").ToString();
@@ -149,14 +219,68 @@ namespace BMSCommon
                 }
                 return sOut;
             }
-            //Harvest Mission Critical todo:  Pass back the instant send lock bool here as an object!
-
             catch (Exception ex)
             {
                 Log("GetRawTransaction1: for " + sTxid + " " + ex.Message);
                 return "";
             }
         }
+
+
+        public static string GetRawTransactionXML(string sTxid, bool fTestNet)
+        {
+            string XML = "";
+
+            try
+            {
+                NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
+                object[] oParams = new object[2];
+                oParams[0] = sTxid;
+                oParams[1] = 1;
+                dynamic oOut = n.SendCommand("getrawtransaction", oParams);
+                // Loop Through the Vouts and get the recip ids and the amounts
+                string sOut = "";
+                double locktime = oOut.Result["locktime"] == null ? 0 : GetDouble(oOut.Result["locktime"].ToString());
+                double height1 = oOut.Result["height"] == null ? 0 : GetDouble(oOut.Result["height"].ToString());
+                double height = 0;
+                height = height1 > 0 ? height1 : locktime;
+                for (int y = 0; y < oOut.Result["vout"].Count; y++)
+                {
+                    string sPtr = "";
+                    try
+                    {
+                        sPtr = (oOut.Result["vout"][y] ?? "").ToString();
+                    }
+                    catch (Exception ey)
+                    {
+                    }
+
+                    if (sPtr != "")
+                    {
+                        string sAmount = oOut.Result["vout"][y]["value"].ToString();
+                        string sData = oOut.Result["vout"][y]["txoutmessage"];
+                        string sAddress = "";
+                        if (oOut.Result["vout"][y]["scriptPubKey"]["addresses"] != null)
+                        {
+                            sAddress = oOut.Result["vout"][y]["scriptPubKey"]["addresses"][0].ToString();
+                        }
+                        //sOut += sAmount + "," + sAddress + "," + height + "|";
+                        XML += sData;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                return XML;
+            }
+            catch (Exception ex)
+            {
+                Log("GetRawTransaction2: for " + sTxid + " " + ex.Message);
+                return "";
+            }
+        }
+
 
         public static double GetAmtFromRawTx(string sRaw, string sAddress, out int nHeight)
         {
@@ -231,6 +355,82 @@ namespace BMSCommon
             }
             sRecipient = "";
             nSubsidy = 0;
+        }
+
+        public static string PackageMessage(bool fTestNet, string sType, string sData)
+        {
+             // <MK>GSC</MK> = Daily GSC contract
+             string sFoundationSignPrivKey = GetFDPair(fTestNet);
+             string sSignMessage = Guid.NewGuid().ToString();
+             string sSig = SignMessage(fTestNet, sFoundationSignPrivKey, sSignMessage);
+             string sXML = "<MK>" + sType + "</MK><MV>" + sData + "</MV><BOMSG>" + sSignMessage + "</BOMSG><BOSIG>" + sSig + "</BOSIG>";
+             return sXML;
+        }
+
+        public static string PushChainData(bool fTestNet, string sType, string sData)
+        {
+            try
+            {
+                object[] oParams = new object[2];
+                oParams[0] = "bmstransaction";
+                string sPackaged = PackageMessage(fTestNet, sType, sData);
+                oParams[1] = sPackaged;
+                NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
+                dynamic oOut = n.SendCommand("exec", oParams);
+                string sTXID = oOut.Result["txid"];
+                return sTXID;
+            }
+            catch (Exception ex)
+            {
+                Log("PCD " + ex.Message);
+                return "";
+            }
+        }
+
+        public static CryptoUtils.Block GetBlock(bool fTestNet, int nHeight)
+        {
+            CryptoUtils.Block b = new CryptoUtils.Block();
+
+            try
+            {
+                object[] oParams = new object[1];
+                oParams[0] = nHeight.ToString();
+                NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
+                dynamic oOut = n.SendCommand("getblock", oParams);
+                b.Hash = oOut.Result["hash"];
+                b.MerkleRoot = oOut.Result["merkleroot"];
+                b.Difficulty = oOut.Result["difficulty"];
+                b.PreviousBlockHash = oOut.Result["previousblockhash"];
+                b.NextBlockHash = oOut.Result["nextblockhash"];
+                b.BlockNumber = nHeight;
+                b.Time = oOut.Result["time"];
+                for (int y = 0; y < oOut.Result["tx"].Count; y++)
+                {
+                    string sTXID = oOut.Result["tx"][y];
+                    if (nHeight > 0)
+                    {
+                        string XML = GetRawTransactionXML(sTXID, fTestNet);
+                        CryptoUtils.Transaction t = new CryptoUtils.Transaction();
+                        string Extracted = BMSCommon.Common.ExtractXML(XML, "<MV>", "</MV>");
+
+                        t.Data = Extracted;
+                        t.BlockHash = b.Hash;
+                        t.Time = b.Time;
+                        t.Height = b.BlockNumber;
+                        if (t.Data.Length > 1 && t.Data.Contains("{"))
+                        {
+                            b.Transactions.Add(t);
+                        }
+                    }
+                }
+                bool f1 = false;
+
+            }
+            catch (Exception ex)
+            {
+                Log("GBFS " + ex.Message);
+            }
+            return b;
         }
 
         public static string GetBlockForStratumHex(bool fTestNet, string poolAddress, string rxkey, string rxheader)
@@ -368,8 +568,6 @@ namespace BMSCommon
             try
             {
                 NBitcoin.RPC.RPCCredentialString r = new NBitcoin.RPC.RPCCredentialString();
-
-
                 string sUser = fTestNet ? "testnetrpcuser" : "rpcuser";
                 string sPass = fTestNet ? "testnetrpcpassword" : "rpcpassword";
                 string sH = fTestNet ? "testnetrpchost" : "rpchost";
@@ -395,11 +593,18 @@ namespace BMSCommon
 
         public static int GetHeight(bool fTestNet)
         {
-            object[] oParams = new object[1];
-            NBitcoin.RPC.RPCClient n = GetRPCClient(fTestNet);
-            dynamic oOut = n.SendCommand("getmininginfo");
-            int nBlocks = (int)GetDouble(oOut.Result["blocks"]);
-            return nBlocks;
+            try
+            {
+                object[] oParams = new object[1];
+                NBitcoin.RPC.RPCClient n = GetRPCClient(fTestNet);
+                dynamic oOut = n.SendCommand("getmininginfo");
+                int nBlocks = (int)GetDouble(oOut.Result["blocks"]);
+                return nBlocks;
+            }
+            catch (Exception ex)
+            {
+                return -1;
+            }
         }
 
         public static bool ValidateAddress(bool fTestNet, string sAddress)
@@ -437,5 +642,4 @@ namespace BMSCommon
             }
         }
     }
-
 }

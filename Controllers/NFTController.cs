@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using BMSCommon;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
@@ -11,114 +12,146 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static BiblePay.BMS.DSQL.UI;
+using static BMSCommon.DataTableExtensions;
 
 namespace BiblePay.BMS.Controllers
 {
-    public partial class BBPController : Controller
-    {
-		public class NFT
+	public partial class BBPController : Controller
+	{
+
+
+		public static string GetNFTDisplayList(HttpContext h, string sType)
 		{
+			string html = "<table><tr>";
+			html = "<div class='row js-list-filter' id='nftlist'>";
+			int nColNo = 0;
+			string sChain = IsTestNet(h) ? "test" : "main";
 
-
-			public enum NFTCategory
+			List<NFT> l = BMSCommon.NFT.GetListOfNFTs(sChain, GetUser(h).ERC20Address, sType);
+			for (int i = 0; i < l.Count; i++)
 			{
-				GENERAL,
-				CHRISTIAN,
-				ORPHAN
-			};
-
-
-			public string Name { get; set; }
-			public string Action { get; set; }
-			public string Description { get; set; }
-			public string AssetURL { get; set; }
-			public string AssetHQURL { get; set; }
-			public string AssetBIO { get; set; }
-			public int AssetMonths { get; set; }
-			public string JSONURL { get; set; }
-			public string TokenID { get; set; }
-
-			public string Type { get; set; }
-			public double MinimumBidAmount { get; set; }
-			public double ReserveAmount { get; set; }
-			public double BuyItNowAmount { get; set; }
-			public string OwnerERC20Address { get; set; }
-
-			public int nIteration { get; set; }
-			public string LastOwnerERC20Address { get; set; }
-			public bool Marketable { get; set; }
-			public bool fDeleted { get; set; }
-			public string TXID { get; set; }
-
-			public string GetHash()
-			{
-				return BMSCommon.Encryption.GetSha256HashI(AssetURL);
-			}
-
-			public NFT()
-			{
-				Marketable = false;
-				Action = "CREATE";
-				OwnerERC20Address = "";
-			}
-
-			public NFTCategory GetCategory()
-			{
-				NFTCategory n1 = 0;
-				if (this.Type.ToLower() == "christian")
+				NFT n = l[i];
+				if (n.LowestAcceptableAmount() > 0)
 				{
-					n1 = NFTCategory.CHRISTIAN;
-				}
-				else if (this.Type.ToLower() == "orphan")
-				{
-					n1 = NFTCategory.ORPHAN;
-				}
-				else
-				{
-					n1 = NFTCategory.GENERAL;
-				}
-				return n1;
-			}
+					string sScrollY = n.Description.Length > 100 ? "overflow-y:scroll;" : "";
+					string sPrice = n.BuyItNowAmount.ToString();
+					string sCaption = "";
+					if (n.Type == "orphan")
+					{
+						sCaption = "Sponsor me";
+					}
+					else 
+					{
+						sCaption = "Buy it now";
+					}
+					string sConfirm = "Are you sure you would like to buy this NFT for " + n.BuyItNowAmount.ToString() + " BBP?";
 
-			public double LowestAcceptableAmount()
-			{
-				double nAcceptable = 100000000;
-				if (ReserveAmount > 0 && BuyItNowAmount > 0)
-				{
-					// This is an Auction AND a buy-it-now NFT, so accept the lower of the two
-					nAcceptable = Math.Min(ReserveAmount, BuyItNowAmount);
+					string sBuyItNowButton = GetStandardButton(n.GetHash(), sCaption, "nft_buy", "var e={};e.nftid='" + n.GetHash() 
+						+ "';e.Amount=" + n.BuyItNowAmount.ToString() + ";", sConfirm);
+					string sEditButton = GetStandardButton(n.GetHash(), "EDIT", "nft_edit", "var e={};e.nftid='" + n.GetHash() + "';", "");
+					string sButtonCluster = sType == "my" ? sEditButton : sBuyItNowButton;
+
+					string sURLLow = CleanseXSSAdvanced(n.AssetURL);
+					string sIntro = "<div class='col-xl-4'><div id='c_3' class='card border shadow-0 mb-g shadow-sm-hover' data-filter-tags='nft_cool'><div class='d-flex flex-row align-items-center'>";
+
+					sIntro += "<div class='card-body border-faded border-top-0 border-left-0 border-right-0 rounded-top'>";
+					string sOutro = "</div></div></div></div>";
+					string sAsset = "";// "<iframe xwidth=95% style='height: 200px;width:300px;' src='" + sURLLow + "'></iframe>
+					if (sURLLow.Contains(".gif") || sURLLow.Contains("=w600") || sURLLow.Contains(".jpg") || sURLLow.Contains(".jpeg") || sURLLow.Contains(".png"))
+					{
+						sAsset = "<img style='height:200px;width:300px;' src='" + sURLLow + "'/>";
+					}
+					else if (sURLLow.Contains(".mp4") || sURLLow.Contains(".mp3"))
+					{
+						sAsset = "<video xclass='connect-bg' width='300' height='200' style='background-color:black' controls><source src='" + sURLLow + "' xtype='video/mp4' /></video>";
+					}
+
+					string sFooter = "Price: " + sPrice + "<br>" + sButtonCluster;
+
+					string sName = n.Name;
+					string s1 = "<td style='cell-spacing:4px;padding:7px;border:1px' cellpadding=7 cellspacing=7>"
+						+ "<b>" + sName + "</b>" + sAsset + "<div style='border=1px;height:75px;width:310px;" + sScrollY + "'><font style='font-size:11px;'>"
+						+ n.Description + "</font></div><br>" + sFooter + "</td>";
+					string sTextBody = "<div style='border=1px;height:75px;width:310px;" + sScrollY + "'><font style='font-size:11px;'>"
+						+ n.Description + "</font></div>";
+					s1 = sIntro + "<b>" + sName + "</b><br>" + sAsset + sTextBody + sFooter + sOutro;
+					html += s1;
+					nColNo++;
 				}
-				else if (ReserveAmount > 0 && BuyItNowAmount == 0)
-				{
-					// This is an auction (but not a buy it now)
-					nAcceptable = ReserveAmount;
-				}
-				else if (BuyItNowAmount > 0 && ReserveAmount == 0)
-				{
-					nAcceptable = BuyItNowAmount;
-				}
-				return nAcceptable;
-			}
+            }
+			html += "</div>";
+            return html;
 		}
 
-		public IActionResult NFTAdd()
+
+		public IActionResult NFTListOrphans()
+		{
+			ViewBag.NFTList = GetNFTDisplayList(HttpContext,"orphan");
+			return View();
+		}
+
+		public IActionResult MyNFTs()
         {
-			List<string> ddTypes = new List<string>();
-			ddTypes.Add("General (Digital Goods, MP3, PNG, GIF, JPEG, PDF, MP4, Social Media, Tweet, Post, URL)");
-			ddTypes.Add("Christian");
-			ddTypes.Add("Orphan (Child to be sponsored)");
-			ViewBag.ddNFTType = ListToHTMLSelect(ddTypes, "");
-			ViewBag.txtName = "a";
-			ViewBag.AssetURL = "/img/invisible.jpeg";
-			ViewBag.chkMarketable = "1";
+			ViewBag.NFTList = GetNFTDisplayList(HttpContext, "my");
 			return View();
         }
 
-		private static bool ToBool(string sData)
+		public IActionResult NFTListGeneral()
+		{
+			ViewBag.NFTList = GetNFTDisplayList(HttpContext,"general");
+			return View();
+		}
+
+		public IActionResult NFTListChristian()
+		{
+			ViewBag.NFTList = GetNFTDisplayList(HttpContext, "christian");
+			return View();
+		}
+		public IActionResult NFTAdd()
+        {
+			List<DropDownItem> ddTypes = new List<DropDownItem>();
+			ddTypes.Add(new DropDownItem("General", "General (Digital Goods, MP3, PNG, GIF, JPEG, PDF, MP4, Social Media, Tweet, Post, URL"));
+			ddTypes.Add(new DropDownItem("Christian", "Christian"));
+			ddTypes.Add(new DropDownItem("Orphan", "Orphan (Child to be sponsored)"));
+
+			// In edit mode, we prepopulate the values.
+			string sID = Request.Query["id"].ToString() ?? "";
+			string sMode = Request.Query["mode"].ToString() ?? "";
+			if (sMode == "edit" && sID != "")
+			{
+				NFT n = GetNFT(HttpContext, sID);
+				ViewBag.txtName = n.Name;
+				ViewBag.txtDescription = n.Description;
+				ViewBag.txtURL = n.AssetURL;
+                ViewBag.AssetURL = n.AssetURL;
+
+				ViewBag.txtReserveAmount = n.ReserveAmount.ToString();
+                ViewBag.txtBuyItNowAmount = n.BuyItNowAmount.ToString();
+
+				ViewBag.ddNFTType = ListToHTMLSelect(ddTypes, n.Type);
+				//ViewBag.AssetURL = "/img/invisible.jpeg";
+				ViewBag.chkMarketable = n.Marketable.ToString();
+				ViewBag.chkMarketableChecked = n.Marketable == 1 ? "CHECKED" : "";
+				ViewBag.chkDeleteChecked = n.Deleted == 1 ? "CHECKED" : "";
+				ViewBag.Mode = "editme";
+				ViewBag.Title = "Edit NFT " + n.GetHash();
+			}
+			else
+			{
+				ViewBag.ddNFTType = ListToHTMLSelect(ddTypes, "");
+				ViewBag.AssetURL = "/img/invisible.jpeg";
+				ViewBag.chkMarketable = "1";
+				ViewBag.Mode = "create";
+				ViewBag.Title = "Add new NFT";
+			}
+			return View();
+        }
+
+		private static int ToBoolInt(string sData)
         {
 			if (sData == "1" || sData == "true")
-				return true;
-			return false;
+				return 1;
+			return 0;
         }
 
 
@@ -144,7 +177,7 @@ namespace BiblePay.BMS.Controllers
 							}
 							string sURL = await BBPTestHarness.IPFS.UploadIPFS_Retired(sDestFN, "nft/"+sGuid);
 
-							IntelController.ServerToClient returnVal = new IntelController.ServerToClient();
+							ServerToClient returnVal = new ServerToClient();
 							returnVal.returnbody = "";
 							returnVal.returntype = "uploadsuccess";
 							returnVal.returnurl = sURL;
@@ -154,7 +187,7 @@ namespace BiblePay.BMS.Controllers
 						else
 						{
 							string modal = DSQL.UI.GetModalDialog("Save NFT Image", "Extension not allowed");
-							IntelController.ServerToClient returnVal = new IntelController.ServerToClient();
+							ServerToClient returnVal = new ServerToClient();
 							returnVal.returntype = "modal";
 							returnVal.returnbody = modal;
 							string o1 = JsonConvert.SerializeObject(returnVal);
@@ -164,7 +197,6 @@ namespace BiblePay.BMS.Controllers
 				}
 				ViewBag.Message = "Sent " + file[0].FileName + " successfully";
 				Response.Redirect("/page/profile");
-				//return Profile();
 				return View();
 			}
 			catch
@@ -177,33 +209,29 @@ namespace BiblePay.BMS.Controllers
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-		public static void btnSubmit_Click(HttpContext h, string sFormData, string _msMode)
+		public static string btnSubmitNFT_Click(HttpContext h, string sFormData, string _msMode)
 		{
 			try
 			{
+				string sChain = IsTestNet(h) ? "test" : "main";
 				NFT n = new NFT();
-				n.AssetURL = GetFormData(sFormData, "txtAssetURL");
+				n.AssetURL = GetFormData(sFormData, "txtURL");
 
 				n.Name = GetFormData(sFormData, "txtName");
 				n.OwnerERC20Address = DSQL.UI.GetUser(h).ERC20Address;
+				n.OwnerBBPAddress = DSQL.UI.GetUser(h).BBPAddress;
+				
 				//string id = Request.QueryString["id"] ?? "";
 				n.Action = _msMode;
 				n.Description = GetFormData(sFormData, "txtDescription");
-				n.Marketable = ToBool(GetFormData(sFormData, "chkMarketable"));
-				n.fDeleted = ToBool(GetFormData(sFormData, "chkDeleted"));
-				// n.HighQualityURL = txtHiQualityURL.Text;
+				n.Marketable = ToBoolInt(GetFormData(sFormData, "chkMarketable"));
+				n.Deleted = ToBoolInt(GetFormData(sFormData, "chkDelete"));
+				n.BuyItNowAmount = BMSCommon.Common.GetDouble(GetFormData(sFormData, "txtBuyItNowAmount"));
+				n.ReserveAmount = BMSCommon.Common.GetDouble(GetFormData(sFormData, "txtReserveAmount"));
+				n.Hash = n.GetHash();
+				n.Version = 2;
+
+				n.Chain = sChain;
 
 				string sError = "";
 				n.Type = GetFormData(sFormData, "ddNFTType");
@@ -212,27 +240,43 @@ namespace BiblePay.BMS.Controllers
 				if (n.Type == "" || n.Type == null)
 					sError += "NFT Type must be chosen. ";
 
+				if (_msMode == "create" && n.Deleted == 1)
+					sError += "A new NFT cannot be deleted.";
+
+				if (_msMode == "edit" && n.OwnerERC20Address != GetUser(h).ERC20Address)
+					sError += "Sorry, you must own the NFT in order to edit it.";
+
+
 				if (n.Type.ToLower() == "orphan")
 				{
 					DateTime ED = DateTime.Now.AddDays(n.AssetMonths * 30);
+					/*
 					n.Description += "\r\nView this <a href='" + n.AssetBIO + "'>orphan biography here.</a>";
 					n.Description += "\r\nSponsor this child for " + n.AssetMonths.ToString() + " month(s), and help change this childs life.";
 					n.Description += "\r\nIf you have any questions about this child or our accountability records, please e-mail rob@biblepay.org.";
 					n.Description += "\r\nSponsorship End Date: " + ED.ToShortDateString();
 					n.Description += "_______________________________________________________________________________________________________\r\n";
 					n.Description += "Tags: Orphan Sponsorship";
+					*/
 				}
 
+				if (n.Type.ToLower() != "general" && n.Type.ToLower() != "christian" && n.Type.ToLower() != "orphan")
+					sError += "Invalid NFT type.";
 
 				if (n.Name.Length < 3)
 					sError += "NFT Name must be populated. ";
 
-				if (n.Description.Length < 5)
+				if (n.Description.Length < 3)
 					sError += "NFT Description must be populated. ";
 
 				if (n.AssetURL.Length < 10)
 					sError += "You must enter an asset URL. ";
 
+				if (n.ReserveAmount > 0 && n.BuyItNowAmount > 0)
+                {
+					if (n.BuyItNowAmount < n.ReserveAmount)
+						sError += "The Buy It Now Amount must be greater than the reserve amount when both are used.";
+                }
 				if (n.Name.Length > 128)
 					sError += "NFT Name must be < 128 chars.";
 
@@ -241,7 +285,7 @@ namespace BiblePay.BMS.Controllers
 				if (n.AssetURL.Length > 512)
 					sError += "URL Length must be < 512.";
 				
-				if (n.OwnerERC20Address.Length != 42)
+				if (n.OwnerERC20Address.Length != 42 || n.OwnerBBPAddress.Length < 10)
 					sError += "Your ERC-20 Address must be populated (you can do this from Profile | Wallet | Refresh | Save). ";
 
 				double dBBPBalance = BMSCommon.Common.GetDouble(DSQL.UI.GetAvatarBalance(h, false));
@@ -250,21 +294,25 @@ namespace BiblePay.BMS.Controllers
 			
 				string sTXID = "";
 
-				string sNarr = (sError == "") ? "Successfully submitted this NFT. <br><br>Thank you for using BiblePay Non Fungible Tokens." : sError;
+				string sNarr = (sError == "") ? "Successfully submitted this NFT. <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>NOTE:  Please wait for one sidechain block to pass before you can view the NFT.  " : sError;
 				if (sError == "")
 				{
+					n.Save(IsTestNet(h));
 					sNarr += "<br><br>";
-					DSQL.UI.MsgBox(h, "Edit NFT", "Success", sNarr, true);
+					string s1 = DSQL.UI.MsgBoxJson(h, "Edit NFT", "Success", sNarr);
+					return s1;
 				}
 				else
 				{
-					DSQL.UI.MsgBox(h, "Process NFT", "Failure", sNarr, true);
+					string s2 = DSQL.UI.MsgBoxJson(h, "Process NFT", "Failure", sNarr);
+					return s2;
 				}
 			}
 			catch (Exception ex)
 			{
 				BMSCommon.Common.Log(ex.Message);
-				DSQL.UI.MsgBox(h, "Process NFT", "Error", ex.Message, true);
+				string s3 = DSQL.UI.MsgBoxJson(h, "Process NFT", "Error", ex.Message);
+				return s3;
 
 			}
 

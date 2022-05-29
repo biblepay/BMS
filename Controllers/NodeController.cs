@@ -8,13 +8,12 @@ using System.Reflection;
 using System.Threading.Tasks;
 using static BiblePay.BMS.Common;
 using static BMSCommon.Common;
-
+using static BMSCommon.CryptoUtils;
 
 namespace BiblePay.BMS.Controllers
 {
     public class BMSController : Controller
     {
-
         public struct UnchainedReply
         {
             public string error;
@@ -38,14 +37,12 @@ namespace BiblePay.BMS.Controllers
                 {
                     throw new Exception("API Key invalid.  To obtain a key, go to unchained.biblepay.org | Wallet.");
                 }
-                List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents("", "", key);
+                bool fTestNet = true; // Mission Critical, how to determine chain here?
+                List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents(fTestNet,"", "", key);
                 Log("Bms result " + s.Count.ToString() + " uid " + sUID.ToString());
-
-
                 string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(s);
                 var r3 = Ok(new { sJson3 });
                 return r3;
-
             }
             catch (Exception ex)
             {
@@ -56,7 +53,6 @@ namespace BiblePay.BMS.Controllers
                 return r3;
             }
         }
-
 
         [Route("api/web/getblocks")]
         [HttpPost]
@@ -127,86 +123,6 @@ namespace BiblePay.BMS.Controllers
             }
         }
 
-
-
-        [Route("api/web/pushtx")]
-        [HttpPost]
-        [RequestSizeLimit(500000000)]
-        public async Task<IActionResult> PushTx(List<IFormFile> file)
-        {
-            // This is the place we accept new bms transactions
-            UnchainedReply u = new UnchainedReply();
-            try
-            {
-                if (file.Count == 0)
-                {
-                    throw new Exception("No memory pool file given.");
-                }
-                var filePaths = new List<string>();
-                var filePath = Path.GetTempFileName();
-                filePaths.Add(filePath);
-                var postedFile = file[0];
-                string sGuid = Guid.NewGuid().ToString() + ".dat";
-                string sDestFN = Path.Combine(Path.GetTempPath(), sGuid);
-                using (var stream = new FileStream(sDestFN, System.IO.FileMode.Create))
-                {
-                    await postedFile.CopyToAsync(stream);
-                }
-                System.IO.FileInfo fi = new FileInfo(sDestFN);
-                String data = System.IO.File.ReadAllText(sDestFN);
-                List<BMSCommon.CryptoUtils.Transaction> l = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BMSCommon.CryptoUtils.Transaction>>(data);
-                for (int i = 0; i < l.Count; i++)
-                {
-                    bool f = BMSCommon.API.AddToMemoryPool(l[i], true);
-                }
-                u.version = 1.1;
-                string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-                System.IO.File.Delete(sDestFN);
-                var r3 = Ok(new { sJson3 });
-                return r3;
-            }
-            catch (Exception ex)
-            {
-                Log("pushtx:Recv_post_error::" + ex.Message);
-                u.error = "post_error::" + ex.Message;
-                string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-                var r3 = Ok(new { sJson3 });
-                return r3;
-            }
-        }
-
-
-        [Route("api/web/pushblock")]
-        [HttpPost]
-        [RequestSizeLimit(17000000)]
-        public async Task<IActionResult> PushBlock(string sPost)
-        {
-            // This is the place we accept new bms transactions
-            UnchainedReply u = new UnchainedReply();
-            try
-            {
-                BMSCommon.CryptoUtils.Block b = Newtonsoft.Json.JsonConvert.DeserializeObject<BMSCommon.CryptoUtils.Block>(sPost);
-                bool f = BMSCommon.API.ConnectBlock(b, true);
-                if (!f)
-                    throw new Exception("Block rejected.");
-                Log("Accepted block " + b.GetBlockHash());
-                u.version = 1.1;
-                string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-                var r3 = Ok(new { sJson3 });
-                return r3;
-            }
-            catch (Exception ex)
-            {
-                Log("pushblock:post_error::" + ex.Message);
-                u.error = "post_error::" + ex.Message;
-                string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-                var r3 = Ok(new { sJson3 });
-                return r3;
-            }
-        }
-
-
-
         [Route("api/web/bbpingress")]
         [HttpPost]
         [RequestSizeLimit(5510000000)]
@@ -247,11 +163,12 @@ namespace BiblePay.BMS.Controllers
 
                 if (sDelete == "1")
                 {
-                    bool fOK = await BBPTestHarness.Service.RegisterPin(sDestinationURL, sUID, sFullDest, true);
+                    // Mission Critial - how do we choose the chain here?
+                    bool fOK = await BBPTestHarness.Service.RegisterPin(true, sDestinationURL, sUID, sFullDest, true);
+                    fOK = await BBPTestHarness.Service.RegisterPin(false, sDestinationURL, sUID, sFullDest, true);
                 }
 
                 // Uploads into ingress
-
                 if (file.Count == 0)
                 {
                     Log("BBPIngress:No file posted... 00");
@@ -286,9 +203,10 @@ namespace BiblePay.BMS.Controllers
                     Log("BBPIngress_2::Writing " + sFullDest + ", sz = " + fi.Length.ToString());
                     if (fi.Length > 0)
                     {
-                        bool fOK = await BBPTestHarness.Service.RegisterPin(sDestinationURL, sUID, sFullDest, false);
+                        bool fOK = await BBPTestHarness.Service.RegisterPin(true,sDestinationURL, sUID, sFullDest, false);
+                        fOK = await BBPTestHarness.Service.RegisterPin(false, sDestinationURL, sUID, sFullDest, false);
+
                     }
-                    // Mission critical: Persist destination in Pins table for future charges...
                     u.URL = BMSCommon.API.GetCDN() + "/" + sDestinationURL;
                 }
                 u.version = 1.2;
@@ -318,14 +236,15 @@ namespace BiblePay.BMS.Controllers
         [Route("BMS/GetBestBlockHash")]
         public string GetBestBlockHash()
         {
-            string s = BMSCommon.API.GetBestBlockHash();
+            Block b = BMSCommon.BitcoinSync.GetBestBlock(DSQL.UI.IsTestNet(HttpContext));
+            string s = b.Hash;
             return s;
         }
 
         [Route("BMS/GetBlockCount")]
         public int GetBlockCount()
         {
-            int n = BMSCommon.API.GetBlockCount();
+            int n =  BMSCommon.BitcoinSync.GetBestHeight(DSQL.UI.IsTestNet(HttpContext));
             return n;
         }
 
@@ -404,24 +323,19 @@ namespace BiblePay.BMS.Controllers
             public double Synced_Percent;
             public string EOF;
             public int Memory_Pool_Count;
-            public string Best_Block_Hash;
-            public int Block_Count;
-            public int Hashes;
+            public string Best_Block_Hash_Main;
+            public int Block_Count_Main;
+            public string Best_Block_Hash_Test;
+            public int Block_Count_Test;
+            //public int Hashes;
         };
+        
 
-        [Route("BMS/CreateFake")]
-        public string CreateFake()
-        {
-
-            BMSCommon.CryptoUtils.CreateFakeTransactions();
-            return "Doing...";
-        }
-
-        [Route("BMS/Rollback")]
+        [Route("BMS/msd")]
         public int Rollback()
         {
-            int n = BMSCommon.API.PerformRollback();
-            return n;
+            //BMSCommon.Tests.MigrateSidechainData();
+            return 70;
         }
 
         [Route("BMS/Status")]
@@ -433,23 +347,45 @@ namespace BiblePay.BMS.Controllers
             s.Synced_Count = Sync.METRIC_SYNCED_COUNT;
             s.File_Count = Sync.METRIC_FILECOUNT;
             s.Synced_Percent = nCalc;
-            s.Hashes = BMSCommon.Miner.mnHashes;
             s.BMS_VERSION = BMS_VERSION;
             s.COMMON_VERSION = BMSCommon.Common.BMSCOMMON_VERSION;
-            BMSCommon.CryptoUtils.Block b = BMSCommon.CryptoUtils.GetBestBlock();
-            if (b != null)
+
+            BMSCommon.CryptoUtils.Block blockProd = BMSCommon.BitcoinSync.GetBestBlock(false);
+            BMSCommon.CryptoUtils.Block blockTest = BMSCommon.BitcoinSync.GetBestBlock(true);
+
+            if (blockProd != null)
             {
-                s.Block_Count = b.BlockNumber;
-                s.Best_Block_Hash = b.GetBlockHash();
+                s.Block_Count_Main = blockProd.BlockNumber;
+                s.Best_Block_Hash_Main = blockProd.Hash;
             }
+            if (blockTest != null)
+            {
+                s.Block_Count_Test = blockTest.BlockNumber;
+                s.Best_Block_Hash_Test = blockTest.Hash;
+            }
+
             s.Memory_Pool_Count = BMSCommon.API.dMemoryPool.Count;
-            s.Status = "OK";
+            s.Status = "SUFFICIENT";
             s.URL = sBindURL;
             s.EOF = "<EOF>";
+
+
+
             string sJson = Newtonsoft.Json.JsonConvert.SerializeObject(s, Newtonsoft.Json.Formatting.Indented);
             return sJson;
         }
+        [Route("BMS/Scratch/{id}")]
+        public string Scratch()
+        {
+            string id = Request.RouteValues["id"].ToString() ?? "";
 
+            string value = BMSCommon.Pricing.GetKeyValue("scratch_" + id, (60 * 60 * 10));
+
+            BMSCommon.Pricing.SetKeyValue("scratch_" + id, "ACCESSED");
+
+            string sOut = "<scratch>" + value + "</scratch>\r\n<EOF>\r\n";
+            return sOut;
+        }
 
         [Route("BMS/POSE")]
         public string POSE()
@@ -457,47 +393,16 @@ namespace BiblePay.BMS.Controllers
             // We need to ensure MySQL is installed and synced too, somehow, in POSE return...
             // MISSION CRITICAL!
             string sPOSE = BBPTestHarness.POSE.GetPerformanceReport();
-            sPOSE += "\r\n|v1.0|Status: OK\n|\r\n<EOF>\n";
+            sPOSE += "\r\n|v1.0|Status: SUFFICIENT\n|\r\n<EOF>\n";
             return sPOSE;
         }
 
-        [Route("BMS/GetBlock")]
-        public string GetBlock()
+        [Route("BMS/U1")]
+        public async Task<string> U1()
         {
-            string blocknumber = Request.Query["id"].ToString() ?? "";
-            double nBN = GetDouble(blocknumber);
-            BMSCommon.CryptoUtils.Block b = null;
-            if (nBN > 0)
-            {
-                b = BMSCommon.CryptoUtils.GetBlockByNumber((int)nBN);
-            }
-            else
-            {
-                b = BMSCommon.CryptoUtils.GetBlock(blocknumber);
-            }
-            if (b != null)
-            {
-                string sJson = Newtonsoft.Json.JsonConvert.SerializeObject(b, Newtonsoft.Json.Formatting.Indented);
-                return sJson;
-            }
-            else
-            {
-                return "404";
-            }
+            bool f = await BMSCommon.Pricing.DailyUTXOExport(true);
+            return "";
         }
-
-
-        [Route("BMS/KILL")]
-        public string KILL()
-        {
-            bool fNeedsUpgraded = ProcessAsyncHelper.NeedsUpgraded();
-            if (!fNeedsUpgraded)
-                return "-2";
-            ProcessAsyncHelper.StartNewThread();
-            return "86";
-        }
-
-       
 
         private static int nLastUpgradeManifest = 0;
         private static string msUpgradeManifest = String.Empty;

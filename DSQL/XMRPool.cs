@@ -111,7 +111,7 @@ namespace BiblePay.BMS.DSQL
             string sql = "Select value from sys where systemkey=@key;";
             MySqlCommand cmd1 = new MySqlCommand(sql);
             cmd1.Parameters.AddWithValue("@key", sKey);
-            string value = BMSCommon.Database.GetScalarString(false, cmd1, "value");
+            string value = BMSCommon.Database.GetScalarString(cmd1, "value");
             return value;
         }
         private void RemoveWorker(string socketid)
@@ -406,7 +406,7 @@ namespace BiblePay.BMS.DSQL
             string sql = "select HashRate,Height From " + sTable + " where height > "
                 + nMin.ToString() + " and height < " + nMax.ToString() + " order by height";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, cmd1, "");
+            DataTable dt = BMSCommon.Database.GetDataTable( cmd1 );
             BMSCommon.Pricing.BBPChart b = new BMSCommon.Pricing.BBPChart();
             b.Name = "Hashrate over 24 hours";
             BMSCommon.Pricing.ChartSeries c = new BMSCommon.Pricing.ChartSeries();
@@ -435,7 +435,7 @@ namespace BiblePay.BMS.DSQL
 
             string sql = "select minercount, height From " + sTable + " where height > " + nMin.ToString() + " and height < " + nMax.ToString() + " order by height";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, cmd1, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(cmd1);
             BMSCommon.Pricing.BBPChart b = new BMSCommon.Pricing.BBPChart();
 
             b.Name = "Workers over 24 hours";
@@ -463,7 +463,7 @@ namespace BiblePay.BMS.DSQL
             string sTable = _fTestNet ? "thashrate" : "hashrate";
             string sql = "select SolvedCount, height From " + sTable + " where height > " + nMin.ToString() + " and height < " + nMax.ToString() + " order by height;";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, cmd1, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(cmd1);
             BMSCommon.Pricing.BBPChart b= new BMSCommon.Pricing.BBPChart();
             BMSCommon.Pricing.ChartSeries c = new BMSCommon.Pricing.ChartSeries();
             c.Name = "Blocks Solved";
@@ -515,7 +515,7 @@ namespace BiblePay.BMS.DSQL
                 string sql = "Select distinct dbo.iponly(ip) ip from " + sTable + " where bbpaddress in (select bbpaddress from " 
                     + sLeaderboard + " where efficiency < .20) UNION ALL Select IP from bans;";
                 MySqlCommand m1 = new MySqlCommand(sql);
-                DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+                DataTable dt = BMSCommon.Database.GetDataTable(m1);
                 lBanList.Clear();
                 for (int i = 0; i < dt.Rows.Count; i++)
                 {
@@ -535,8 +535,8 @@ namespace BiblePay.BMS.DSQL
             string sTable = _fTestNet ? "tshare" : "share";
             string sql = "select sum(bxmrc) bxmrc,sum(bxmr)-sum(bxmrc) shrs from " + sTable + " where TIMESTAMPDIFF(MINUTE, updated, now()) > 30";
             MySqlCommand cmd = new MySqlCommand(sql);
-            BXMRC = (int)BMSCommon.Database.GetScalarDouble(false,cmd,  "bxmrc");
-            SHARES = (int)BMSCommon.Database.GetScalarDouble(false,cmd, "shrs");
+            BXMRC = (int)BMSCommon.Database.GetScalarDouble(cmd,  "bxmrc");
+            SHARES = (int)BMSCommon.Database.GetScalarDouble(cmd, "shrs");
         }
 
 
@@ -586,7 +586,7 @@ namespace BiblePay.BMS.DSQL
             string sql = "Select max(height) h from " + sTable;
             MySqlCommand m = new MySqlCommand(sql);
 
-            int nH = (int)BMSCommon.Database.GetScalarDouble(false, m, "h");
+            int nH = (int)BMSCommon.Database.GetScalarDouble(m, "h");
             if (nH < nBestHeight - 1000)
                 nH = nBestHeight - 1000;
             // Set subsidies first
@@ -631,7 +631,7 @@ namespace BiblePay.BMS.DSQL
                 {
                     string sql7 = "Select count(*) ct from " + sTable + " where paid is null and Subsidy is null and height = '" + iMyHeight.ToString() + "'";
                     MySqlCommand m7 = new MySqlCommand(sql7);
-                    double dCt = BMSCommon.Database.GetScalarDouble(false, m7, "ct");
+                    double dCt = BMSCommon.Database.GetScalarDouble(m7, "ct");
 
                     if (dCt > 0)
                     {
@@ -651,7 +651,7 @@ namespace BiblePay.BMS.DSQL
                             string sql3 = "Select * from " + sTable + " WHERE Paid is null and height = @height;";
                             MySqlCommand command3 = new MySqlCommand(sql3);
                             command3.Parameters.AddWithValue("@height", iMyHeight);
-                            DataTable dt4 = BMSCommon.Database.GetMySqlDataTable(false, command3, "");
+                            DataTable dt4 = BMSCommon.Database.GetDataTable(command3);
 
                             for (int x = 0; x < dt4.Rows.Count; x++)
                             {
@@ -705,7 +705,7 @@ namespace BiblePay.BMS.DSQL
                     string sql = "Select shares,sucXMRC,bxmr,bbpaddress,subsidy from " + sTable + " WHERE subsidy > 1 and percentage is null and "
                         + sHeightRange + " and paid is null;";
                     MySqlCommand m0 = new MySqlCommand(sql);
-                    DataTable dt1 = BMSCommon.Database.GetMySqlDataTable(false, m0, "");
+                    DataTable dt1 = BMSCommon.Database.GetDataTable(m0);
                     if (dt1.Rows.Count > 0)
                     {
                         // First get the total shares
@@ -932,7 +932,7 @@ namespace BiblePay.BMS.DSQL
                 string sql = "SELECT moneroaddress FROM " + sTable + "  WHERE moneroaddress=@m;";
                 MySqlCommand m1 = new MySqlCommand(sql);
                 m1.Parameters.AddWithValue("@m", w.moneroaddress);
-                DataTable mdata = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+                DataTable mdata = BMSCommon.Database.GetDataTable(m1);
                 if (mdata.Rows.Count > 0)
                     return;
 
@@ -1128,6 +1128,10 @@ namespace BiblePay.BMS.DSQL
                                         }
                                         nTrace = 10;
                                     }
+                                    else if (sJson.Contains("keepalive"))
+                                    {
+                                        // No Op (Leave in)
+                                    }
                                     else if (sJson != "")
                                     {
                                         Console.WriteLine(sJson);
@@ -1288,29 +1292,31 @@ namespace BiblePay.BMS.DSQL
                 iXMRThreadCount--;
             }
 
+
+            // Initialize a new XMR Pool
             private void InitializeXMR()
             {
 
-            TcpListener listener = null;
+               TcpListener listener = null;
 
-        retry:
+               retry:
 
-            if (listener != null)
-            {
-                listener.Stop();
-                System.Threading.Thread.Sleep(5000);
-            }
+                if (listener != null)
+                {
+                    listener.Stop();
+                    System.Threading.Thread.Sleep(5000);
+                }
 
-            try
-            {
+                try
+                {
                     {
-                    //string sIP = GetConfigurationKeyValue("xmrbindip");
-                    //if (sIP == "")
-                   // {
-                    //    sIP = "0.0.0.0";
-                   // }
+                        string poolAccount = GetConfigurationKeyValue("PoolPayAccount");
+                        if (poolAccount == "")
+                        {
+                            BMSCommon.Common.Log("This pool configuration has no key set for PoolPayAccount.  Unable to start pool.");
+                            return;
+                        }
 
-                        //IPAddress ipAddress = IPAddress.Parse(sIP);
                         int nPortMainnet = (int)GetDouble(GetConfigurationKeyValue("XMRPort"));
                         int nPortTestNet = (int)GetDouble(GetConfigurationKeyValue("XMRPortTestNet"));
                         if (nPortMainnet == 0)

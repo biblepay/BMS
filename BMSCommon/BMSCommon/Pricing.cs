@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Net.Mail;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,7 +19,6 @@ namespace BMSCommon
     {
 		public static string msTickers = "BTC/USD,DASH/BTC,DOGE/BTC,LTC/BTC,ETH/BTC,XRP/BTC,XLM/BTC,BBP/BTC,ZEC/BTC,BCH/BTC";
 		public static string msWeights = "1,185,130000,185,15,35000,125000,45000000,210,50";
-
 
 		public struct Asset
 		{
@@ -45,8 +45,6 @@ namespace BMSCommon
 		}
 
 		public static string minABI = @"[{""constant"":false,""inputs"":[{""name"":""_spender"",""type"":""address""},{""name"":""_value"",""type"":""uint256""}],""name"":""approve"",""outputs"":[{""name"":""success"",""type"":""bool""}],""type"":""function""},{""constant"":true,""inputs"":[],""name"":""totalSupply"",""outputs"":[{""name"":""supply"",""type"":""uint256""}],""type"":""function""},{""constant"":false,""inputs"":[{""name"":""_from"",""type"":""address""},{""name"":""_to"",""type"":""address""},{""name"":""_value"",""type"":""uint256""}],""name"":""transferFrom"",""outputs"":[{""name"":""success"",""type"":""bool""}],""type"":""function""},{""constant"":true,""inputs"":[{""name"":""_owner"",""type"":""address""}],""name"":""balanceOf"",""outputs"":[{""name"":""balance"",""type"":""uint256""}],""type"":""function""},{""constant"":false,""inputs"":[{""name"":""_to"",""type"":""address""},{""name"":""_value"",""type"":""uint256""}],""name"":""transfer"",""outputs"":[{""name"":""success"",""type"":""bool""}],""type"":""function""},{""constant"":true,""inputs"":[{""name"":""_owner"",""type"":""address""},{""name"":""_spender"",""type"":""address""}],""name"":""allowance"",""outputs"":[{""name"":""remaining"",""type"":""uint256""}],""type"":""function""},{""inputs"":[{""name"":""_initialAmount"",""type"":""uint256""}],""type"":""constructor""},{""anonymous"":false,""inputs"":[{""indexed"":true,""name"":""_from"",""type"":""address""},{""indexed"":true,""name"":""_to"",""type"":""address""},{""indexed"":false,""name"":""_value"",""type"":""uint256""}],""name"":""Transfer"",""type"":""event""},{""anonymous"":false,""inputs"":[{""indexed"":true,""name"":""_owner"",""type"":""address""},{""indexed"":true,""name"":""_spender"",""type"":""address""},{""indexed"":false,""name"":""_value"",""type"":""uint256""}],""name"":""Approval"",""type"":""event""}]";
-
-
 
 		public static double BigIntToDouble(BigInteger bi, int nDecimals)
 		{
@@ -85,7 +83,6 @@ namespace BMSCommon
 		{
 			string sURL = "";
 			nChainID = 0;
-			// Mission Critical ToDO, move this to bbptestharness so this quiknode cannot be abused
 			if (sName.ToUpper() == "BSC")
 			{
 				sURL = BMSCommon.Common.GetConfigurationKeyValue("etherendpointbsc");
@@ -145,8 +142,6 @@ namespace BMSCommon
 				return 0;
 			}
 		}
-
-
 
 		public static async Task<double> GetResolvedBalance(string sNetwork, string sContractAddress, string sAccountAddress)
 		{
@@ -225,8 +220,6 @@ namespace BMSCommon
 			public List<double> DataPoint = new List<double>();
         };
 
-
-
 		public static string GenerateJavascriptChart(BBPChart c)
         {
 			string html = "<script src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js'></script>";
@@ -258,7 +251,6 @@ namespace BMSCommon
 				xdata = xdata.Substring(0, xdata.Length - 2);
 
 			xLegends += xdata + "];\r\n";
-
 
 			html += xLegends;
 			//options: { plugins: { title: {display: true,text:'my title'}
@@ -340,7 +332,7 @@ namespace BMSCommon
 			Dictionary<DateTime, double> dPrices = new Dictionary<DateTime, double>();
 
 			MySqlCommand m2 = new MySqlCommand(sql1);
-			DataTable dt2 = Database.GetMySqlDataTable(false, m2, "");
+			DataTable dt2 = Database.GetDataTable(m2);
 			for (int j = 0; j < dt2.Rows.Count; j++)
             {
 				DateTime dt = Convert.ToDateTime(dt2.Rows[j]["added"]);
@@ -348,13 +340,14 @@ namespace BMSCommon
 				dPrices.Add(dt, nPrice);
             }
 
-
 			//Index
 			ChartSeries sIndex = new ChartSeries();
-			sIndex.Name = "Index";
+			sIndex.Name = b.Name;
 			sIndex.BorderColor = "lime";
 			sIndex.BackgroundColor = "green";
 			b.CollectionSeries.Add(sIndex);
+			double nPrice2 = 0;
+
 			//Convert to opensource version: https://www.w3schools.com/ai/ai_chartjs.asp
 			int iStep = 1;
 			DateTime dtStart = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
@@ -375,7 +368,7 @@ namespace BMSCommon
 						string sTheTicker = Common.GE(vTickers[j], "/", 0);
 						string sql = "Select * from quotehistory where added='" + dt.ToShortDateString() + "' and ticker='" + sTheTicker+ "'";
 						MySqlCommand m1 = new MySqlCommand(sql);
-						DataTable dt1 = Database.GetMySqlDataTable(false, m1, "");
+						DataTable dt1 = Database.GetDataTable(m1);
 						if (dt1.Rows.Count > 0)
 						{
 							double dA = Common.GetDouble(dt1.Rows[0]["USD"]);
@@ -389,9 +382,15 @@ namespace BMSCommon
 					}
 				}
 
-				double nPrice = 0;
-				dPrices.TryGetValue(dt, out nPrice);
-				b.CollectionSeries[0].DataPoint.Add(nPrice);
+				
+				bool fGot = dPrices.TryGetValue(dt, out nPrice2);
+				if (nPrice2 == 0)
+				{
+					// This is a base level for the cryptocurrency homogenized index.  This doesn't get hit after chart is 60 days old.
+					nPrice2 = 15000;
+				}
+
+				b.CollectionSeries[0].DataPoint.Add(nPrice2);
 				
 			}
 
@@ -459,7 +458,6 @@ namespace BMSCommon
 		}
 
 
-
 		public static void CacheQuote(string sTicker, string sPrice)
 		{
 			try
@@ -489,7 +487,7 @@ namespace BMSCommon
 			string sql = "Select updated,Value from sys where systemkey=@ticker;";
 			MySqlCommand cmd1 = new MySqlCommand(sql);
 			cmd1.Parameters.AddWithValue("@ticker", sTicker);
-			DataTable dt = Database.GetMySqlDataTable(false, cmd1, "");
+			DataTable dt = Database.GetDataTable(cmd1);
 
 			if (dt.Rows.Count < 1)
 			{
@@ -502,7 +500,48 @@ namespace BMSCommon
 			return d1;
 		}
 
+		public static double GetKeyDouble(string sKey, int nMaxSeconds)
+        {
+			double nValue = BMSCommon.Common.GetDouble(GetKeyValue(sKey, nMaxSeconds));
+			return nValue;
+        }
+		public static string GetKeyValue(string sKey, int nMaxSeconds)
+		{
+			double age = 0;
+			if (sKey == null)
+				return "";
+			string sql = "Select updated,Value from sys where systemkey=@skey;";
+			MySqlCommand cmd1 = new MySqlCommand(sql);
+			cmd1.Parameters.AddWithValue("@skey", sKey);
+			DataTable dt = Database.GetDataTable(cmd1);
+			if (dt.Rows.Count < 1)
+			{
+				return "";
+			}
+			string sValue = dt.Rows[0]["Value"].ToString();
+			string s1 = dt.Rows[0]["Updated"].ToString();
+			TimeSpan vTime = DateTime.Now - Convert.ToDateTime(s1);
+			age = (int)vTime.TotalSeconds;
+			if (age > nMaxSeconds)
+				sValue = "";
+			return sValue;
+		}
 
+		public static bool SetKeyValue(string sKey, string sValue)
+        {
+			string sql = "Delete from sys where systemkey=@skey;\r\nInsert into sys (id,systemkey,Updated,Value) values (uuid(),@skey,now(),@svalue);";
+			MySqlCommand cmd1 = new MySqlCommand(sql);
+			cmd1.Parameters.AddWithValue("@skey", sKey);
+			cmd1.Parameters.AddWithValue("@svalue", sValue);
+			bool f = Database.ExecuteNonQuery(false, cmd1, "");
+			return f;
+        }
+
+		public static bool SetKeyDouble(string sKey, double nValue)
+        {
+			bool f = SetKeyValue(sKey, nValue.ToString());
+			return f;
+        }
 
 		public static string TickerToName(string sTicker)
 		{
@@ -546,7 +585,6 @@ namespace BMSCommon
 			return sTicker;
 		}
 
-
 		public static double GetPriceQuote(string ticker, int nAssessmentType = 0)
 		{
 			string sData1 = "";
@@ -584,7 +622,6 @@ namespace BMSCommon
 							Common.Log("For some reason my quote is very low for " + LeftTicker + ", " + sData1 + ": " + nMyValue.ToString());
 						}
 						return nMyValue;
-
 					}
                     else
                     {
@@ -624,9 +661,6 @@ namespace BMSCommon
 			}
 		}
 
-	
-
-
 
 	public class price1
 	{
@@ -649,11 +683,127 @@ namespace BMSCommon
 		return p;
 	}
 
+	public async static Task<string> ExecutePortfolioBuilderExport(bool fTestNet, int nNextHeight)
+	{
+			Dictionary<string, PortfolioBuilder.PortfolioParticipant> u = await PortfolioBuilder.GenerateUTXOReport(fTestNet);
+			string sSummary = "<data><ver>2.1</ver>";
+			foreach (KeyValuePair<string, PortfolioBuilder.PortfolioParticipant> pp in u)
+			{
+				{
+					if (pp.Value.Strength > 0)
+					{
+						string sSummaryRow = "<row>"
+						+ pp.Value.RewardAddress
+						+ "<col>" + pp.Value.NickName
+						+ "<col>"
+						+ "<col>" + pp.Value.AmountBBP.ToString()
+						+ "<col>" + pp.Value.AmountForeign.ToString()
+						+ "<col>" + pp.Value.AmountUSDBBP.ToString()
+						+ "<col>" + pp.Value.AmountUSDForeign.ToString()
+						+ "<col>" + pp.Value.AmountUSD.ToString()
+						+ "<col>" + BMSCommon.Common.DoubleToString(pp.Value.Coverage, 4)
+						+ "<col>" + BMSCommon.Common.DoubleToString(pp.Value.Strength, 4)
+						+ "<col>" + "\r\n";
+						sSummary += sSummaryRow;
+					}
+				}
+			}
+			sSummary += "</data>";
+			string sHash = "<hash>" + BMSCommon.Encryption.GetSha256HashI(sSummary) + "</hash>";
+			DateTime dt1 = System.DateTime.UtcNow;
+			string sDate = "<DATE>" + dt1.ToString("MM_dd_yy") + "</DATE>";
+			sSummary += sHash;
+			sSummary += sDate;
+			sSummary += "<height>" + nNextHeight.ToString() + "</height>";
+			sSummary += "\r\n<EOF>\r\n";
+			return sSummary;
+	}
 
-		
+		public class UTXOIntegration
+        {
+			public string table = "UTXOIntegration";
+			public string data = "";
+			public string added = "";
+			public string signature = "";
+			public int nHeight = 0;
+        }
 
+        public static async Task<bool> DailyUTXOExport(bool fTestNet)
+		{
+			string sKey = fTestNet.ToString() + "utxoexport";
+			double nKV = GetKeyDouble(sKey, 60*30);
+			if (nKV == 1)
+				return false;
 
+			SetKeyDouble(sKey, 1);
+			double nNextHeight = 0;
 
+			try
+			{
+				bool fExists = WebRPC.GetNextContract(fTestNet, out nNextHeight);
+				if (fExists || nNextHeight == 0)
+				{
+					//Log("Export exists for " + fTestNet.ToString());
+					//if (!fTestNet)
+					// {
+					//string sData2 = await BiblePayUtilities.ExecutePortfolioBuilderExport(fTestNet, (int)nNextHeight);
+					// }
+					return false;
+				}
 
+				if (!fTestNet)
+				{
+					BMSCommon.Common.Log("CREATING UTXO DAILY EXPORT FOR HEIGHT " + nNextHeight.ToString());
+				}
+				//todo check if it already exists here.
+				//BiblePayCommon.Entity.utxointegration2 o = new BiblePayCommon.Entity.utxointegration2();
+				string sData = await ExecutePortfolioBuilderExport(fTestNet, (int)nNextHeight);
+				if (!fTestNet && sData.Length < 400)
+				{
+					BMSCommon.Common.Log("DailyUTXOExport::Data too short to save!  " + sData);
+					return false;
+				}
+				UTXOIntegration u = new UTXOIntegration();
+				u.added = DateTime.Now.ToString();
+				u.nHeight = (int)nNextHeight;
+				u.data = sData;
+				BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
+				// remoe the tx from memory pool when we accept the block (connectblock)
+				t.Time = Common.UnixTimestamp();
+				t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(u);
+				BMSCommon.BitcoinSync.AddToMemoryPool(fTestNet, t);
+
+				// Check utxo signature here
+				string sSP = BMSCommon.Common.GetConfigurationKeyValue("utxoprivkey");
+				bool fOK = true;
+				if (fOK)
+				{
+					string UtxoTXID = WebRPC.InsertDataIntoChain(fTestNet, "GSC", sData, sSP);
+					if (UtxoTXID == "")
+					{
+						BMSCommon.Common.Log("Unable to persist utxo data");
+						return false;
+					}
+				}
+				return true;
+			}
+			catch(Exception ex)
+			{ 
+
+				BMSCommon.Common.Log("DailyUtxoExport::ERROR::" + ex.Message);
+				if (!fTestNet)
+				{
+						MailAddress mTo = new MailAddress("rob@biblepay.org", "Rob Andrews");
+						MailMessage m = new MailMessage();
+						m.To.Add(mTo);
+						string sSubject = "UNABLE TO EXPORT UTXO EXPORT! ";
+						m.Subject = sSubject;
+						m.Body = "Error, " + ex.Message.ToString() + "\r\n for height " + nNextHeight.ToString();
+						m.IsBodyHtml = false;
+						API.SendMail(false, m);
+				}
+				return false;
+			}
+		}
 	}
 }

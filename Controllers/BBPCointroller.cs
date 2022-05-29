@@ -11,18 +11,160 @@ using System.Threading.Tasks;
 using static BMSCommon.Common;
 using static BiblePay.BMS.DSQL.SessionExtensions;
 using Microsoft.AspNetCore.Http;
+using static BiblePay.BMS.DSQL.UI;
+using BMSCommon;
 
 namespace BiblePay.BMS.Controllers
 {
     public partial class BBPController : Controller
     {
+
+        public NFT GetNFT(HttpContext h, string sID)
+        {
+            string sChain = IsTestNet(h) ? "test" : "main";
+            NFT n = BMSCommon.NFT.GetNFT(sChain, sID);
+            return n;
+        }
+
+        protected string GetVote(string ID, string sAction)
+        {
+            if (ID == "")
+            {
+                string sData = "(N/A)";
+                return sData;
+            }
+            string sNarr = "From the RPC console in biblepaycore, enter the following command:<br><br>gobject vote-many " + ID + " funding " + sAction;
+            string sJS = "<a style='cursor:pointer;' onclick=\"var e={}; e.Narr='" + sNarr + "';DoCallback('show_modal',e);\">Vote " + sAction + "</a>";
+            return sJS;
+        }
+
+        protected string GetProposalsList(HttpContext h)
+        {
+
+            string sChain = IsTestNet(h) ? "test" : "main";
+            DSQL.Proposal.SubmitProposals(IsTestNet(h));
+
+            string sql = "Select * from proposal WHERE CHAIN='" + sChain + "' and TIMESTAMPDIFF(MINUTE, added, now()) < 86400*30 Order by Added desc";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            string html = "<table class=saved><tr><th>UserName<th>Expense Type<th>Proposal Name<th>Amount<th>PrepareTXID<th>URL<th>Chain<th>Updated<th>SubmitTXID<th>Vote Yes<th>Vote No</tr>\r\n";
+
+            for (int y = 0; y < dt.Rows.Count; y++)
+            {
+                string sURLAnchor = "<a href='" + dt.Rows[y]["URL"].ToString() + "' target=_blank>View Proposal</a>";
+
+                string sID = dt.Rows[y]["SubmitTXID"].ToString();
+                string div = "<tr>"
+                    + "<td>" + dt.Rows[y]["NickName"].ToString()
+                    + "<td>" + dt.Rows[y]["ExpenseType"].ToString()
+                    + "<td>" + dt.Rows[y]["Name"].ToString()
+                    + "<td>" + dt.Rows[y]["Amount"].ToString();
+                div += "<td><small>"
+                    + Mid(dt.Rows[y]["PrepareTXID"].ToString(), 0, 10)
+                    + "</small>"
+                    + "<td>" + sURLAnchor
+                    + "<td>" + dt.Rows[y]["Chain"].ToString()
+                    + "<td>" + dt.Rows[y]["Updated"].ToString()
+                + "<td><small>" + dt.Rows[y]["SubmitTXID"].ToString() + "</small>"
+                + "<td>" + GetVote(sID, "yes") + "<td>" + GetVote(sID, "no");
+
+                html += div + "\r\n";
+            }
+            html += "</table>";
+            return html;
+        }
+    
+
+    public IActionResult ProposalAdd()
+    {
+            List<DropDownItem> ddCharity = new List<DropDownItem>();
+
+            ddCharity.Add(new DropDownItem("Charity", "Charity"));
+            ddCharity.Add(new DropDownItem("PR", "PR"));
+            ddCharity.Add(new DropDownItem("P2P", "P2P"));
+            ddCharity.Add(new DropDownItem("IT", "IT"));
+            ddCharity.Add(new DropDownItem("XSPORK", "XSPORK"));
+            ViewBag.ddCharity = ListToHTMLSelect(ddCharity, "Charity");
+            return View();
+        }
+
+        public static string btnSubmitProposal_Click(HttpContext h, string sData)
+        {
+            string sError = "";
+            string txtName = GetFormData(sData, "txtName");
+            string txtAddress = GetFormData(sData, "txtAddress");
+            string txtAmount = GetFormData(sData, "txtAmount");
+            string txtExpenseType = GetFormData(sData, "ddCharity");
+            string txtURL = GetFormData(sData, "txtURL");
+            if (txtName.Length < 5)
+                sError = "Proposal name too short.";
+            if (txtAddress.Length < 24)
+                sError = "Address must be valid.";
+            if (GetDouble(txtAmount) <= 0)
+                sError = "Amount must be populated.";
+            if (!GetUser(h).LoggedIn)
+                sError = "You must be logged in.";
+
+            bool fValid = BMSCommon.WebRPC.ValidateAddress(IsTestNet(h), txtAddress);
+            if (!fValid)
+            {
+                sError = "Address is not valid for this chain.";
+            }
+
+            if (GetDouble(txtAmount) > 7000000 || GetDouble(txtAmount) < 1)
+            {
+                sError = "Amount is too high (over superblock limit) or too low.";
+            }
+
+            double nMyBal = GetDouble(GetAvatarBalance(h, false));
+            if (nMyBal < 2501)
+                sError = "Balance too low.";
+
+            if (sError != "")
+            {
+                string sJson1 = MsgBoxJson(h, "Error", "Error", sError);
+                return sJson1;
+            }
+            // Submit
+
+            //DataOps.AdjBalance(-1 * 2500, gUser(this).UserId, "Proposal Fee - " + Left(txtURL.Text, 100));
+            DSQL.Proposal.gobject_serialize(IsTestNet(h), GetUser(h).ERC20Address, GetUser(h).NickName, txtName, txtAddress, txtAmount, txtURL, txtExpenseType);
+            string sJson = MsgBoxJson(h,"Success", "Success", "Thank you.  Your proposal will be submitted in six blocks.");
+            return sJson;
+        }
+    
+        public IActionResult Scratchpad()
+        {
+            return View();
+        }
         public async Task<IActionResult> PortfolioBuilder()
         {
             ViewBag.CryptoCurrencyIndex = BMSCommon.Pricing.GetChartOfIndex();
-            double nDWU = await BMS.DSQL.PortfolioBuilder.GetDWU(DSQL.UI.IsTestNet(HttpContext)) * 100;
-            ViewBag.DWU = nDWU.ToString() + "% DWU";
+            double nDWU = await BMS.DSQL.PB.GetDWU(DSQL.UI.IsTestNet(HttpContext)) * 100;
+            ViewBag.DWU = Math.Round(nDWU,2).ToString() + "%";
+            // Sanctuary DWU
+            double nRewardPerBlock = 1000;
+            double nRewardsPerDay = 10;
+            double nRewardsPerMonth = nRewardPerBlock * nRewardsPerDay * 30;
+            double nPricePerBBP = .00008244;
+            double nRevUSDPerMonth = nRewardsPerMonth * nPricePerBBP;
+            double nCostUSDPerMonth = 15;
+            double nMonthlyProfit = nRevUSDPerMonth - nCostUSDPerMonth;
+            double nAnnualProfit = nMonthlyProfit * 12;
+            double nInvestment = 4500001 * nPricePerBBP;
+            double nSancDWU =  nAnnualProfit /nInvestment* 100;
+            ViewBag.SanctuaryCost = "$" + Math.Round(nInvestment, 2) + " USD";
+            ViewBag.SanctuaryDWU = Math.Round(nSancDWU,2).ToString() + "%";
             return View();
         }
+
+        public IActionResult TurnkeySanctuary()
+        {
+
+            return View();
+        }
+
+
 
         public IActionResult MessagePage()
         {
@@ -34,7 +176,7 @@ namespace BiblePay.BMS.Controllers
 
         public async Task<IActionResult> PortfolioBuilderLeaderboard()
         {
-            ViewBag.PortfolioBuilderLeaderboard = await DSQL.PortfolioBuilder.GetLeaderboard(HttpContext, DSQL.UI.IsTestNet(HttpContext));
+            ViewBag.PortfolioBuilderLeaderboard = await DSQL.PB.GetLeaderboard(HttpContext, DSQL.UI.IsTestNet(HttpContext));
             ViewBag.PortfolioBuilderMode = DSQL.UI.GetPBMode(HttpContext);
             return View();
         }
@@ -43,10 +185,10 @@ namespace BiblePay.BMS.Controllers
         {
             try
             {
-                string sql = "Select * from SponsoredOrphan2";
+                string sql = "Select * from SponsoredOrphan2 where Charity not in ('sai') and ChildId not in ('Genevieve Umba')";
                 MySqlCommand m1 = new MySqlCommand(sql);
 
-                DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+                DataTable dt = BMSCommon.Database.GetDataTable(m1);
                 int nHour = (DateTime.Now.Hour + DateTime.Now.DayOfYear) % dt.Rows.Count;
                 string url = dt.Rows[nHour]["BioPicture"].ToString();
                 return url;
@@ -56,7 +198,6 @@ namespace BiblePay.BMS.Controllers
                 return "https://i.ibb.co/W691XWC/Screen-Shot-2019-12-12-at-16-01-29.png";
             }
         }
-
 
         public static string GetHPSLabel(double dHR)
         {
@@ -92,7 +233,7 @@ namespace BiblePay.BMS.Controllers
             string sTable = fTestNet ? "tLeaderboard" : "Leaderboard";
             string sql = "Select * from " + sTable + " order by bbpaddress;";
             MySqlCommand m1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(m1);
             string html = "<table class=saved><tr><th width=20%>BBP Address</th><th>BBP Shares<th>BBP Invalid<th>XMR Shares<th>XMR Charity Shares<th>Efficiency<th>Hash Rate<th>Updated<th>Height</tr>";
             for (int y = 0; y < dt.Rows.Count; y++)
             {
@@ -118,12 +259,12 @@ namespace BiblePay.BMS.Controllers
             int nHeight = fTestNet ? x._template.height : x._template.height;
             string sTable = fTestNet ? "tshare" : "share";
             //and bbpaddress like '" + BMS.PurifySQL(txtAddress.Text, 100) + "%'
-            string sFilter = " and bbpaddress like 'bbp%'";
+            //string sFilter = " and bbpaddress like 'bbp%'";
             string sql = "Select Height, bbpaddress, percentage, reward, subsidy, txid "
-                + " FROM " + sTable + " WHERE subsidy > 1 and reward > .01 AND TIMESTAMPDIFF(MINUTE, updated, now()) < 1440*2 "
-                + " AND height > " + nHeight.ToString() + "-205 ORDER BY height desc, bbpaddress;";
+                + " FROM " + sTable + " WHERE subsidy > 1 and reward > .01 "
+                + " AND height > " + nHeight.ToString() + "-205*7 ORDER BY height desc, bbpaddress;";
             MySqlCommand m1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetMySqlDataTable(false, m1, "");
+            DataTable dt = BMSCommon.Database.GetDataTable(m1);
             string html = "<table class=saved><tr><th width=20%>Height</th><th>BBP Address<th>Percentage<th>Reward<th>Block Subsidy<th>TXID</tr>";
             double _height = 0;
             double oldheight = 0;
@@ -132,7 +273,7 @@ namespace BiblePay.BMS.Controllers
                 _height = GetDouble(dt.Rows[y]["height"]);
                 if (oldheight > 0 && _height != oldheight)
                 {
-                    html += "<tr style='background-color:white;'><td style='background-color:white;' colspan = 6><hr></td></tr>";
+                    html += "<tr style='xbackground-color:white;'><td style='xbackground-color:white;' colspan=6><hr></td></tr>";
                 }
                 string div = "<tr><td>" + dt.Rows[y]["height"].ToString()
                     + "<td>" + dt.Rows[y]["bbpaddress"].ToString()
@@ -145,6 +286,10 @@ namespace BiblePay.BMS.Controllers
                 oldheight = _height;
 
             }
+            if (dt.Rows.Count < 1)
+            {
+                html += "<tr><td>No data found.</td></tr>";
+            }    
             html += "</table>";
             return html;
         }
@@ -161,13 +306,21 @@ namespace BiblePay.BMS.Controllers
 
             string sql = "Select sum(hashrate) hr FROM " + sLBTable;
             MySqlCommand m1 = new MySqlCommand(sql);
-            double dHR = BMSCommon.Database.GetScalarDouble(false, m1, "hr");
+            double dHR = BMSCommon.Database.GetScalarDouble(m1, "hr");
 
             sql = "Select count(bbpaddress) ct from " + sLBTable;
             MySqlCommand m2 = new MySqlCommand(sql);
 
-            double dCt = BMSCommon.Database.GetScalarDouble(false, m2, "ct");
+            double dCt = BMSCommon.Database.GetScalarDouble(m2, "ct");
             html += GetTR("Chain", fTestNet ? "TESTNET" : "MAINNET");
+
+            string poolAccount = GetConfigurationKeyValue("PoolPayAccount");
+            if (poolAccount == "")
+            {
+                html += GetTR("Disabled", "This pool is disabled because it is not configured.  See PoolPayAccount configuration Key.");
+                return html;
+            }
+
 
             html += GetTR("Miners", dCt.ToString());
             html += GetTR("Speed", GetHPSLabel(dHR));
@@ -199,13 +352,13 @@ namespace BiblePay.BMS.Controllers
             html += GetTR("Worker Count", x.GetWorkerCount().ToString());
             sql = "Select sum(shares) suc, sum(fails) fail from " + sTableShare + " where TIMESTAMPDIFF(MINUTE, updated, now()) < 1440;";
             MySqlCommand m3 = new MySqlCommand(sql);
-            double ts24 = BMSCommon.Database.GetScalarDouble(false, m3, "suc");
-            double tis24 = BMSCommon.Database.GetScalarDouble(false, m3,  "fail");
+            double ts24 = BMSCommon.Database.GetScalarDouble(m3, "suc");
+            double tis24 = BMSCommon.Database.GetScalarDouble(m3,  "fail");
             html += GetTR("Total Shares (24 hours)", ts24.ToString());
             html += GetTR("Total Invalid Shares (24 hours)", tis24.ToString());
             sql = "Select count(distinct height) h from " + sTableShare + " where TIMESTAMPDIFF(MINUTE, updated, now()) < 1440 and subsidy > 0 and reward > .05;";
             MySqlCommand m4 = new MySqlCommand(sql);
-            double tbf24 = BMSCommon.Database.GetScalarDouble(false, m4,  "h");
+            double tbf24 = BMSCommon.Database.GetScalarDouble(m4,  "h");
             html += GetTR("Total Blocks Found (24 hours)", tbf24.ToString());
             html += "</table>";
             return html;
@@ -232,6 +385,11 @@ namespace BiblePay.BMS.Controllers
             return View();
         }
 
+        public IActionResult ProposalList()
+        {
+            ViewBag.ProposalList = GetProposalsList(HttpContext);
+            return View();
+        }
         public IActionResult PoolGettingStarted()
         {
             int nPortMainnet = (int)GetDouble(GetConfigurationKeyValue("XMRPort"));

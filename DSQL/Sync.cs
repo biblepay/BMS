@@ -98,13 +98,10 @@ namespace BiblePay.BMS.DSQL
             bool fTestNet = true; // MISSION CRITICAL: SWITCH TO MAIN during go live
             List<string> l = BMSCommon.DSQL.QueryIPFSFolderContents(fTestNet, "", "", "");
             MemorizeNickNames();
-
             MyWebClient wc = new MyWebClient();
-
             int nProcessed = 0;
             int nMax = 100; // This allows the service to breathe (once per 10, we break)
             nLoopCount++;
-
             if (nLoopCount % 10 == 0)
             {
                 Log("Replication Count " + l.Count.ToString());
