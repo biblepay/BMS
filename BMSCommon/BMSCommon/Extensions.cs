@@ -5,6 +5,16 @@ using System.Text;
 
 namespace BMSCommon
 {
+
+    public static class MyObjectExtensions
+    {
+        public static Int32 ToInt32(this object obj)
+        {
+            return Convert.ToInt32(obj);
+        }
+    }
+
+
     public static class DataRowExtensions
     {
         public static int ToInt(this DataRow row, int index)

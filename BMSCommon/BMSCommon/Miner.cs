@@ -107,7 +107,9 @@ namespace BMSCommon
                             break;
                     }
                 }
-                Console.WriteLine("Base content path=" + Database.msContentRootPath);
+                string sNarr = "BMS Base content path=" + Database.msContentRootPath;
+                WebRPC.LogRPCError(sNarr);
+
 
                 string sDBName = Database.GetDatabaseName();
                 bool fDBExists = Database.DatabaseExists(sDBName);
@@ -122,7 +124,31 @@ namespace BMSCommon
                         throw new Exception("CheckDatabase failed.");
                     }
                 }
-                bool fBlocks = Database.TableExists(sDBName, "blocksync");
+
+            bool fBlockChair = Database.TableExists(sDBName, "BlockChair2");
+            if (!fBlockChair)
+            {
+                string sql = "create table BlockChair2 (id varchar(64) primary key, ticker varchar(100), added datetime, amount numeric(20,10), Address varchar(128), "
+                    +"ordinal int, txid varchar(128), height int, account varchar(128), TotalBalance float, utxotxtime int, txcount int); ";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table blockchair");
+
+            }
+
+            fBlockChair = Database.TableExists(sDBName, "BlockChairRequestLog");
+            if (!fBlockChair)
+            {
+                string sql = "create table BlockChairRequestLog (id varchar(64) primary key, added datetime, URL varchar(1000));";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table blockchairrl");
+
+            }
+
+            bool fBlocks = Database.TableExists(sDBName, "blocksync");
                 if (!fBlocks)
                 {
                     string sql = "create table blocksync (hash varchar(64) primary key, time int, Version int, PreviousBlockHash varchar(64), "
@@ -132,6 +158,26 @@ namespace BMSCommon
                     if (!fSuccess)
                         throw new Exception("Unable to create table blocksync");
                 }
+
+            bool f0 = Database.TableExists(sDBName, "pbdonation");
+            if (!f0)
+            {
+                string sql = "create table pbdonation (id varchar(64) primary key, txid varchar(100), amount float, added datetime);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table pbdonation");
+            }
+
+            f0 = Database.TableExists(sDBName, "tpbdonation");
+            if (!f0)
+            {
+                string sql = "create table tpbdonation (id varchar(64) primary key, txid varchar(100), amount float, added datetime);";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table tpbdonation");
+            }
 
 
             fBlocks = Database.TableExists(sDBName, "tblocksync");
@@ -196,19 +242,29 @@ namespace BMSCommon
                     if (!fSuccess)
                         throw new Exception("Unable to create table tHR");
                 }
-                bool ftProvision = Database.TableExists(sDBName, "turnkeysanctuary");
+                bool ftProvision = Database.TableExists(sDBName, "turnkeysanctuaries");
                 if (!ftProvision)
                 {
-
-                    string sql = "create table turnkeysanctuary (id varchar(64) primary key, erc20address varchar(128), Added DateTime, IP varchar(128), sanctuaryname varchar(128), "
-                        + "configuration mediumtext, rootpassword varchar(70));";
+                    string sql = "create table turnkeysanctuaries (id varchar(64) primary key, erc20address varchar(128), Added DateTime, "
+                        + "BBPAddress varchar(64), Nonce varchar(64));";
                     MySqlCommand cmd1 = new MySqlCommand(sql);
                     bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
                     if (!fSuccess)
                         throw new Exception("Unable to create table turnkeysanctuary");
                 }
 
-                bool fW = Database.TableExists(sDBName, "tworker");
+            ftProvision = Database.TableExists(sDBName, "tturnkeysanctuaries");
+            if (!ftProvision)
+            {
+                string sql = "create table tturnkeysanctuaries (id varchar(64) primary key, erc20address varchar(128), Added DateTime, "
+                    + "BBPAddress varchar(64), Nonce varchar(64));";
+                MySqlCommand cmd1 = new MySqlCommand(sql);
+                bool fSuccess = Database.ExecuteNonQuery(false, cmd1, "");
+                if (!fSuccess)
+                    throw new Exception("Unable to create table tturnkeysanctuary");
+            }
+
+            bool fW = Database.TableExists(sDBName, "tworker");
                 if (!fW)
                 {
                     string sql = "create table tworker (id varchar(64) primary key, bbpaddress varchar(128), moneroaddress varchar(128), Added datetime, IP varchar(50));";
@@ -366,6 +422,22 @@ namespace BMSCommon
             string sql0 = "Delete from pin where URL like '%.ts';Delete from tpin where URL like '%.ts';";
             MySqlCommand cmd0 = new MySqlCommand(sql0);
             bool fSuccess0 = Database.ExecuteNonQuery(false, cmd0, "");
+
+            // During 2022 expense audit I found some duplicated expenses and this removes them (you can still clearly see our expenses for Cameroon One maintains the pattern of paying for 90 orphans per month, so it is very clear the data is correct after these changes) :
+            sql0 = "Delete from Expense where _id in ('0598f4608100f443f158a4a55da9e3f93e27ff024db7140eb078c3391a798d42', '616f79fb9d274959f04f8fe2678979a49442ff8a7f4f9be4d2caa21de1866564', 'c4a599f1f67f7f73d1ee90dfb4f804271309987f43389b6674953ad7b2ae88ad', 'ff372782da94d422a65b598b9db112e70e9455af260de53f7fef8880446c50c8');";
+            cmd0 = new MySqlCommand(sql0);
+            fSuccess0 = Database.ExecuteNonQuery(false, cmd0, "");
+            sql0 = "update Expense set Amount = 1400 where _id = 'ea6b247582ac9bf94a2913abaa7350d2313cb2f0cdc9120911a312a6e5f710af';";
+            cmd0 = new MySqlCommand(sql0);
+            fSuccess0 = Database.ExecuteNonQuery(false, cmd0, "");
+            sql0 = "Delete from OrphanExpense3 where Added='4-1-2022';";
+            cmd0 = new MySqlCommand(sql0);
+            fSuccess0 = Database.ExecuteNonQuery(false, cmd0, "");
+
+            sql0 = "delete from Revenue where _id = 'de618099a892166d2e164a1000dadf07c2d16dc015d86e86b9c08741db031fdd';\r\nInsert into Revenue (_id,Added,Amount,Notes,HandledBy,Charity) values ('de618099a892166d2e164a1000dadf07c2d16dc015d86e86b9c08741db031fdd','6/1/2022 11:59:00 AM',38507.39,'Donation from Rob Andrews (General Fund)','bible_pay','General');";
+            cmd0 = new MySqlCommand(sql0);
+            fSuccess0 = Database.ExecuteNonQuery(false, cmd0, "");
+
             // End of adhoc updates
         }
 
@@ -398,12 +470,71 @@ namespace BMSCommon
                 Transaction t = new Transaction();
                 t.Time = Common.UnixTimestamp();
                 t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-                string TXID = BMSCommon.BitcoinSync.AddToMemoryPool(fTestNet, t);
+                string TXID = BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
                 bool f = TXID != "";
             return f;
          }
 
-            public static User DepersistUser(bool fTestNet, string sERC20Address)
+        public static Dictionary<string, User> tdictUsers = new Dictionary<string, User>();
+        public static Dictionary<string, User> mdictUsers = new Dictionary<string, User>();
+
+        public static void MemorizeUsers(bool fTestNet)
+        {
+            string sTable = fTestNet ? "tuser" : "user";
+
+            string sql = "Select * from " + sTable;
+            MySqlCommand m1 = new MySqlCommand(sql);
+            DataTable dt = Database.GetDataTable(m1);
+            
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                User u = RowToUser(dt.Rows[i]);
+                if (fTestNet)
+                {
+                    tdictUsers[u.ERC20Address] = u;
+                }
+                else
+                {
+                    mdictUsers[u.ERC20Address] = u;
+                }
+            }
+        }
+
+        public static User GetCachedUser(bool fTestNet, string sERC20Address)
+        {
+            User u = new User();
+
+            if (fTestNet)
+            {
+                if (tdictUsers.Count == 0)
+                    MemorizeUsers(fTestNet);
+                tdictUsers.TryGetValue(sERC20Address, out u);
+            }
+            else
+            {
+                if (mdictUsers.Count == 0)
+                    MemorizeUsers(fTestNet);
+                mdictUsers.TryGetValue(sERC20Address, out u);
+            }
+            return u;
+        }
+
+        public static User RowToUser(DataRow dr)
+        {
+            User u = new User();
+            u.ERC20Address = dr["ERC20Address"].ToString();
+            u.EmailAddress = dr["EmailAddress"].ToString();
+            u.NickName = dr["NickName"].ToString();
+            u.Updated = dr["Updated"].ToString();
+            u.BioURL = dr["BioURL"].ToString();
+            u.PBSignature = dr["PBSignature"].ToString();
+            u.PortfolioBuilderAddress = dr["PortfolioBuilderAddress"].ToString();
+            u.tPBSignature = dr["tPBSignature"].ToString();
+            u.tPortfolioBuilderAddress = dr["tPortfolioBuilderAddress"].ToString();
+            u.LoggedIn = false;
+            return u;
+        }
+        public static User DepersistUser(bool fTestNet, string sERC20Address)
             {
                 string sTable = fTestNet ? "tuser" : "user";
                 string sql = "Select * from " + sTable + " where ERC20Address=@e;";
@@ -415,19 +546,7 @@ namespace BMSCommon
                     DataTable dt = BMSCommon.Database.GetDataTable(m1);
                     if (dt.Rows.Count == 0)
                         return u;
-                    u.ERC20Address = dt.Rows[0]["ERC20Address"].ToString();
-                    u.EmailAddress = dt.Rows[0]["EmailAddress"].ToString();
-                    u.NickName = dt.Rows[0]["NickName"].ToString();
-                    u.Updated = dt.Rows[0]["Updated"].ToString();
-                    u.BioURL = dt.Rows[0]["BioURL"].ToString();
-
-                    u.PBSignature = dt.Rows[0]["PBSignature"].ToString();
-                    u.PortfolioBuilderAddress = dt.Rows[0]["PortfolioBuilderAddress"].ToString();
-                    u.tPBSignature = dt.Rows[0]["tPBSignature"].ToString();
-                    u.tPortfolioBuilderAddress = dt.Rows[0]["tPortfolioBuilderAddress"].ToString();
-
-
-                    u.LoggedIn = false;
+                    u = RowToUser(dt.Rows[0]);
                     return u;
                 }
                 catch (Exception ex)
@@ -453,7 +572,16 @@ namespace BMSCommon
             // Each BMS node mines in the background.  The miner solves blocks on the sidechain.
             public static async void Mine()
             {
+            try
+            {
                 CryptoUtils.CheckDatabase();
+                WebRPC.LogRPCError("database initialized...");
+            }
+            catch(Exception ex)
+            {
+                Common.Log("Mine:"+ex.Message);
+                WebRPC.LogRPCError("Mine:"+ex.Message);
+            }
                 // Block Sync Main Entry Point
                 int nStartTime = Common.UnixTimestamp();
                 int nNewBlockTime = Common.UnixTimestamp();
@@ -463,8 +591,9 @@ namespace BMSCommon
             {
                 try
                 {
-                    BMSCommon.BitcoinSync.SyncBlocks(true);
-                    BMSCommon.BitcoinSync.SyncBlocks(false);
+                    await BMSCommon.BitcoinSync.SyncBlocks(true);
+                    await BMSCommon.BitcoinSync.SyncBlocks(false);
+                    //WebRPC.LogRPCError("Looping " + DateTime.Now.ToString());
                 }
                 catch(Exception ex)
                 {

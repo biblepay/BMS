@@ -1,9 +1,11 @@
 ﻿using BiblePay.BMS.DSQL;
+using BMSCommon;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Mail;
 using System.Reflection;
 using System.Threading.Tasks;
 using static BiblePay.BMS.Common;
@@ -38,7 +40,7 @@ namespace BiblePay.BMS.Controllers
                     throw new Exception("API Key invalid.  To obtain a key, go to unchained.biblepay.org | Wallet.");
                 }
                 bool fTestNet = true; // Mission Critical, how to determine chain here?
-                List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents(fTestNet,"", "", key);
+                List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents(fTestNet, "", "", key);
                 Log("Bms result " + s.Count.ToString() + " uid " + sUID.ToString());
                 string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(s);
                 var r3 = Ok(new { sJson3 });
@@ -203,7 +205,7 @@ namespace BiblePay.BMS.Controllers
                     Log("BBPIngress_2::Writing " + sFullDest + ", sz = " + fi.Length.ToString());
                     if (fi.Length > 0)
                     {
-                        bool fOK = await BBPTestHarness.Service.RegisterPin(true,sDestinationURL, sUID, sFullDest, false);
+                        bool fOK = await BBPTestHarness.Service.RegisterPin(true, sDestinationURL, sUID, sFullDest, false);
                         fOK = await BBPTestHarness.Service.RegisterPin(false, sDestinationURL, sUID, sFullDest, false);
 
                     }
@@ -244,7 +246,7 @@ namespace BiblePay.BMS.Controllers
         [Route("BMS/GetBlockCount")]
         public int GetBlockCount()
         {
-            int n =  BMSCommon.BitcoinSync.GetBestHeight(DSQL.UI.IsTestNet(HttpContext));
+            int n = BMSCommon.BitcoinSync.GetBestHeight(DSQL.UI.IsTestNet(HttpContext));
             return n;
         }
 
@@ -327,15 +329,53 @@ namespace BiblePay.BMS.Controllers
             public int Block_Count_Main;
             public string Best_Block_Hash_Test;
             public int Block_Count_Test;
+            public List<string> RPCErrorList;
+            public int TESTNET_RPC_HEIGHT;
+            public int MAINNET_RPC_HEIGHT;
             //public int Hashes;
         };
-        
+
 
         [Route("BMS/msd")]
         public int Rollback()
         {
             //BMSCommon.Tests.MigrateSidechainData();
+            MailAddress mTo = new MailAddress("rob@biblepay.org", "Rob Andrews");
+            MailMessage m = new MailMessage();
+            m.To.Add(mTo);
+            string sSubject = "UNABLE TO ______";
+            m.Subject = sSubject;
+            m.Body = "Error, ____________ for .";
+            m.IsBodyHtml = false;
+            BBPTestHarness.IPFS.SendMail(false, m);
             return 70;
+        }
+
+        [Route("BMS/Supply")]
+        public string Supply()
+        {
+            // this endpoint shows bbp circulatin supply
+            BMSCommon.SupplyType s = BMSCommon.WebRPC.GetSupply(false);
+            string sJson = Newtonsoft.Json.JsonConvert.SerializeObject(s, Newtonsoft.Json.Formatting.Indented);
+            return sJson;
+        }
+
+        [Route("BMS/Debug")]
+        public async Task<string> Debug()
+        {
+            // test blockchair
+            // string doge = "D7hax329ifyA1CjQiTB6AkmDBrUSjLwSsf";
+            // List<BMSCommon.BlockChair.BlockChairUTXO> l = BBPTestHarness.BlockChairTestHarness.QueryUTXOs("DOGE", doge, 0);
+            // string sOwnerAddress = "BMFjMKj7SWE9iK1dKVhkTNoBwJhD7qoB7e";
+            //  int nPin = (int)BMSCommon.BlockChair.AddressToPin(sOwnerAddress, doge);
+            //  bool fPin = BMSCommon.BlockChair.CompareMask(1, nPin);
+            // mission critical
+
+            //  string sEncBlockchair = BMSCommon.Encryption.EncryptAES256("A___mI4F7ZYgxq56ixO30lY9LBP6wKyY", "");
+
+            //string sData = await DSQL.youtube.GetSomeVideos();
+            //return sData;
+            return "";
         }
 
         [Route("BMS/Status")]
@@ -368,9 +408,18 @@ namespace BiblePay.BMS.Controllers
             s.Status = "SUFFICIENT";
             s.URL = sBindURL;
             s.EOF = "<EOF>";
+            if (false)
+                            s.RPCErrorList = WebRPC.listRPCErrors;
 
+            try
+            {
+                s.TESTNET_RPC_HEIGHT = BMSCommon.WebRPC.GetHeight(true);
+                s.MAINNET_RPC_HEIGHT = BMSCommon.WebRPC.GetHeight(false);
+            }
+            catch(Exception)
+            {
 
-
+            }
             string sJson = Newtonsoft.Json.JsonConvert.SerializeObject(s, Newtonsoft.Json.Formatting.Indented);
             return sJson;
         }
@@ -400,7 +449,7 @@ namespace BiblePay.BMS.Controllers
         [Route("BMS/U1")]
         public async Task<string> U1()
         {
-            bool f = await BMSCommon.Pricing.DailyUTXOExport(true);
+            //bool f = await PortfolioBuilder.DailyUTXOExport(true);
             return "";
         }
 

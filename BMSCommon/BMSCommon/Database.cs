@@ -116,6 +116,40 @@ namespace BMSCommon
             return n;
         }
 
+        public static double GetScalarAge(MySqlCommand cmd, object vCol, bool bLog = true)
+        {
+            DataTable dt1 = GetDataTable(cmd);
+            try
+            {
+                if (dt1.Rows.Count > 0)
+                {
+                    object oOut = null;
+                    if (vCol.GetType().ToString() == "System.String")
+                    {
+                        oOut = dt1.Rows[0][vCol.ToString()];
+                    }
+                    else
+                    {
+                        oOut = dt1.Rows[0][Convert.ToInt32(vCol)];
+                    }
+                    if (oOut.GetType().ToString() == "System.DBNull")
+                    {
+                        oOut = Convert.ToDateTime("1-1-1970");
+                    }
+                    DateTime d1 = Convert.ToDateTime(oOut);
+                    TimeSpan vAge = DateTime.Now - d1;
+                    return vAge.TotalSeconds;
+
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return 0;
+        }
+
+
+
         public static string GetScalarString(MySqlCommand cmd, string sField)
         {
             DataTable dt = GetDataTable(cmd);
@@ -143,6 +177,8 @@ namespace BMSCommon
                 return false;
             }
         }
+
+        // Notes:  If we have a string date column, mysql function to convert back to date for sorting: order by by STR_TO_DATE(Added,'%m/%d/%Y %h:%i:%s') desc;
 
 
         public static bool ExecuteNonQuery(bool fTestNet, MySqlCommand cmd1, string sDomain)

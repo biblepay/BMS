@@ -18,28 +18,36 @@
     <br>
     Name:
     <br />
-    <input id='txtName' style='width:450px;' value='@ViewBag.txtName' />
+    <input id='txtName' style='xwidth:450px;' class="form-control" value='@ViewBag.txtName' />
 
     <br />
 
 
     Description:
     <br />
-    <textarea id='txtDescription' cols=120 rows=7>@ViewBag.txtDescription</textarea>
+    <textarea id='txtDescription' cols=120 class="form-control" rows=7>@ViewBag.txtDescription</textarea>
 
     <br />
 
-    Asset URL:
+    Asset Image URL: <small><font color="red">(This is the Image URL.  You can either populate it here, or click the image above to upload one.)</font></small>
     <br />
-    <input id='txtURL' style='width:600px;' value='@ViewBag.txtURL' />
+    <input id='txtURL' style='xwidth:600px;' class="form-control" value='@ViewBag.txtURL' />
+
+    <div id="divBIO" style="visibility:hidden;">
+        <br />
+        Child Bio URL: <small><font color="red">(This is the Orphan Bio URL.)</font></small>
+        <br />
+        <input id='txtBIOURL' class="form-control" value='@ViewBag.txtBIOURL' />
+    </div>
+
     <br />
     Buy It Now Amount:
     <br>
-    <input id="txtBuyItNowAmount" type="number" value="@ViewBag.txtBuyItNowAmount" />
+    <input id="txtBuyItNowAmount" type="number" class="form-control" value="@ViewBag.txtBuyItNowAmount" />
     <br />
     Reserve Price:
     <br />
-    <input id="txtReserveAmount" type="number" value="@ViewBag.txtReserveAmount" />
+    <input id="txtReserveAmount" type="number" class="form-control" value="@ViewBag.txtReserveAmount" />
     <br />
 
 
@@ -48,20 +56,20 @@
 
     NFT Type:
     <br />
-    <select id='ddNFTType'>
+    <select id='ddNFTType' class="form-control" onchange="changeNFTType();">
         @Html.Raw(ViewBag.ddNFTType);
     </select>
 
     <br />
 
-    <input id='chkMarketable' value='1' @ViewBag.chkMarketableChecked type='checkbox'>&nbsp;Marketable?
+    <input id='chkMarketable' class="xform-control" value='1' @ViewBag.chkMarketableChecked type='checkbox'>&nbsp;Marketable?
 
     <br />
-    <input id='chkDelete' value='1' @ViewBag.chkDeleteChecked type='checkbox'>&nbsp;Delete this NFT?
+    <input id='chkDelete' class="xform-control" value='1' @ViewBag.chkDeleteChecked type='checkbox'>&nbsp;Delete this NFT?
     <br />
 
 
-    <button class="btn btn-info xshadow-0 ml-auto" id='btnSubmit' onclick="DoCallback('nft_@ViewBag.Mode');">Submit</button>
+    <button class="btn btn-info xshadow-0 ml-auto" class="btn-default" id='btnSubmit' onclick="DoCallback('nft_@ViewBag.Mode');">Submit</button>
     <br />
 
     <span>@ViewBag.lblInfo</span>
@@ -84,9 +92,24 @@
 {
         
     <script>
+
+        window.onload = changeNFTType();
+
+        function changeNFTType() {
+            // When they choose Orphan, BIO should be visible.
+            var o = document.getElementById('ddNFTType');
+            var oDiv = document.getElementById('divBIO');
+            if (o.value == "Orphan") {
+                oDiv.style.visibility = 'visible';
+            }
+            else
+            {
+                oDiv.style.visibility = 'none';
+            }
+        }
+
     function upl_changed() 
     {
-        //document.getElementById("f1").submit();
         UploadFile();
     };
 

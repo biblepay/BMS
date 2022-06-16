@@ -36,10 +36,14 @@
     <None Remove="Views\FormPlugins\**" />
     <None Remove="Views\Statistics\**" />
     <None Remove="Views\Utilities\**" />
-    
+	  <!-- publish items -->
+	  <!-- 	  <Content Remove="wwwroot\media\*" />-->
+	  
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Controllers\BBPCointroller - Copy.cs" />
+    <Compile Remove="Controllers\BBPCointroller0.cs" />
     <Compile Remove="Controllers\DatatablesController.cs" />
     <Compile Remove="Controllers\DocsController.cs" />
     <Compile Remove="Controllers\DocumentationController.cs" />
@@ -64,6 +68,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.57.0.2715" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="3.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="3.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="3.1.2" />

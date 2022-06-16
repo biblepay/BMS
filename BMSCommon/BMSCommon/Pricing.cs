@@ -31,20 +31,7 @@ namespace BMSCommon
 		};
 
 		
-		public static async Task<List<Asset>> QueryTokenBalances(string sERC20Address)
-		{
-			List<Asset> l1 = GetAssetList();
-			for (int i = 0; i < l1.Count; i++)
-			{
-				Asset l0 = l1[i];
-				l0.Amount = await GetResolvedBalance(l0.Chain, l0.ERCAddress, sERC20Address);
-				//string sSumm = sERC20Address + "," + l0.Symbol + "," + nBalance.ToString();
-				l1[i] = l0;
-			}
-			return l1;
-		}
 
-		public static string minABI = @"[{""constant"":false,""inputs"":[{""name"":""_spender"",""type"":""address""},{""name"":""_value"",""type"":""uint256""}],""name"":""approve"",""outputs"":[{""name"":""success"",""type"":""bool""}],""type"":""function""},{""constant"":true,""inputs"":[],""name"":""totalSupply"",""outputs"":[{""name"":""supply"",""type"":""uint256""}],""type"":""function""},{""constant"":false,""inputs"":[{""name"":""_from"",""type"":""address""},{""name"":""_to"",""type"":""address""},{""name"":""_value"",""type"":""uint256""}],""name"":""transferFrom"",""outputs"":[{""name"":""success"",""type"":""bool""}],""type"":""function""},{""constant"":true,""inputs"":[{""name"":""_owner"",""type"":""address""}],""name"":""balanceOf"",""outputs"":[{""name"":""balance"",""type"":""uint256""}],""type"":""function""},{""constant"":false,""inputs"":[{""name"":""_to"",""type"":""address""},{""name"":""_value"",""type"":""uint256""}],""name"":""transfer"",""outputs"":[{""name"":""success"",""type"":""bool""}],""type"":""function""},{""constant"":true,""inputs"":[{""name"":""_owner"",""type"":""address""},{""name"":""_spender"",""type"":""address""}],""name"":""allowance"",""outputs"":[{""name"":""remaining"",""type"":""uint256""}],""type"":""function""},{""inputs"":[{""name"":""_initialAmount"",""type"":""uint256""}],""type"":""constructor""},{""anonymous"":false,""inputs"":[{""indexed"":true,""name"":""_from"",""type"":""address""},{""indexed"":true,""name"":""_to"",""type"":""address""},{""indexed"":false,""name"":""_value"",""type"":""uint256""}],""name"":""Transfer"",""type"":""event""},{""anonymous"":false,""inputs"":[{""indexed"":true,""name"":""_owner"",""type"":""address""},{""indexed"":true,""name"":""_spender"",""type"":""address""},{""indexed"":false,""name"":""_value"",""type"":""uint256""}],""name"":""Approval"",""type"":""event""}]";
 
 		public static double BigIntToDouble(BigInteger bi, int nDecimals)
 		{
@@ -79,130 +66,29 @@ namespace BMSCommon
 				return nBal;
 			}
 		}
-		public static string GetEtherEndpoint(string sName, out int nChainID)
-		{
-			string sURL = "";
-			nChainID = 0;
-			if (sName.ToUpper() == "BSC")
-			{
-				sURL = BMSCommon.Common.GetConfigurationKeyValue("etherendpointbsc");
-				nChainID = 56;
-			}
-			else if (sName.ToUpper() == "MATIC" || sName.ToUpper() == "POLYGON")
-			{
-				sURL = BMSCommon.Common.GetConfigurationKeyValue("etherendpointmatic");
-				nChainID = 137;
-			}
-			return sURL;
-		}
-		public static async Task<double> GetContractBalance(string sNetwork, string sContractAddress, string sAccount)
-		{
-			int nChainID = 0;
-			string sPoint =  GetEtherEndpoint(sNetwork, out nChainID);
-			// Note: This is to get a Contract balance 
-			try
-			{
-				var web3 = new Web3(sPoint);
-				var contract = web3.Eth.GetContract(minABI, sContractAddress);
-				var balanceFunction = contract.GetFunction("balanceOf");
-				BigInteger balance = await balanceFunction.CallAsync<BigInteger>(sAccount);
-				int nDecimals = 18;
-				if (sContractAddress == "0xcE829A89d4A55a63418bcC43F00145adef0eDB8E")
-					nDecimals = 8; //renDOGE
-				double nBal = BigIntToDouble(balance, nDecimals);
-				return nBal;
-			}
-			catch (Exception ex)
-			{
-				string myerr = ex.Message;
-				return 0;
-			}
-		}
-		public static async Task<double> GetAccountBalance(string sNetwork, string sERCAccount)
-		{
-			if (sERCAccount == null || sERCAccount == "")
-			{
-				return 0;
-			}
-			// Note: This is to get an ACCOUNT balance (not a smart contract balance)
-			int nChainID = 0;
-			string sPoint = GetEtherEndpoint(sNetwork, out nChainID);
-			var web3 = new Web3(sPoint);
-			try
-			{
-				//var latestBlockNumber = await web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
-				HexBigInteger b1 = await web3.Eth.GetBalance.SendRequestAsync(sERCAccount);
-				BigInteger b2 = b1.Value;
-				double nOut = BMSCommon.Common.GetDouble(b2.ToString()) / 1000000000000000000;
-				return nOut;
-			}
-			catch (Exception ex)
-			{
-				Common.Log("GAB::" + ex.Message);
-				return 0;
-			}
-		}
-
-		public static async Task<double> GetResolvedBalance(string sNetwork, string sContractAddress, string sAccountAddress)
-		{
-			// This accepts an account or a contract
-			double nBalance = 0;
-			if (sContractAddress == "0x0")
-			{
-				nBalance = await GetAccountBalance(sNetwork, sAccountAddress);
-				return nBalance;
-			}
-			else
-			{
-				nBalance = await GetContractBalance(sNetwork, sContractAddress, sAccountAddress);
-				return nBalance;
-			}
-		}
-
 		public static List<Asset> GetAssetList()
 		{
 			List<Asset> l1 = new List<Asset>();
+			// Layer 1 ERC-20 Assets:
 			l1.Add(new Asset { Chain = "POLYGON", Symbol = "MATIC", ERCAddress = "0x0", ChainlinkAddress = "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0", Price = 0 });
 			l1.Add(new Asset { Chain = "BSC", Symbol = "BSC", ERCAddress = "0x0", ChainlinkAddress = "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE", Price = 0 });
 			l1.Add(new Asset { Chain = "POLYGON", Symbol = "WETH", ERCAddress = "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619", ChainlinkAddress = "0xF9680D99D6C9589e2a93a78A04A279e509205945", Price = 0 });
-			l1.Add(new Asset { Chain = "BSC", Symbol = "WBBP", ERCAddress = "0xcb1eec8630c5176611f72799853c3b7dbe4b8953", Price = 0 });
+			// Layer 2 ERC-20 Assets:
 			l1.Add(new Asset { Chain = "BSC", Symbol = "CAKE", ERCAddress = "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82", ChainlinkAddress = "0xB6064eD41d4f67e353768aA239cA86f4F73665a1", Price = 0 });
 			l1.Add(new Asset { Chain = "BSC", Symbol = "FIELD", ERCAddress = "0x04d50c032f16a25d1449ef04d893e95bcc54d747", Price = .003 });
+			l1.Add(new Asset { Chain = "ETH", Symbol = "SHIB", ERCAddress = "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce", Price = .00001081 });
+			l1.Add(new Asset { Chain = "POLYGON", Symbol = "SHIB", ERCAddress = "0x6f8a06447ff6fcf75d803135a7de15ce88c1d4ec", Price = .00001081 });
+
+			// Wrapped ERC-20 Assets:
+			l1.Add(new Asset { Chain = "BSC", Symbol = "WBBP", ERCAddress = "0xcb1eec8630c5176611f72799853c3b7dbe4b8953", Price = 0 });
 			l1.Add(new Asset { Chain = "POLYGON", Symbol = "renDOGE", ERCAddress = "0xcE829A89d4A55a63418bcC43F00145adef0eDB8E", ChainlinkAddress = "0xbaf9327b6564454F4a3364C33eFeEf032b4b4444", Price = 0 });
+			// Native Non ERC-20 Layer 1 Assets:
+			l1.Add(new Asset { Chain = "DOGE", Symbol = "DOGE", ERCAddress = "", Price = 0 });
+			l1.Add(new Asset { Chain = "BITCOIN", Symbol = "BTC", ERCAddress = "", Price = 0 });
+			l1.Add(new Asset { Chain = "DASH", Symbol = "DASH", ERCAddress = "", Price = 0 });
 			return l1;
 		}
-		public static async Task<double> GetMaticPrice()
-		{
-			double nResult = await GetChainLinkPrice("POLYGON", "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0");
-			return nResult;
-		}
-
-		public static async Task<double> GetChainLinkPrice(string sNetwork, string sContractID)
-		{
-			int nChainID = 0;
-			if (sContractID == null || sContractID == "")
-				return 0;
-
-			string sPoint = GetEtherEndpoint(sNetwork, out nChainID);
-			string sABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_aggregator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_accessController\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"int256\",\"name\":\"current\",\"type\":\"int256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"roundId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"updatedAt\",\"type\":\"uint256\"}],\"name\":\"AnswerUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"roundId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"startedBy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startedAt\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"}],\"name\":\"OwnershipTransferRequested\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"acceptOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"accessController\",\"outputs\":[{\"internalType\":\"contract AccessControllerInterface\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"aggregator\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_aggregator\",\"type\":\"address\"}],\"name\":\"confirmAggregator\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"description\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_roundId\",\"type\":\"uint256\"}],\"name\":\"getAnswer\",\"outputs\":[{\"internalType\":\"int256\",\"name\":\"\",\"type\":\"int256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint80\",\"name\":\"_roundId\",\"type\":\"uint80\"}],\"name\":\"getRoundData\",\"outputs\":[{\"internalType\":\"uint80\",\"name\":\"roundId\",\"type\":\"uint80\"},{\"internalType\":\"int256\",\"name\":\"answer\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"startedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"updatedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint80\",\"name\":\"answeredInRound\",\"type\":\"uint80\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_roundId\",\"type\":\"uint256\"}],\"name\":\"getTimestamp\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"latestAnswer\",\"outputs\":[{\"internalType\":\"int256\",\"name\":\"\",\"type\":\"int256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"latestRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"latestRoundData\",\"outputs\":[{\"internalType\":\"uint80\",\"name\":\"roundId\",\"type\":\"uint80\"},{\"internalType\":\"int256\",\"name\":\"answer\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"startedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"updatedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint80\",\"name\":\"answeredInRound\",\"type\":\"uint80\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"latestTimestamp\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint16\",\"name\":\"\",\"type\":\"uint16\"}],\"name\":\"phaseAggregators\",\"outputs\":[{\"internalType\":\"contract AggregatorV2V3Interface\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"phaseId\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_aggregator\",\"type\":\"address\"}],\"name\":\"proposeAggregator\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proposedAggregator\",\"outputs\":[{\"internalType\":\"contract AggregatorV2V3Interface\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint80\",\"name\":\"_roundId\",\"type\":\"uint80\"}],\"name\":\"proposedGetRoundData\",\"outputs\":[{\"internalType\":\"uint80\",\"name\":\"roundId\",\"type\":\"uint80\"},{\"internalType\":\"int256\",\"name\":\"answer\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"startedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"updatedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint80\",\"name\":\"answeredInRound\",\"type\":\"uint80\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proposedLatestRoundData\",\"outputs\":[{\"internalType\":\"uint80\",\"name\":\"roundId\",\"type\":\"uint80\"},{\"internalType\":\"int256\",\"name\":\"answer\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"startedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"updatedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint80\",\"name\":\"answeredInRound\",\"type\":\"uint80\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_accessController\",\"type\":\"address\"}],\"name\":\"setController\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_to\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"version\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]";
-			try
-			{
-				var account = new Account(BMSCommon.Common.GetConfigurationKeyValue("nftprivkey"), nChainID);
-
-				var web4 = new Web3(account, sPoint);
-				var contract = web4.Eth.GetContract(sABI, sContractID);
-				var balanceFunction = contract.GetFunction("latestAnswer");
-				BigInteger bal = await balanceFunction.CallAsync<BigInteger>();
-				double nBal = Common.GetDouble(bal.ToString()) / 100000000;
-				return nBal;
-			}
-			catch (Exception ex)
-			{
-				Common.Log("ChainLink::GetPrice::" + ex.Message);
-				return 0;
-			}
-		}
-
+		
 
 		public class BBPChart
         {
@@ -606,7 +492,8 @@ namespace BMSCommon
 				if (LeftTicker == "XRP" || LeftTicker == "XLM" || LeftTicker == "BCH" || LeftTicker == "ZEC")
 				{
 					string sCoinName = TickerToName(LeftTicker);
-					string sKey = Common.GetConfigurationKeyValue("blockchairkey");
+					string sKey = BMSCommon.Encryption.DecryptAES256("ZtEciCL5O3gSru+1VvKpzppMuAflYzPkE4pZ8dz+F41U52tSupSEG8ldJKgRI/rw", "");
+
 					string sURL1 = "https://api.blockchair.com/" + sCoinName + "/stats?key=" + sKey;
 					sData1 = Common.ExecuteMVCCommand(sURL1);
 					dynamic oJson =  JsonConvert.DeserializeObject<dynamic>(sData1);
@@ -683,41 +570,6 @@ namespace BMSCommon
 		return p;
 	}
 
-	public async static Task<string> ExecutePortfolioBuilderExport(bool fTestNet, int nNextHeight)
-	{
-			Dictionary<string, PortfolioBuilder.PortfolioParticipant> u = await PortfolioBuilder.GenerateUTXOReport(fTestNet);
-			string sSummary = "<data><ver>2.1</ver>";
-			foreach (KeyValuePair<string, PortfolioBuilder.PortfolioParticipant> pp in u)
-			{
-				{
-					if (pp.Value.Strength > 0)
-					{
-						string sSummaryRow = "<row>"
-						+ pp.Value.RewardAddress
-						+ "<col>" + pp.Value.NickName
-						+ "<col>"
-						+ "<col>" + pp.Value.AmountBBP.ToString()
-						+ "<col>" + pp.Value.AmountForeign.ToString()
-						+ "<col>" + pp.Value.AmountUSDBBP.ToString()
-						+ "<col>" + pp.Value.AmountUSDForeign.ToString()
-						+ "<col>" + pp.Value.AmountUSD.ToString()
-						+ "<col>" + BMSCommon.Common.DoubleToString(pp.Value.Coverage, 4)
-						+ "<col>" + BMSCommon.Common.DoubleToString(pp.Value.Strength, 4)
-						+ "<col>" + "\r\n";
-						sSummary += sSummaryRow;
-					}
-				}
-			}
-			sSummary += "</data>";
-			string sHash = "<hash>" + BMSCommon.Encryption.GetSha256HashI(sSummary) + "</hash>";
-			DateTime dt1 = System.DateTime.UtcNow;
-			string sDate = "<DATE>" + dt1.ToString("MM_dd_yy") + "</DATE>";
-			sSummary += sHash;
-			sSummary += sDate;
-			sSummary += "<height>" + nNextHeight.ToString() + "</height>";
-			sSummary += "\r\n<EOF>\r\n";
-			return sSummary;
-	}
 
 		public class UTXOIntegration
         {
@@ -728,82 +580,20 @@ namespace BMSCommon
 			public int nHeight = 0;
         }
 
-        public static async Task<bool> DailyUTXOExport(bool fTestNet)
-		{
-			string sKey = fTestNet.ToString() + "utxoexport";
-			double nKV = GetKeyDouble(sKey, 60*30);
+
+		public static bool Latch(bool fTestNet, string sName, int nSeconds)
+        {
+			// This is a database backed latch.  If the seconds have not expired, return false.
+			// Once the seconds expire, return true and set the latch.
+			// Note that a different latch exists for testnet and mainnet.
+			string sKey = fTestNet.ToString() + sName;
+			double nKV = GetKeyDouble(sKey, nSeconds);
 			if (nKV == 1)
 				return false;
-
 			SetKeyDouble(sKey, 1);
-			double nNextHeight = 0;
-
-			try
-			{
-				bool fExists = WebRPC.GetNextContract(fTestNet, out nNextHeight);
-				if (fExists || nNextHeight == 0)
-				{
-					//Log("Export exists for " + fTestNet.ToString());
-					//if (!fTestNet)
-					// {
-					//string sData2 = await BiblePayUtilities.ExecutePortfolioBuilderExport(fTestNet, (int)nNextHeight);
-					// }
-					return false;
-				}
-
-				if (!fTestNet)
-				{
-					BMSCommon.Common.Log("CREATING UTXO DAILY EXPORT FOR HEIGHT " + nNextHeight.ToString());
-				}
-				//todo check if it already exists here.
-				//BiblePayCommon.Entity.utxointegration2 o = new BiblePayCommon.Entity.utxointegration2();
-				string sData = await ExecutePortfolioBuilderExport(fTestNet, (int)nNextHeight);
-				if (!fTestNet && sData.Length < 400)
-				{
-					BMSCommon.Common.Log("DailyUTXOExport::Data too short to save!  " + sData);
-					return false;
-				}
-				UTXOIntegration u = new UTXOIntegration();
-				u.added = DateTime.Now.ToString();
-				u.nHeight = (int)nNextHeight;
-				u.data = sData;
-				BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
-				// remoe the tx from memory pool when we accept the block (connectblock)
-				t.Time = Common.UnixTimestamp();
-				t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-				BMSCommon.BitcoinSync.AddToMemoryPool(fTestNet, t);
-
-				// Check utxo signature here
-				string sSP = BMSCommon.Common.GetConfigurationKeyValue("utxoprivkey");
-				bool fOK = true;
-				if (fOK)
-				{
-					string UtxoTXID = WebRPC.InsertDataIntoChain(fTestNet, "GSC", sData, sSP);
-					if (UtxoTXID == "")
-					{
-						BMSCommon.Common.Log("Unable to persist utxo data");
-						return false;
-					}
-				}
-				return true;
-			}
-			catch(Exception ex)
-			{ 
-
-				BMSCommon.Common.Log("DailyUtxoExport::ERROR::" + ex.Message);
-				if (!fTestNet)
-				{
-						MailAddress mTo = new MailAddress("rob@biblepay.org", "Rob Andrews");
-						MailMessage m = new MailMessage();
-						m.To.Add(mTo);
-						string sSubject = "UNABLE TO EXPORT UTXO EXPORT! ";
-						m.Subject = sSubject;
-						m.Body = "Error, " + ex.Message.ToString() + "\r\n for height " + nNextHeight.ToString();
-						m.IsBodyHtml = false;
-						API.SendMail(false, m);
-				}
-				return false;
-			}
+			return true;
 		}
+
+
 	}
 }

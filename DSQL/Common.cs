@@ -10,13 +10,11 @@ namespace BiblePay.BMS
 {
     public static class Common
     {
-        public static int BMS_VERSION = 1055;
+        public static int BMS_VERSION = 1061;
         public static int MIN_BMS_VERSION = 1001;
         public static int DEFAULT_PORT = 8443;
         public static bool fDebug = false;
         public static string BX_API = "https://chainz.cryptoid.info/bbp/api.dws?";
-
-
 
         public static string GetUpgradeFileHashes(string sDirectory)
         {

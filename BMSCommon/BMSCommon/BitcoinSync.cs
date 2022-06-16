@@ -5,12 +5,61 @@ using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using static BMSCommon.CryptoUtils;
+using static BMSCommon.PortfolioBuilder;
+using static BMSCommon.Pricing;
 
 namespace BMSCommon
 {
     public static class BitcoinSync
     {
+
+        public class OrphanExpense3
+        {
+            public string Added;
+            public double Amount;
+            public string URL = "";
+            public string Charity;
+            public string HandledBy;
+            public string ChildID;
+            public double Balance;
+            public string Notes;
+            public int Version = 9;
+            public string table = "OrphanExpense3";
+        }
+
+        public class Expense
+        {
+            public string Added;
+            public double Amount;
+            public string URL = "";
+            public string Charity;
+            public string HandledBy;
+            public string Notes;
+            public string table = "Expense";
+        }
+
+        public class Revenue
+        {
+            public string Added;
+            public double BBPAmount;
+            public double BTCRaised;
+            public double BTCPrice;
+            public double Amount;
+            public string Notes;
+            public string HandledBy;
+            public string Charity;
+            public string table = "Revenue";
+        }
+        public static double GetChildBalance(string sChildID)
+        {
+            string sql = "select Balance from bms0.OrphanExpense3 where ChildID=@childid order by STR_TO_DATE(Added,'%m/%d/%Y %h:%i:%s') desc limit 1;";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            m1.Parameters.AddWithValue("@childid", sChildID);
+            double nBal = Database.GetScalarDouble(m1, "Balance");
+            return nBal;
+        }
 
         public static string GetInsertTransaction(bool fTestNet, CryptoUtils.Transaction t)
         {
@@ -31,27 +80,206 @@ namespace BMSCommon
             double nBlock = Database.GetScalarDouble(m1, "h");
             return (int)nBlock;
         }
-        public static void SyncBlocks(bool fTestNet)
+        private static int nMyLocalCount = 0;
+        public static async Task<bool> SyncBlocks(bool fTestNet)
         {
-            int nLowHeight = GetBestHeight(fTestNet) + 1;
-            int nMaxHeight = BMSCommon.WebRPC.GetHeight(fTestNet);
-            if (nLowHeight < 147500 && fTestNet)
-                nLowHeight = 147500;
-            if (nLowHeight < 340200 && !fTestNet)
-                nLowHeight = 340200;
-
-            for (int i = nLowHeight; i <= nMaxHeight; i++)
+            bool fDebug = false;
+            try
             {
-                CryptoUtils.Block b = BMSCommon.WebRPC.GetBlock(fTestNet, i);
-                if (b != null)
+                int nLowHeight = GetBestHeight(fTestNet) + 1;
+                int nMaxHeight = BMSCommon.WebRPC.GetHeight(fTestNet);
+                if (nLowHeight < 147500 && fTestNet)
+                    nLowHeight = 147500;
+                if (nLowHeight < 340200 && !fTestNet)
+                    nLowHeight = 340200;
+
+                if (fDebug)
                 {
-                    InsertBlock(fTestNet, b);
+                    nLowHeight = nLowHeight - 90;
                 }
-                bool f80 = false;
+
+                for (int i = nLowHeight; i <= nMaxHeight; i++)
+                {
+                    CryptoUtils.Block b = BMSCommon.WebRPC.GetBlock(fTestNet, i);
+                    if (b != null)
+                    {
+                        InsertBlock(fTestNet, b);
+                    }
+
+                }
+                nMyLocalCount++;
+                if (fTestNet)
+                {
+                    if (nMyLocalCount < 5)
+                    {
+                        BMSCommon.WebRPC.LogRPCError("Got node testnet height " + nMaxHeight.ToString());
+                    }
+                }
+                await PayDailyTurnkeySanctuaryRewards(fTestNet);
+
+                return true;
+            }
+            catch(Exception ex)
+            {
+                BMSCommon.Common.Log("syncblocks::" + ex.Message);
+                WebRPC.LogRPCError("syncblocks:" + ex.Message);
+                return false;
+            }
+        }
+
+
+        public class SanctuaryProfitability
+        {
+            public double nInvestmentAmount = 0;
+            public double nTurnkeySanctuaryNetROI = 0;
+            public double nSanctuaryNetROI = 0;
+            public double nSanctuaryGrossROI = 0;
+            public double nTurnkeySancGrossROI = 0;
+
+
+            public double nGrossDailyRewards = 0;
+            public double nNetDailyRewards = 0;
+            public double nNetDailyTurnkeyRewards = 0;
+            public double nBlockSubsidy = 0;
+            public int nMasternodeCount = 0;
+            public int nHeight = 0;
+            public double nUSDRevenuePerMonth = 0;
+            public double nUSDBBP = 0;
+        }
+
+        private static void GetAnnualProfitLevel(int nType, ref SanctuaryProfitability sp, double nCostUSDPerMonth)
+        {
+            double nDailyCost = nCostUSDPerMonth / 30 / sp.nUSDBBP;
+
+            double nMonthlyNetProfit = sp.nUSDRevenuePerMonth - nCostUSDPerMonth;
+            double nMonthlyGrossProfit = sp.nUSDRevenuePerMonth;
+
+            if (nMonthlyNetProfit < 0 && nType==1)
+                nMonthlyNetProfit = .01;
+
+            double nAnnualNetProfit = nMonthlyNetProfit * 12;
+            double nAnnualGrossProfit = nMonthlyGrossProfit * 12;
+            if (nType == 0)
+            {
+                sp.nSanctuaryNetROI = nAnnualNetProfit / sp.nInvestmentAmount * 100;
+                sp.nSanctuaryGrossROI = nAnnualGrossProfit / sp.nInvestmentAmount * 100;
+                sp.nNetDailyRewards = sp.nGrossDailyRewards - nDailyCost;
+            }
+            else
+            {
+
+                sp.nTurnkeySanctuaryNetROI = nAnnualNetProfit / sp.nInvestmentAmount * 100;
+                sp.nTurnkeySancGrossROI = nAnnualGrossProfit / sp.nInvestmentAmount * 100;
+                sp.nNetDailyTurnkeyRewards = nMonthlyNetProfit / 30;
+                sp.nNetDailyTurnkeyRewards = sp.nGrossDailyRewards - nDailyCost;
+                if (sp.nNetDailyTurnkeyRewards < 0)
+                    sp.nNetDailyTurnkeyRewards = 1;
 
             }
-            bool f1100 = false;
 
+        }
+        public static SanctuaryProfitability GetMasternodeROI(bool fTestNet)
+        {
+            // Sanctuary DWU
+            SanctuaryProfitability sp = new SanctuaryProfitability();
+
+            sp.nMasternodeCount = WebRPC.GetMasternodeCount(fTestNet);
+
+            sp.nHeight = GetBestHeight(fTestNet) - 1;
+            int nRewardQtyPerDay = 205 / sp.nMasternodeCount;
+            string sRecipPaid = "";
+            WebRPC.GetSubsidy(fTestNet, sp.nHeight, ref sRecipPaid, ref sp.nBlockSubsidy);
+            sp.nGrossDailyRewards = nRewardQtyPerDay * sp.nBlockSubsidy;
+            price1 nBTCPrice = BMSCommon.Pricing.GetCryptoPrice("BTC");
+            price1 nBBPPrice = BMSCommon.Pricing.GetCryptoPrice("BBP");
+            sp.nUSDBBP = nBTCPrice.AmountUSD * nBBPPrice.Amount;
+
+            sp.nUSDRevenuePerMonth = sp.nGrossDailyRewards * 30 * sp.nUSDBBP;
+            sp.nInvestmentAmount = 4500001 * sp.nUSDBBP;
+
+            GetAnnualProfitLevel(0, ref sp, 3);
+
+            GetAnnualProfitLevel(1, ref sp,1);
+
+            return sp;
+        }
+
+        public static double GetAdditionalPortfolioBuilderJuices(bool fTestNet)
+        {
+            // For those who made pb donations, we divide them by 30 and return the sum, this gives us the boost
+            string sTable = fTestNet ? "tpbdonation" : "pbdonation";
+
+            string sql = "Select sum(amount) a from " + sTable + " WHERE TIMESTAMPDIFF(MINUTE, added, now()) < (1440 * 30);";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            double nAmt = BMSCommon.Database.GetScalarDouble(m1, "a");
+            double nJuice = nAmt / 30;
+            return nJuice;
+        }
+
+        public static async Task<bool> PayDailyTurnkeySanctuaryRewards(bool fTestNet)
+        {
+
+            double nCoreBalance = BMSCommon.WebRPC.GetCachedCoreWalletBalance(false);
+            bool fPrimary = BMSCommon.Common.IsPrimary();
+
+            if (!fTestNet || nCoreBalance < 256000 || !fPrimary)
+                return false;
+
+
+            bool fLatch = BMSCommon.Pricing.Latch(fTestNet, "turnkeysanctuaryrewards", 60 * 60 * 24);
+            if (!fLatch)
+                return false;
+
+            SanctuaryProfitability sp = GetMasternodeROI(fTestNet);
+
+            if (sp.nHeight < 1000 || sp.nBlockSubsidy < 50 || sp.nMasternodeCount < 1)
+            {
+                // Strange
+                Common.Log("Strange error occurring in PDTSR:: " + sp.nHeight.ToString() + " with " + sp.nBlockSubsidy.ToString());
+                return false;
+            }
+
+            string sTable = fTestNet ? "tturnkeysanctuaries" : "turnkeysanctuaries";
+            string sql = "Select * from " + sTable + " order by Added;";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            DataTable dt = Database.GetDataTable(m1);
+            List<BMSCommon.WebRPC.Payment> Payments = new List<BMSCommon.WebRPC.Payment>();
+            double nTotal = 0;
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                // Ensure they didnt spend the collateral here
+                string sAddress = dt.Rows[i]["BBPAddress"].ToString();
+                double nBal = WebRPC.QueryAddressBalanceNewMethod(fTestNet, sAddress);
+                if (nBal >= 4500001)
+                {
+                    double nReward = 1 * sp.nNetDailyTurnkeyRewards;
+                    if (nReward > .25)
+                    {
+                        bool bValid = BMSCommon.WebRPC.ValidateBiblepayAddress(fTestNet, sAddress);
+                        if (bValid)
+                        {
+                            nTotal += nReward;
+                            BMSCommon.WebRPC.Payment p = new BMSCommon.WebRPC.Payment();
+                            p.bbpaddress = sAddress;
+                            p.amount = nReward;
+                            Payments.Add(p);
+                            Common.Log("Turnkey::Sending out " + nReward.ToString() + " to " + p.bbpaddress + " and daily reward is " + sp.nNetDailyTurnkeyRewards.ToString()
+                                + " netdailyturnkeyrew, and " + sp.nGrossDailyRewards + " grossrewards, bbpprice=" + sp.nUSDBBP.ToString());
+                        }
+                    }
+                }
+            }
+            if (Payments.Count > 0)
+            {
+                string poolAccount = BMSCommon.Common.GetConfigurationKeyValue("PoolPayAccount");
+                if (poolAccount == "")
+                    return false;
+                string txid = BMSCommon.WebRPC.SendMany(fTestNet, Payments, poolAccount, "PB Payments");
+                Common.Log("TurnkeySanctuaryPayments::Sent out qty " + Payments.Count.ToString() + " totaling " + nTotal.ToString() + ".");
+                return true;
+            }
+
+            return true;
         }
 
 
@@ -143,10 +371,8 @@ namespace BMSCommon
         public static bool InsertBiblePayDatabaseTransactions(bool fTestNet, CryptoUtils.Block b)
         {
             string sPrefix = fTestNet ? "t" : "";
-
             try
             {
-
                 List<string> sObjects = new List<string>();
                 //Dictionary<string, int> dObjects= new Dictionary<string, int>();
 
@@ -474,7 +700,7 @@ namespace BMSCommon
             {
                 if (sPriKeyField == null || sPriKeyField == "")
                     return true;
-
+                
                 if (sTable.ToLower() == "nft")
                 {
                     string sDelete2 = "Delete from " + sTable + " where " + sPriKeyField + "='" + sLastPriKeyValue + "';";
@@ -547,13 +773,7 @@ namespace BMSCommon
             b.Hash = r.Field<string>("Hash");
             b.Time = r.Field<int>("Time");
             b.Version = r.Field<int>("Version");
-            //string txList = r.Field<string>("Transactions");
-            //string sTxList = EncloseInTicks(txList);
-            //DataTable dt = dtTransactions.FilterDataTable("blockhash='" + b.Hash + "'");
-            //for (int i = 0; i < dt.Rows.Count; i++)
-            // {
-            //   Transaction t = DeserializeTransaction(b, dt.Rows[i]);
-            // }
+          
             return b;
         }
 
@@ -569,14 +789,26 @@ namespace BMSCommon
             b = DeserializeBlock(dt.Rows[0]);
             return b;
         }
+        
 
+        public static string AddToMemoryPool2(bool fTestNet, Transaction t)
+        {   //Step 1 : Insert locally
+            CryptoUtils.Block b = new Block();
+            b.Transactions.Add(t);
+            InsertBiblePayDatabaseTransactions(fTestNet, b);
 
-        public static string AddToMemoryPool(bool fTestNet, Transaction t)
-        {
+            // Step 2: Relay
+
             string sData = t.Data;
-            string sTXID = BMSCommon.WebRPC.PushChainData(fTestNet, "DATA", sData);
+            string sTXID = BMSCommon.WebRPC.PushChainData2(fTestNet, "DATA", sData);
+            if (sTXID=="")
+            {
+                throw new Exception("Unabled to add to memory pool.");
+            }
             return sTXID;
         }
+
+
 
 
 

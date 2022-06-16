@@ -13,12 +13,6 @@
       ],
       "items": [
         {
-          "title": "Log In",
-          "href": "javascript:void();",
-          "disabled": true,
-          "roles": []
-        },
-        {
           "title": "Profile",
           "href": "page_profile.html",
           "roles": []
@@ -59,7 +53,19 @@
           "title": "PB Leaderboard",
           "href": "bbp_portfoliobuilderleaderboard.html",
           "roles": []
+        },
+        {
+          "title": "PB Donations",
+          "href": "bbp_portfoliobuilderdonation.html",
+          "roles": []
+        },
+        {
+          "title": "Turnkey Sanctuaries",
+          "href": "bbp_turnkeysanctuaries.html",
+          "roles": []
         }
+
+
 
 
       ]
@@ -265,8 +271,8 @@
       "items": [
         {
           "title": "Watch Videos",
-          "href": "javascript:void();",
-          "disabled": true,
+          "href": "bbp_videos.html",
+          "disabled": false,
           "roles": []
         }
       ]

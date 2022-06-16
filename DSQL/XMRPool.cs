@@ -982,7 +982,7 @@ namespace BiblePay.BMS.DSQL
                 string sData = String.Empty;
                 string sParseData = String.Empty;
                 int nLastReceived = UnixTimestamp();
-
+                // Miner to XMR Pool
                 try
                 {
                     client.ReceiveTimeout = 65000;
@@ -993,7 +993,7 @@ namespace BiblePay.BMS.DSQL
                         int size = 0;
                         int nElapsed = UnixTimestamp() - nLastReceived;
 
-                        if (nElapsed > (60 * 60))
+                        if (nElapsed > (60 * 60 * 5))
                         {
                             client.Close();
                             t.Close();
@@ -1005,8 +1005,12 @@ namespace BiblePay.BMS.DSQL
                             iXMRThreadCount--;
                             return;
                         }
+
+                        WorkerInfo w1 = GetWorker(socketid);
+                        bool fBanned = w1.banneduntil > BMSCommon.Common.UnixTimestamp();
+
                         // From Miner to Pool
-                        if (client.Available > 0)
+                        if (!fBanned && client.Available > 0)
                         {
                             byte[] data = new byte[client.Available];
                             nLastReceived = UnixTimestamp();
@@ -1134,7 +1138,7 @@ namespace BiblePay.BMS.DSQL
                                     }
                                     else if (sJson != "")
                                     {
-                                        Console.WriteLine(sJson);
+                                        Console.WriteLine("msg1:"+sJson);
                                     }
                                 }
 
@@ -1240,7 +1244,14 @@ namespace BiblePay.BMS.DSQL
                                         }
                                         else if (sJson != "")
                                         {
-                                            Console.WriteLine(sJson);
+                                            Console.WriteLine("msg15:"+sJson);
+                                            if (sJson.ToLower().Contains("invalid share"))
+                                            {
+                                               // Lets ban the user for 5 mins otherwise the XMR pool might ban us.
+                                               WorkerInfo w = GetWorker(socketid);  
+                                               w.banneduntil = BMSCommon.Common.UnixTimestamp() + (60 * 60 * 5);
+                                               SetWorker(w, socketid);
+                                            }
                                         }
                                     }
                                 }
@@ -1311,9 +1322,12 @@ namespace BiblePay.BMS.DSQL
                 {
                     {
                         string poolAccount = GetConfigurationKeyValue("PoolPayAccount");
-                        if (poolAccount == "")
+                        string sPAKey = _fTestNet ? "tPoolAddress" : "PoolAddress";
+                        string sPoolAddress = GetConfigurationKeyValue(sPAKey);
+
+                        if (poolAccount == "" || sPoolAddress == "")
                         {
-                            BMSCommon.Common.Log("This pool configuration has no key set for PoolPayAccount.  Unable to start pool.");
+                            BMSCommon.Common.Log("This pool configuration has no key set for PoolPayAccount.  Unable to start pool.  You also need to set PoolAddress.  ");
                             return;
                         }
 
@@ -1328,7 +1342,11 @@ namespace BiblePay.BMS.DSQL
 
                         listener = new TcpListener(IPAddress.Any, nPort);
                         listener.Start();
-                        Log("BBP XMR POOL is starting up on port " + nPort.ToString() + "...");
+                        double nPoolBalance = BMSCommon.WebRPC.GetCoreWalletBalance(_fTestNet);
+
+                        string sNarr = "BBP XMR POOL is starting up on port " + nPort.ToString() + " with a balance of " + nPoolBalance.ToString() + " on address " + sPoolAddress;
+                        BMSCommon.WebRPC.LogRPCError(sNarr);
+                        Log(sNarr);
 
                     }
                 }
@@ -1378,8 +1396,14 @@ namespace BiblePay.BMS.DSQL
                                     iXMRThreadID++;
                                     TcpClient tcp = new TcpClient();
                                     nSockTrace = 2;
+                                    string XMRExternalPool = GetConfigurationKeyValue("XMRExternalPool");
+                                    if (XMRExternalPool == "")
+                                      XMRExternalPool = "pool.minexmr.com";
+                                    int nExternalPort = (int)GetDouble(GetConfigurationKeyValue("XMRExternalPort"));
+                                    if (nExternalPort == 0)
+                                      nExternalPort = 5555;
 
-                                    tcp.Connect(GetConfigurationKeyValue("XMRExternalPool"), (int)GetDouble(GetConfigurationKeyValue("XMRExternalPort")));
+                                    tcp.Connect(XMRExternalPool, nExternalPort);
                                     nSockTrace = 3;
 
                                     ThreadStart starter = delegate { minerXMRThread(client, tcp, socketid); };

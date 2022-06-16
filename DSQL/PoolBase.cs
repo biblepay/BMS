@@ -42,6 +42,7 @@ namespace BiblePay.BMS.DSQL
             public int height;
             public int jobid;
             public int updated;
+            public long banneduntil;
             public bool Broadcast;
             public int receivedtime;
             public int lastreceived;
@@ -90,19 +91,32 @@ namespace BiblePay.BMS.DSQL
         {
             while (true)
             {
-                // This thread executes SQL in a way that prevents deadlocks
-                for (int i = 0; i < lSQL.Count; i++)
+                try
                 {
-                    try
+                    // This thread executes SQL in a way that prevents deadlocks
+                    for (int i = 0; i < lSQL.Count; i++)
                     {
-                        BMSCommon.Database.ExecuteNonQuery(false, lSQL[i], "");
+                        try
+                        {
+                            BMSCommon.Database.ExecuteNonQuery(false, lSQL[i], "");
+                        }
+                        catch (Exception ex2)
+                        {
+                            try
+                            {
+                                BMSCommon.Common.Log("SQLExecutor::" + ex2.Message + ":" + lSQL[i].CommandText);
+                            }
+                            catch (Exception x)
+                            {
+
+                            }
+                        }
+                        lSQL.RemoveAt(i);
+                        i--;
                     }
-                    catch (Exception ex2)
-                    {
-                        BMSCommon.Common.Log("SQLExecutor::" + ex2.Message + ":" + lSQL[i].CommandText);
-                    }
-                    lSQL.RemoveAt(i);
-                    i--;
+                }catch(Exception e10)
+                {
+
                 }
                 System.Threading.Thread.Sleep(100);
             }

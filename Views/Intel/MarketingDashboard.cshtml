@@ -5,29 +5,16 @@
     ViewData["Heading"] = "<i class='subheader-icon fal fa-cross'></i>BBP Dashboard</span>";
 }
 @section HeadBlock {
-
-
     <script src="~/lib/jquery/dist/jquery.js"></script>
-
     <script src="~/js/datagrid/datatables/datatables.bundle.js"></script>
     <script src="~/lib/bbp/bbpcore.js"></script>
     <link rel="stylesheet" media="screen, print" href="~/css/datagrid/datatables/datatables.bundle.css">
-
-    <script>
-
-
-
-
-    </script>
 }
 
 @model List<BiblePay.BMS.Controllers.IntelController.Employee>
 
 @section SubheaderBlock {
-
-
 }
-
 
 
 @Html.Raw(ViewBag.DynamicTable)
@@ -63,7 +50,6 @@
                                         <div class="progress-bar progress-bar-striped progress-bar-animated bg-success-600" role="progressbar" style="width: 55%" aria-valuenow="55" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                 </div>
-
 
                                 <div id="implant0">
                                     Implant Area

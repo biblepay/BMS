@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+
+using Microsoft.AspNetCore.Mvc;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,7 @@ using static BiblePay.BMS.DSQL.SessionExtensions;
 using Microsoft.AspNetCore.Http;
 using static BiblePay.BMS.DSQL.UI;
 using BMSCommon;
+using static BMSCommon.BitcoinSync;
 
 namespace BiblePay.BMS.Controllers
 {
@@ -140,31 +142,104 @@ namespace BiblePay.BMS.Controllers
         public async Task<IActionResult> PortfolioBuilder()
         {
             ViewBag.CryptoCurrencyIndex = BMSCommon.Pricing.GetChartOfIndex();
-            double nDWU = await BMS.DSQL.PB.GetDWU(DSQL.UI.IsTestNet(HttpContext)) * 100;
-            ViewBag.DWU = Math.Round(nDWU,2).ToString() + "%";
-            // Sanctuary DWU
-            double nRewardPerBlock = 1000;
-            double nRewardsPerDay = 10;
-            double nRewardsPerMonth = nRewardPerBlock * nRewardsPerDay * 30;
-            double nPricePerBBP = .00008244;
-            double nRevUSDPerMonth = nRewardsPerMonth * nPricePerBBP;
-            double nCostUSDPerMonth = 15;
-            double nMonthlyProfit = nRevUSDPerMonth - nCostUSDPerMonth;
-            double nAnnualProfit = nMonthlyProfit * 12;
-            double nInvestment = 4500001 * nPricePerBBP;
-            double nSancDWU =  nAnnualProfit /nInvestment* 100;
-            ViewBag.SanctuaryCost = "$" + Math.Round(nInvestment, 2) + " USD";
-            ViewBag.SanctuaryDWU = Math.Round(nSancDWU,2).ToString() + "%";
+
+            SanctuaryProfitability sp = BMSCommon.BitcoinSync.GetMasternodeROI(IsTestNet(HttpContext));
+
+            ViewBag.SanctuaryCost = "$" + Math.Round(sp.nInvestmentAmount, 2) + " USD";
+            double nDWU = await BBPTestHarness.BlockChairTestHarness.GetDWU(IsTestNet(HttpContext)) * 100;
+
+            ViewBag.DWU = Math.Round(nDWU, 2).ToString() + "%";
+            ViewBag.SanctuaryGrossROI = Math.Round(sp.nSanctuaryGrossROI, 2).ToString() + "%";
+
+            ViewBag.TurnkeySanctuaryNetROI = Math.Round(sp.nTurnkeySanctuaryNetROI, 2).ToString() + "%";
+            ViewBag.SanctuaryCount = sp.nMasternodeCount.ToString();
+
             return View();
         }
 
-        public IActionResult TurnkeySanctuary()
+        public static string GetTurnkeySanctuaryReport(HttpContext h)
         {
+            string sTable = IsTestNet(h) ? "tturnkeysanctuaries" : "turnkeysanctuaries";
+            string sql = "Select * from " + sTable + " where ERC20Address=@erc order by Added;";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            m1.Parameters.AddWithValue("@erc", GetUser(h).ERC20Address);
+            DataTable dt = Database.GetDataTable(m1);
+            string data = "<table class='saved'><tr><th>Added<th width=50%>Address<th>Balance<th>Status<th>Action</tr>";
 
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                string sBBPAddress = dt.Rows[i]["bbpaddress"].ToString();
+                double nBalance = DSQL.UI.QueryAddressBalance(IsTestNet(h), sBBPAddress);
+                string sCluster = "";
+                string sNonce = dt.Rows[i]["nonce"].ToString();
+                string sStatus = "";
+                if (nBalance >= 4500001)
+                {
+                    sStatus = "Active";
+                    sCluster = GetStandardButton("btnliq", "Liquidate", "turnkey_liquidate", "var e={};e.address='" + sBBPAddress + "';", "Are you sure you would like to liquidate this sanctuary?");
+
+                }
+                else
+                {
+                    sStatus = "Waiting for Funding";
+                    sCluster = GetStandardButton("btnfund", "Fund", "turnkey_fund", "var e={};e.address='" + sBBPAddress + "';", "");
+                }
+
+                string row = "<td>" + dt.Rows[i]["Added"].ToString() + "<td><input readonly class='form-control' value='" + dt.Rows[i]["bbpaddress"].ToString() + "'/></td><td>" 
+                    + nBalance.ToString() + " BBP</td><td>" + sStatus + "<td>" + sCluster + "</td></tr>";
+                data += row + "\r\n";
+            }
+            data += "</table>";
+            if (dt.Rows.Count == 0)
+            {
+                data = "No sanctuaries found.";
+            }
+            else
+            {
+                data += GetStandardButton("btnbackup", "Back Up Keys", "turnkey_backup", "var e={};", "");
+            }
+            return data;
+        }
+
+        public static string GetPortfolioBuilderDonationReport(HttpContext h)
+        {
+            // For those who made pb donations, we divide them by 30 and return the sum, this gives us the boost
+            string sTable = IsTestNet(h) ? "tpbdonation" : "pbdonation";
+
+            string sql = "Select Amount, Added from " + sTable + " WHERE TIMESTAMPDIFF(MINUTE, added, now()) < (1440 * 30);";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            DataTable dt = Database.GetDataTable(m1);
+
+            string html = "<table class='saved'><tr><th>Added<th>Amount</tr>";
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                string row = "<tr><td>" + dt.Rows[i]["Added"].ToString() + "<td>" + dt.Rows[i]["Amount"].ToString() + " BBP</td></tr>";
+                html += row + "\r\n";
+            }
+            html += "</table>";
+            return html;
+
+        }
+
+        public IActionResult PortfolioBuilderDonation()
+        {
+            ViewBag.ActiveDonations = GetPortfolioBuilderDonationReport(HttpContext);
             return View();
+
         }
 
 
+        public IActionResult TurnkeySanctuaries()
+        {
+            ViewBag.TurnkeySAnctuaryReport = GetTurnkeySanctuaryReport(HttpContext);
+            return View();
+        }
+
+        public IActionResult Timeline()
+        {
+            ViewBag.Timeline = DSQL.UI.GetTimelinePostDiv(HttpContext);
+            return View();
+        }
 
         public IActionResult MessagePage()
         {
@@ -348,22 +423,27 @@ namespace BiblePay.BMS.Controllers
                 html += GetTR("Height", x._template.height.ToString());
             }
             html += GetTR("Job Count",x.GetJobCount().ToString());
-            html += GetTR("Thread Count", x.iXMRThreadCount.ToString());
+            //html += GetTR("Thread Count", x.iXMRThreadCount.ToString());
             html += GetTR("Worker Count", x.GetWorkerCount().ToString());
             sql = "Select sum(shares) suc, sum(fails) fail from " + sTableShare + " where TIMESTAMPDIFF(MINUTE, updated, now()) < 1440;";
             MySqlCommand m3 = new MySqlCommand(sql);
             double ts24 = BMSCommon.Database.GetScalarDouble(m3, "suc");
-            double tis24 = BMSCommon.Database.GetScalarDouble(m3,  "fail");
+            double tis24 = BMSCommon.Database.GetScalarDouble(m3, "fail");
             html += GetTR("Total Shares (24 hours)", ts24.ToString());
-            html += GetTR("Total Invalid Shares (24 hours)", tis24.ToString());
+            //html += GetTR("Total Invalid Shares (24 hours)", tis24.ToString());
             sql = "Select count(distinct height) h from " + sTableShare + " where TIMESTAMPDIFF(MINUTE, updated, now()) < 1440 and subsidy > 0 and reward > .05;";
             MySqlCommand m4 = new MySqlCommand(sql);
-            double tbf24 = BMSCommon.Database.GetScalarDouble(m4,  "h");
+            double tbf24 = BMSCommon.Database.GetScalarDouble(m4, "h");
             html += GetTR("Total Blocks Found (24 hours)", tbf24.ToString());
             html += "</table>";
             return html;
         }
 
+        public IActionResult Watch()
+        {
+            ViewBag.WatchVideo = DSQL.youtube.GetVideo(HttpContext);
+            return View();
+        }
         public IActionResult PoolAbout()
         {
             bool fTestNet = DSQL.UI.IsTestNet(HttpContext);
@@ -405,6 +485,11 @@ namespace BiblePay.BMS.Controllers
             return View();
         }
 
+        public async Task<IActionResult> Videos()
+        {
+            ViewBag.VideoList = await DSQL.youtube.GetSomeVideos(HttpContext);
+            return View();
+        }
         public IActionResult BlockHistory()
         {
             ViewBag.BlockHistoryReport = GetBlockHistoryReport(DSQL.UI.IsTestNet(HttpContext));
@@ -417,3 +502,4 @@ namespace BiblePay.BMS.Controllers
 
     }
 }
+

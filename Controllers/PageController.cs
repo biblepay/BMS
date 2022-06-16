@@ -92,14 +92,17 @@ namespace BiblePay.BMS.Controllers
                         if (fOK)
                         {
                             FileInfo fi = new FileInfo(_FileName);
-                            string sGuid = Guid.NewGuid().ToString() + "." + fi.Extension;
+                            string sGuid = Guid.NewGuid().ToString() + "" + fi.Extension;
                             string sDestFN = Path.Combine(Path.GetTempPath(), sGuid);
                             using (var stream = new FileStream(sDestFN, System.IO.FileMode.Create))
                             {
                                 await file[i].CopyToAsync(stream);
                             }
                             // Change the avatar (check the extension too)
-                            string sURL = await BBPTestHarness.IPFS.UploadIPFS_Retired(sDestFN, sGuid);
+                            // mission critical #2
+                            //string sURL = await BBPTestHarness.IPFS.PFS_Retired(sDestFN, sGuid);
+                            string sURL = await BBPTestHarness.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, BMSCommon.Common.GetCDN());
+
                             BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(HttpContext);
                             u.BioURL = sURL;
                             u.Updated = System.DateTime.Now.ToString();

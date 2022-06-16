@@ -322,44 +322,6 @@ namespace BMSCommon
             return nCount;
         }
 
-        public static DACResult SendMail(bool fTestNet, System.Net.Mail.MailMessage bbp_message)
-        {
-            DACResult r1 = new DACResult();
-            try
-            {
-                string sID = BMSCommon.Encryption.GetSha256HashI(bbp_message.Subject);
-                System.Net.Mail.SmtpClient client = new System.Net.Mail.SmtpClient();
-                client.UseDefaultCredentials = false;
-                client.Credentials = new System.Net.NetworkCredential("1", "2"); // Do not change these values, change the config values.
-                client.Port = 587;
-                client.EnableSsl = true;
-                client.Host = "smtp.mailgun.org";
-                client.DeliveryMethod = SmtpDeliveryMethod.Network;
-                client.UseDefaultCredentials = false;
-                string sMC1 = BMSCommon.Common.GetConfigurationKeyValue("smtppassword");
-                client.Credentials = new NetworkCredential("postmaster@mail.biblepay.org", sMC1);
-                bbp_message.From = new MailAddress("postmaster@mail.biblepay.org", "Team BiblePay");
-                try
-                {
-                    client.Send(bbp_message);
-                    r1.Result = true;
-                    return r1;
-                }
-                catch (Exception e)
-                {
-                    System.Threading.Thread.Sleep(10000);
-                    Console.WriteLine("Error in Send email: {0}", e.Message);
-                    r1.Error = "Timeout";
-                    return r1;
-                }
-            }
-            catch (Exception)
-            {
-                r1.Error = "Cannot send Mail.";
-                BMSCommon.Common.Log(r1.Error);
-            }
-            return r1;
-        }
 
 
     }

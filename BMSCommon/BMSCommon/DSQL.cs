@@ -46,12 +46,85 @@ namespace BMSCommon
             }
             return l;
         }
-
     }
+
+	public class Timeline
+    {
+		public string Added;
+		public int Time;
+		public string Body;
+		public string ERC20Address;
+		public string BBPAddress;
+		public int Version = 1;
+		public string table = "Timeline";
+		public void Save(bool fTestNet)
+		{
+			this.Time = BMSCommon.Common.UnixTimestamp();
+			this.Version = 1;
+			BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
+			t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(this);
+			BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
+			List<CryptoUtils.Transaction> txList = new List<CryptoUtils.Transaction>();
+			txList.Add(t);
+		}
+
+		public static List<Timeline> Get(bool fTestNet)
+        {
+			string sTable = fTestNet ? "tTimeline" : "Timeline";
+			string sql = "Select * from " + sTable + " order by time desc;";
+
+			MySqlCommand m1 = new MySqlCommand(sql);
+			DataTable dt = BMSCommon.Database.GetDataTable(m1);
+			List<Timeline> l = new List<Timeline>();
+			for (int i = 0; i < dt.Rows.Count; i++)
+			{
+				Timeline t = new Timeline();
+				t.Body = dt.Rows[i]["Body"].ToString();
+				t.BBPAddress = dt.Rows[i]["BBPAddress"].ToString();
+				t.Time = dt.Rows[i]["time"].ToInt32();
+				t.ERC20Address = dt.Rows[i]["ERC20Address"].ToString();
+				l.Add(t);
+
+			}
+			return l;
+
+		}
+
+	}
+	public class UTXOPosition
+	{
+		public string Symbol;
+		public string Added;
+		public int Time;
+		public string ERC20Address;
+		public string BBPAddress;
+		public string ForeignAddress;
+		public string PrimaryKey = "ForeignAddress";
+		public int Version = 1;
+		public string table = "UTXOPosition";
+		public string Hash = "";
+
+		public string GetHash()
+		{
+			return BMSCommon.Encryption.GetSha256HashI(ERC20Address + ForeignAddress);
+		}
+
+		public void Save(bool fTestNet)
+		{
+			this.Hash = GetHash();
+			this.Time = BMSCommon.Common.UnixTimestamp();
+			this.Version = 1;
+			BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
+			t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(this);
+			BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
+			List<CryptoUtils.Transaction> txList = new List<CryptoUtils.Transaction>();
+			txList.Add(t);
+		}
+	}
+
 
 	public class NFT
 	{
-
 		public enum NFTCategory
 		{
 			GENERAL,
@@ -103,17 +176,24 @@ namespace BMSCommon
 			OwnerBBPAddress = "";
 		}
 
-		public void Save(bool fTestNet)
+		public bool Save(bool fTestNet)
 		{
 			this.Hash = GetHash();
 			this.time = BMSCommon.Common.UnixTimestamp();
 			this.Version = 3;
 			BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
 			t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(this);
-			BMSCommon.BitcoinSync.AddToMemoryPool(fTestNet, t);
-
+			try
+			{
+				BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
+			}
+			catch(Exception ex)
+            {
+				return false;
+            }
 			List<CryptoUtils.Transaction> txList = new List<CryptoUtils.Transaction>();
 			txList.Add(t);
+			return true;
 		}
 		public NFTCategory GetCategory()
 		{
@@ -210,6 +290,8 @@ namespace BMSCommon
 					n.TokenID = dt.Rows[i].Field<string>("TokenID");
 					n.Type = dt.Rows[i].Field<string>("Type");
 					n.Description = dt.Rows[i]["Description"].ToString();
+					n.AssetBIO = dt.Rows[i]["AssetBIO"].ToString();
+
 					n.BuyItNowAmount = dt.GetColDouble(i, "BuyItNowAmount");
 					n.ReserveAmount = dt.GetColDouble(i, "ReserveAmount");
 					n.Version = (int)dt.GetColDouble(i, "Version");

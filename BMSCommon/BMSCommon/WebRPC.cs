@@ -1,4 +1,5 @@
 ﻿using NBitcoin;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,14 @@ using static BMSCommon.Common;
 
 namespace BMSCommon
 {
+
+    public class SupplyType
+    {
+        public double CirculatingSupply = 0;
+        public double TotalSupply = 0;
+        public double TotalBurned = 0;
+    }
+
     public static class WebRPC
     {
         public static bool ValidateBiblepayAddress(bool fTestNet, string sAddress)
@@ -26,6 +35,12 @@ namespace BMSCommon
             {
                 return false;
             }
+        }
+
+        public static string GetFDPubKey(bool fTestNet)
+        {
+            string sPubKey = fTestNet ? "yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN" : "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM";
+            return sPubKey;
         }
 
         private static string GetFDPair(bool fTestNet)
@@ -64,32 +79,37 @@ namespace BMSCommon
             }
         }
 
-        public static string InsertDataIntoChain(bool fTestNet, string sMessageKey, string sUTXOData, string sSpendPrivKey)
+
+        public static MessageSigner _MessageSignerTest =  new MessageSigner();
+        public static MessageSigner _MessageSignerMain = new MessageSigner();
+        public struct MessageSigner
+        {
+            public string SigningPublicKey;
+            public string Signature;
+            public string SignMessage;
+        };
+
+        public static string InsertUTXODataIntoChain(bool fTestNet, string sMessageKey, string sUTXOData)
         {
             try
             {
                 // <MK>GSC</MK> = Daily GSC contract
-                string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
-                string sError = "";
-                double nAmount = 102;
-                // mission critical todo for go-live: work out "signing" vs "paying" for security model (IE sanc owner pays and user signs, and certain messages are restricted such as UTXO signed stakes, NFT transfers, etc).
-                string sFoundationSignPrivKey = GetFDPair(fTestNet);
-                string sFoundationPubKey = NBitcoin.Crypto.BBPTransaction.GetPubKeyFromPrivKey(fTestNet, sFoundationSignPrivKey);
-                sSpendPrivKey = sFoundationSignPrivKey;
-                string sPubSpendKey = NBitcoin.Crypto.BBPTransaction.GetPubKeyFromPrivKey(fTestNet, sSpendPrivKey);
-                string sSignMessage = Guid.NewGuid().ToString();
-                string sSig = SignMessage(fTestNet, sFoundationSignPrivKey, sSignMessage);
-                string sXML = "<MK>" + sMessageKey + "</MK><MV>" + sUTXOData + "</MV><BOMSG>" + sSignMessage + "</BOMSG><BOSIG>" + sSig + "</BOSIG>";
-                string OutData = "";
-                string sUnspentData = WebRPC.GetAddressUTXOs(fTestNet, sPubSpendKey);
-                bool f = NBitcoin.Crypto.BBPTransaction.PrepareFundingTransaction(fTestNet, nAmount, sFoundationPubKey, sSpendPrivKey, sXML, sUnspentData, out sError, out OutData);
-                if (!f)
+                MessageSigner m = fTestNet ? _MessageSignerTest : _MessageSignerMain;
+                if (m.Signature == null || m.Signature == "")
                 {
-                    BMSCommon.Common.Log("An error occurred while preparing the funding tx::"  + sError);
+                    Common.Log("The node must have at least 1MM bbp to sign messages.");
                     return "";
                 }
-                DACResult r0 = WebRPC.SendRawTx(fTestNet, OutData);
-                return r0.TXID;
+                string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
+                string sError = "";
+                double nAmount = 101;
+                //string sXML = "<MK>" + sMessageKey + "</MK><MV>" + sUTXOData + "</MV><BOMSG>" + m.SignMessage + "</BOMSG><BOSIG>" + m.Signature + "</BOSIG><BOSIGNER>" + m.SigningPublicKey + "</BOSIGNER>";
+                                string sTXID = BMSCommon.WebRPC.PushChainData2(fTestNet, sMessageKey, sUTXOData);
+                if (sTXID == "")
+                {
+                    throw new Exception("Unabled to add to memory pool.");
+                }
+                return sTXID;
             }
             catch (Exception)
             {
@@ -357,17 +377,43 @@ namespace BMSCommon
             nSubsidy = 0;
         }
 
-        public static string PackageMessage(bool fTestNet, string sType, string sData)
+        public static SupplyType GetSupply(bool fTestNet)
         {
-             // <MK>GSC</MK> = Daily GSC contract
-             string sFoundationSignPrivKey = GetFDPair(fTestNet);
-             string sSignMessage = Guid.NewGuid().ToString();
-             string sSig = SignMessage(fTestNet, sFoundationSignPrivKey, sSignMessage);
-             string sXML = "<MK>" + sType + "</MK><MV>" + sData + "</MV><BOMSG>" + sSignMessage + "</BOMSG><BOSIG>" + sSig + "</BOSIG>";
-             return sXML;
+            SupplyType s = new SupplyType();
+            try
+            {
+                object[] oParams = new object[0];
+                NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
+                dynamic oOut = n.SendCommand("gettxoutsetinfo", oParams);
+                s.CirculatingSupply = oOut.Result["total_circulating_money_supply"];
+                s.TotalSupply = 5121307024.00; //max supply
+                s.TotalBurned = oOut.Result["total_burned"];
+                return s;
+            }
+            catch (Exception ex)
+            {
+                Log("GS " + ex.Message);
+            }
+            return s;
+
         }
 
-        public static string PushChainData(bool fTestNet, string sType, string sData)
+
+        public static string PackageMessage(bool fTestNet, string sType, string sData)
+        {
+            // <MK>GSC</MK> = Daily GSC contract
+            MessageSigner m = fTestNet ? _MessageSignerTest : _MessageSignerMain;
+            if (m.Signature == null || m.Signature == "")
+                throw new Exception("Unable to sign.");
+            //string sSig = SignMessage(fTestNet, sFoundationSignPrivKey, sSignMessage);
+            string sXML = "<MK>" + sType + "</MK><MV>" + sData + "</MV><BOMSG>" + m.SignMessage + "</BOMSG><BOSIG>" + m.Signature 
+                + "</BOSIG><BOSIGNER>" + m.SigningPublicKey + "</BOSIGNER>";
+
+            
+            return sXML;
+        }
+
+        public static string PushChainData2(bool fTestNet, string sType, string sData)
         {
             try
             {
@@ -412,14 +458,22 @@ namespace BMSCommon
                         string XML = GetRawTransactionXML(sTXID, fTestNet);
                         CryptoUtils.Transaction t = new CryptoUtils.Transaction();
                         string Extracted = BMSCommon.Common.ExtractXML(XML, "<MV>", "</MV>");
-
+                        string sSigMessage = BMSCommon.Common.ExtractXML(XML, "<BOMSG>", "</BOMSG>");
+                        string sSig = BMSCommon.Common.ExtractXML(XML, "<BOSIG>", "</BOSIG>");
+                        string sSigningAddress = GetFDPubKey(fTestNet);
+                        bool fSigValid = VerifySignature(fTestNet, sSigningAddress, sSigMessage, sSig);
+                        // Mission Critical TODO: Implement ACLs so Sancs with more than 1MM BBP can insert sidechain records and run their own social media systems.
                         t.Data = Extracted;
                         t.BlockHash = b.Hash;
                         t.Time = b.Time;
                         t.Height = b.BlockNumber;
                         if (t.Data.Length > 1 && t.Data.Contains("{"))
                         {
-                            b.Transactions.Add(t);
+                            if (fSigValid)
+                            {
+                                b.Transactions.Add(t);
+                            }
+
                         }
                     }
                 }
@@ -431,6 +485,71 @@ namespace BMSCommon
                 Log("GBFS " + ex.Message);
             }
             return b;
+        }
+
+
+        public struct BalanceUTXO
+        {
+            public string Address;
+            public NBitcoin.Money Amount;
+            public NBitcoin.uint256 TXID;
+            public NBitcoin.uint256 SpentToTXID;
+            public int index;
+            public int Height;
+            public int SpentToIndex;
+            public NBitcoin.Money SpentToNewChangeAmount;
+            public bool Chosen;
+        };
+
+
+        public static double QueryAddressBalanceNewMethod(bool fTestNet, string sAddress)
+        {
+            string sUTXOData = BMSCommon.WebRPC.GetAddressUTXOs(fTestNet, sAddress);
+            double nBal = QueryAddressBalanceNewMethod(fTestNet, sAddress, sUTXOData);
+            return nBal;
+        }
+        public static double QueryAddressBalanceNewMethod(bool fTestNet, string sAddress, string sData)
+        {
+            try
+            {
+                dynamic oJson = JsonConvert.DeserializeObject<dynamic>(sData);
+                double nTotal = 0;
+                foreach (var j in oJson)
+                {
+                    BalanceUTXO u = new BalanceUTXO();
+                    u.Amount = new NBitcoin.Money((decimal)j["satoshis"], NBitcoin.MoneyUnit.Satoshi);
+                    u.index = Convert.ToInt32(j["outputIndex"].Value);
+                    u.TXID = new NBitcoin.uint256((string)j["txid"]);
+                    u.Height = (int)j["height"].Value;
+                    u.Address = j["address"].Value;
+                    //lAllUTXO.Add(u);
+                    nTotal += (double)u.Amount.ToDecimal(MoneyUnit.BTC);
+                }
+                return nTotal;
+            }
+            catch (Exception ex)
+            {
+                // Wrong chain?
+                return -1;
+            }
+        }
+        public static int GetMasternodeCount(bool fTestNet)
+        {
+            try
+            {
+                object[] oParams = new object[0];
+                NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
+                dynamic oOut = n.SendCommand("masternodelist", oParams);
+                string sData = oOut.Result.ToString();
+                string[] vNodes = sData.Split("proTxHash");
+                return vNodes.Length;
+
+            }
+            catch (Exception ex)
+            {
+                Log("GBFS " + ex.Message);
+            }
+            return 1;
         }
 
         public static string GetBlockForStratumHex(bool fTestNet, string poolAddress, string rxkey, string rxheader)
@@ -562,24 +681,55 @@ namespace BMSCommon
             }
         }
 
+        public static List<string> listRPCErrors = new List<string>();
+
+        public static void LogRPCError(string sError)
+        {
+            if (listRPCErrors.Contains(sError))
+                return;
+
+            listRPCErrors.Add(sError);
+            if (listRPCErrors.Count > 50)
+            {
+                listRPCErrors.RemoveAt(0);
+            }
+        }
+
+        private static int nMyCounter = 0;
         public static NBitcoin.RPC.RPCClient GetRPCClient(bool fTestNet)
         {
             NBitcoin.RPC.RPCClient n = null;
+            string sUser = "";
+            string sPass = "";
+            string sHost = "";
+            string sTheUser = "";
             try
             {
                 NBitcoin.RPC.RPCCredentialString r = new NBitcoin.RPC.RPCCredentialString();
-                string sUser = fTestNet ? "testnetrpcuser" : "rpcuser";
-                string sPass = fTestNet ? "testnetrpcpassword" : "rpcpassword";
+                sUser = fTestNet ? "testnetrpcuser" : "rpcuser";
+                sPass = fTestNet ? "testnetrpcpassword" : "rpcpassword";
                 string sH = fTestNet ? "testnetrpchost" : "rpchost";
                 System.Net.NetworkCredential t = new System.Net.NetworkCredential(GetConfigurationKeyValue(sUser), GetConfigurationKeyValue(sPass));
                 r.UserPassword = t;
-                string sHost = GetConfigurationKeyValue(sH);
+                sHost = GetConfigurationKeyValue(sH);
                 n = new NBitcoin.RPC.RPCClient(r, sHost, fTestNet ? NBitcoin.Network.TestNet : NBitcoin.Network.Main);
+                sTheUser = GetConfigurationKeyValue(sUser);
+
+                if (nMyCounter==0)
+                {
+                    string sTNNarr = fTestNet ? "TESTNET" : "MAINNET";
+                    string sNarr = "UNKNOWN IF::RPCCLIENT FOR " + sTNNarr + " for host [" + sHost + "] using user [" + sUser + " " + sTheUser + "] with a password length of " + sPass.Length.ToString();
+                    LogRPCError(sNarr);
+                }
+                nMyCounter++;
                 return n;
             } 
             catch(Exception ex)
             {
-                Log("Cannot retrieve RPC client for " + fTestNet.ToString() + " " + ex.Message);
+                string sTNNarr = fTestNet ? "TESTNET" : "MAINNET";
+                string sNarr = "UNABLE TO GET RPCCLIENT FOR " + sTNNarr + " for host [" + sHost + "] using user [" + sUser + " " + sTheUser + "] with a password length of " + sPass.Length.ToString() + ". (" + ex.Message + ")";
+                LogRPCError(sNarr);
+                Log(sNarr);
                 return n;
             }
         }
@@ -624,6 +774,30 @@ namespace BMSCommon
                 Log("Unable to validate address::" + ex.Message);
                 return false;
             }
+        }
+
+        private static double _cachedbalance = 0;
+        private static int nLastCacheTime = 0;
+        public static double GetCachedCoreWalletBalance(bool fTestNet)
+        {
+            int nElapsed = BMSCommon.Common.UnixTimestamp() - nLastCacheTime;
+            if (nElapsed > (60*60))
+            {
+                _cachedbalance = 0;
+            }
+            if (_cachedbalance==0)
+            {
+                _cachedbalance = GetCoreWalletBalance(fTestNet);
+                if (_cachedbalance == 0)
+                {
+                    _cachedbalance = -1;
+                }
+                else
+                {
+                    nLastCacheTime = BMSCommon.Common.UnixTimestamp();
+                }
+            }
+            return _cachedbalance;
         }
 
         public static double GetCoreWalletBalance(bool fTestNet)

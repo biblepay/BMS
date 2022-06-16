@@ -188,8 +188,9 @@ namespace BiblePay.BMS.Controllers
 
         protected async Task<IActionResult> ConvertHtmlToPDF(string HTML, string PDFFileName)
         {
-            byte[] b = await BBPTestHarness.IPFS.ConvertHtmlToPDFBytes(HTML, PDFFileName);
-            return File(b, "application/pdf", PDFFileName);
+            byte[] b = await BBPTestHarness.IPFS.ConvertHtmlToBytes(HTML, PDFFileName);
+            string sGuid = Guid.NewGuid().ToString() + ".html";
+            return File(b, "application/html", sGuid);
         }
         protected async Task<IActionResult> GenerateAccountingReport(int nYear)
         {
@@ -223,7 +224,8 @@ namespace BiblePay.BMS.Controllers
             string sOE = DSQL.UI.IsTestNet(HttpContext) ? "tOrphanExpense3" : "OrphanExpense3";
             string sSO2 = DSQL.UI.IsTestNet(HttpContext) ? "tSponsoredOrphan2" : "SponsoredOrphan2";
 
-            string sql = "SELECT OrphanExpense._id,OrphanExpense.Amount,OrphanExpense.Notes,STR_TO_DATE(OrphanExpense.Added,'%m/%d/%Y') as ADDED,OrphanExpense.Charity,OrphanExpense.ChildID,OrphanExpense.Balance,SponsoredOrphan2.Name "
+            string sql = "SELECT OrphanExpense._id,OrphanExpense.Amount,OrphanExpense.Notes,STR_TO_DATE(OrphanExpense.Added,'%m/%d/%Y') as ADDED,"
+                +"OrphanExpense.Charity,OrphanExpense.ChildID,OrphanExpense.Balance,SO2.Name "
                 + " from " + sOE + " as OrphanExpense "
                 +" INNER JOIN " + sSO2 + " as SO2 on SO2.childid=OrphanExpense.ChildID where SO2.charity = @charity order by ADDED";
             MySqlCommand command3 = new MySqlCommand(sql);

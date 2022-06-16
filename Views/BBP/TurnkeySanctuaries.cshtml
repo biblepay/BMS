@@ -1,0 +1,46 @@
+﻿@{ ViewData["Title"] = "Portfolio Builder - Turnkey Sancs";
+    ViewData["PageName"] = "bbp_turnkeysanctuaries";
+    ViewData["Heading"] = "<i class='fal fa-key'></i> &nbsp;Turnkey Sanctuaries";
+    ViewData["Category1"] = "BBP";
+    ViewData["PageDescription"] = "Fully managed and simple HODL rewards earned while helping expand our network"; }
+@section HeadBlock {
+}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+
+    To create a turnkey sanctuary, click the button below 'Create New Turnkey Sanctuary', and once the receive address appears, send exactly 4,500,001 BBP to that address.
+    <br />
+
+    Once we receive the funding, we will automatically provision your sanctuary and you will start receiving rewards within 24 hours.
+    <br />
+    <br />
+
+    NOTE: Please allow 1 block to pass once you send the funding; then come back to this page and you will see your sanctuary status.
+    <br />
+
+    <br />
+    To liquidate your sanctuary, simply click the liquidate button next to the active sanctuary you want to liquidate.
+    <br />
+
+    Liquidating a sanctuary will send the collateral plus all of the accumulated rewards back to your primary wallet address and destroy the sanctuary.
+    <br />
+
+    <hr />
+
+    Existing Turnkey Sanctuaries:
+    <br />
+    @Html.Raw(ViewBag.TurnkeySanctuaryReport)
+
+    <br />
+    <br />
+
+    <button id="btnCreate" class="btn-default" onclick="DoCallback('turnkey_createsanctuary');">Create New Turnkey Sanctuary</button>
+
+
+    <br />
+    <br />
+    <hr />
+
+
+</div>
+@section ScriptsBlock {}

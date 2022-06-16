@@ -193,21 +193,22 @@
                 <br />
                 BBP Address:
                 <br />
-                <input readonly id="txtBBPAddress" style="width:340px;" value="@ViewBag.BBPAddress" />
+                <input readonly id="txtBBPAddress" class="form-control" value="@ViewBag.BBPAddress" />
 
                 <br />
                 BBP Balance:
                 <br />
-                <input id="txtBalance" style="width:300px;" readonly value="@ViewBag.Balance" />
+                <input id="txtBalance" class="form-control" readonly value="@ViewBag.Balance" />
 
                 <br />
                 Send to BBP Address:
                 <br />
-                <input id="txtSendToAddress" style="width:340px;" />
+                <input id="txtSendToAddress" class="form-control" />
                 <br />
                 Amount to Send:
                 <br />
-                <input id="txtAmountToSend" type="number" style="width:200px;" />   <button onclick="DoCallback('Profile_SendBBP');">Send BBP</button>
+                <input id="txtAmountToSend" type="number" class="form-control" />  
+                <button class="btn-default" onclick="DoCallback('Profile_SendBBP');">Send BBP</button>
 
                 <br />
                 <br />
@@ -224,33 +225,35 @@
                 <br />
                 Nick Name:<br />
 
-                <input id="txtNickName" style="width:300px;" value="@ViewBag.NickName" />
+                <input id="txtNickName" class="form-control" value="@ViewBag.NickName" />
                 <br />
 
                 Chain:
                 <br />
-                <input readonly id="txtChain" value="@ViewBag.Chain" />
+                <input readonly id="txtChain" class="form-control" value="@ViewBag.Chain" />
 
-                <button onclick="var v = {};DoCallback('Profile_ChangeChain',v);">Switch Chain</button>
+                <button class="btn-default" onclick="var v = {};DoCallback('Profile_ChangeChain',v);">Switch Chain</button>
 
                 <br />
+                <br />
+
                 BBP Portfolio Builder Address:
                 <br />
-                <input id="txtPortfolioBuilderAddress" style="width:300px;" value="@ViewBag.PortfolioBuilderAddress" />
+                <input id="txtPortfolioBuilderAddress" class="form-control" value="@ViewBag.PortfolioBuilderAddress" />
 
                 <br />
                 PB Signature: @Html.Raw(ViewBag.SignRPC)
                 <br />
-                <textarea id="txtPBSignature" cols="70" rows="4">@ViewBag.PBSignature</textarea>
+                <textarea id="txtPBSignature" class="form-control" cols="70" rows="4">@ViewBag.PBSignature</textarea>
                 <br />
 
                 E-Mail Address:
                 <br />
-                <input id="txtEmailAddress" style="width:400px;" value="@ViewBag.EmailAddress" />
+                <input id="txtEmailAddress" class="form-control" value="@ViewBag.EmailAddress" />
                 <br />
 
                 <br />
-                <button onclick="var v = {}; v.field1 = '1'; DoCallback('Profile_Save', v);">Save </button>
+                <button class="btn-default" onclick="var v = {}; v.field1 = '1'; DoCallback('Profile_Save', v);">Save </button>
 
                 <br />
                 <br />
@@ -264,12 +267,12 @@
                 <h3>Security</h3>
                 API Key:
                 <br />
-                <input id="txtAPIKey" style="width:400px;"  readonly />
+                <input id="txtAPIKey" class="form-control"  readonly />
 
                 <br />
                 ERC-20 Address:
                 <br />
-                <input id="txtERC20Address" style="width:400px;" readonly value="@ViewBag.ERC20Address" />
+                <input id="txtERC20Address" class="form-control" readonly value="@ViewBag.ERC20Address" />
                 <br />
                 <br />
 

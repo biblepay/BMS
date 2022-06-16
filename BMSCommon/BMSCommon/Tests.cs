@@ -51,11 +51,7 @@ namespace BMSCommon
                         sw.WriteLine("");
                         iRows++;
                         retry:
-                        string txid = BMSCommon.WebRPC.PushChainData(fTestNet, "DATA", sData);
-                        if (sData.Length > 3000)
-                        {
-                            bool f1107 = false;
-                        }
+                        string txid = BMSCommon.WebRPC.PushChainData2(fTestNet, "DATA", sData);
                         if (txid == "")
                         {
                             bool f1105 = false;

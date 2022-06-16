@@ -1,12 +1,16 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using BMSCommon;
+using Microsoft.AspNetCore.Http;
+using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static BMSCommon.CryptoUtils;
 
 namespace BiblePay.BMS.DSQL
 {
@@ -54,9 +58,9 @@ namespace BiblePay.BMS.DSQL
 
         
 
-        public static BMSCommon.WebRPC.DACResult SendBBP(HttpContext h, string sToAddress, double nAmount, string sOptPayload = "")
+        public static BMSCommon.WebRPC.DACResult SendBBP(HttpContext h, string sToAddress, double nAmount, string sOptPayload = "", string sOptNonce = "")
         {
-            BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(h);
+            BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(h,sOptNonce);
             string sData = BMSCommon.WebRPC.GetAddressUTXOs(IsTestNet(h), k.PubKey);
             string sErr = "";
             string sTXID = "";
@@ -102,12 +106,11 @@ namespace BiblePay.BMS.DSQL
         public static double QueryAddressBalance(bool fTestNet, string sAddress)
         {
             string sUTXOData = BMSCommon.WebRPC.GetAddressUTXOs(fTestNet, sAddress);
-
             return NBitcoin.Crypto.BBPTransaction.QueryAddressBalance(fTestNet, sAddress, sUTXOData);
         }
         public static string FormatUSD(double myNumber)
         {
-            var s = string.Format("{0:0.00}", myNumber);
+            var s = string.Format("{0:0.00}", Math.Round(myNumber,2));
             return s;
         }
 
@@ -163,7 +166,7 @@ namespace BiblePay.BMS.DSQL
                 sConfirmNarr = "var bConfirm=confirm('" + sConfirmNarrative + "');if (!bConfirm) return false;";
 
             }
-            string sButton = "<button id='" + sID + "' onclick=\"" + sConfirmNarr + sArgs + "DoCallback('" + sEvent + "',e);\" >" + sCaption + "</button>";
+            string sButton = "<button class='btn-default xbtn xbtn-info xbtn-block' id='" + sID + "' onclick=\"" + sConfirmNarr + sArgs + "DoCallback('" + sEvent + "',e);\" >" + sCaption + "</button>";
             return sButton;
         }
 
@@ -227,18 +230,28 @@ namespace BiblePay.BMS.DSQL
 
         private static long nLastBalanceMain = 0;
         private static long nLastBalanceTest = 0;
+
         public static string GetAvatarBalance(HttpContext h, bool fEraseCache)
+        {
+            return FormatUSD(GetAvatarBalanceNumeric(h, fEraseCache));
+        }
+        public static double GetAvatarBalanceNumeric(HttpContext h, bool fEraseCache)
         {
             BMSCommon.CryptoUtils.User u = GetUser(h);
             long nLastBal = IsTestNet(h) ? nLastBalanceTest : nLastBalanceMain;
             long nElapsed = BMSCommon.Common.UnixTimestamp() - nLastBal;
             string sChain = GetChain(h);
-
+            
             if (nElapsed < 60*3 && !fEraseCache)
             {
-                return h.Session.GetString(sChain + "_balance");
+                double nNewBal = BMSCommon.Common.GetDouble(h.Session.GetString(sChain + "_balance"));
+                if (nNewBal != 0)
+                    return nNewBal;
             }
             double nBal = QueryAddressBalance(IsTestNet(h), u.BBPAddress);
+            if (nBal == 0)
+                nBal = -1;
+
             if (IsTestNet(h))
             {
                 nLastBalanceTest = BMSCommon.Common.UnixTimestamp();
@@ -247,10 +260,11 @@ namespace BiblePay.BMS.DSQL
             {
                 nLastBalanceMain = BMSCommon.Common.UnixTimestamp();
             }
-            h.Session.SetString(sChain + "_balance", FormatUSD((double)nBal));
-            return FormatUSD((double)nBal) + "";
+            h.Session.SetString(sChain + "_balance", nBal.ToString());
+            return nBal;
         }
 
+        
 
         public static string GetChain(HttpContext s)
         {
@@ -332,6 +346,13 @@ namespace BiblePay.BMS.DSQL
             s.Session.SetObject(sKey, u);
         }
 
+        public static string GetLogInAction(HttpContext s)
+        {
+            string s1 = GetLogInStatus(s);
+            string sLogOut = "var c = confirm('Are you sure you want to Log Out?'); if (c) { DoCallback('profile_logout'); }";
+            string sLoc = s1 == "LOGGED OUT" ? "location.href='/page/profile';" : sLogOut;
+            return sLoc;
+        }
         public static string GetLogInStatus(HttpContext s)
         {
             BMSCommon.CryptoUtils.User u = GetUser(s);
@@ -350,7 +371,7 @@ namespace BiblePay.BMS.DSQL
         }
 
 
-        public static BMSCommon.Encryption.KeyType GetKeyPair(HttpContext h)
+        public static BMSCommon.Encryption.KeyType GetKeyPair(HttpContext h, string sNonce = "")
         {
             string ERC20Signature;
             string ERC20Address;
@@ -363,7 +384,8 @@ namespace BiblePay.BMS.DSQL
                 bool f = b.VerifyERC712Signature(ERC20Signature, ERC20Address);
                 if (f)
                 {
-                    k = BMSCommon.Encryption.DeriveKey(IsTestNet(h), ERC20Signature);
+                    string sDerivationSource = ERC20Signature + sNonce;
+                    k = BMSCommon.Encryption.DeriveKey(IsTestNet(h), sDerivationSource);
                     return k;
                 }
             }
@@ -383,6 +405,25 @@ namespace BiblePay.BMS.DSQL
             data = data.Replace("@body", body);
             data = data.Replace("@modalid", "modalid1");
             data = data.Replace("@optjs", optjs);
+            return data;
+        }
+
+        public static string GetTimelinePostDiv(HttpContext h)
+        {
+            string data = GetTemplate("timeline.htm");
+            // This is the reply to dialog, hence we replace with the active user:
+            data = data.Replace("@BioURL",GetBioURL(h));
+            // Append the posts, one by one from all who posted on this thread.
+            List<Timeline> l = Timeline.Get(IsTestNet(h));
+            for (int i = 0; i < l.Count; i++)
+            {
+                User uRow =CryptoUtils.GetCachedUser(IsTestNet(h), l[i].ERC20Address);
+
+                string entry = GetTemplate("timelinepost.htm");
+                entry = entry.Replace("@BioURL", uRow.BioURL);
+                entry = entry.Replace("@VALUE", l[i].Body);
+                data += "\r\n" + entry;
+            }
             return data;
         }
 

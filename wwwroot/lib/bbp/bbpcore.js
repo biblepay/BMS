@@ -30,18 +30,27 @@
 
 async function finishedAuthenticating(err, result) {
 
-    if (result.error) {
-        console.error('ERROR', result);
-        console.error(err);
-        alert('Unable to sign authorization packet.');
-        return "";
-    }
-    console.log('SIGNED BBP AUTH PACKET : ' + erc20address + "," + JSON.stringify(result.result));
-    setCookie('erc20address', erc20address, 30);
-    setCookie('erc20signature', result.result, 30);
-    DoCallback('Profile_Authenticate_Full', null);
+    try {
+        if (!result) {
+            alert('We didnt receive anything back from metamask, therefore you will not be able to authenticate.  Ensure you have updated metamask to the latest version by visiting their plugin site and upgrading.  It could be that your version does not support v3 signatures. ');
+            return;
+        }
+        if (result.error) {
+            console.error('ERROR', result);
+            console.error(err);
+            alert('Unable to sign authorization packet.');
+            return "";
+        }
+        console.log('[v3] SIGNED BBP AUTH PACKET : ' + erc20address + "," + JSON.stringify(result.result));
+        setCookie('erc20address', erc20address, 30);
+        setCookie('erc20signature', result.result, 30);
+        DoCallback('Profile_Authenticate_Full', null);
 
-    return result.result;
+        return result.result;
+    } catch (e) {
+        alert('(2) We didnt receive anything back from metamask, therefore you will not be able to authenticate.  Ensure you have updated metamask to the latest version by visiting their plugin site and upgrading.  It could be that your version does not support v3 signatures. ');
+        return;
+    }
 }
 
 

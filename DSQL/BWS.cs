@@ -55,6 +55,8 @@ namespace BiblePay.BMS
                     controller.ViewBag.LoginStatus = DSQL.UI.GetLogInStatus(controller.HttpContext);
                     controller.ViewBag.BioURL = DSQL.UI.GetBioURL(controller.HttpContext);
                     controller.ViewBag.Balance = DSQL.UI.GetAvatarBalance(controller.HttpContext, false);
+                    controller.ViewBag.LoginAction = DSQL.UI.GetLogInAction(controller.HttpContext);
+
                     BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(controller.HttpContext);
                     controller.ViewBag.NickName = u.NickName;
                     //also you have access to the httpcontext & route in controller.HttpContext & controller.RouteData
@@ -129,8 +131,6 @@ namespace BiblePay.BMS
 
 
             services.AddSingleton<IFileProvider>(new PhysicalFileProvider(Directory.GetCurrentDirectory()));
-
-            
 
 
             services.AddMvc(options =>

@@ -38,18 +38,28 @@ namespace BiblePay.BMS
             string sBindURL = BMSCommon.Common.GetConfigurationKeyValue("bindurl");
             if (sBindURL == "")
                 sBindURL = "https://localhost:" + Common.DEFAULT_PORT.ToString();
+            sBindURL += ";http://0.0.0.0:8080";
+
             Init(sBindURL);
             CreateHostBuilder(args,sBindURL,null).Build().Run();
         }
 
         public static void Init(string sURL)
         {
+            // Primary Entry point for BMS:
             // BWS will spawn one thread per BMS instance dedicated to servicing BIPFS replication
             System.Threading.Thread t = new System.Threading.Thread(new System.Threading.ParameterizedThreadStart(BiblePay.BMS.DSQL.Sync.Syncer));
             t.Start(sURL);
             System.Threading.Thread s = new System.Threading.Thread(BBPTestHarness.Raid.MasterRaidReplicator);
             s.Start();
-            BBPTestHarness.IPFS.BroadcastNode(BMSCommon.API.GetCDN(), true);
+            try
+            {
+                BBPTestHarness.IPFS.BroadcastNode(BMSCommon.API.GetCDN(), true);
+            }catch(Exception ex)
+            {
+                BMSCommon.WebRPC.LogRPCError("BN::" + ex.Message);
+                BMSCommon.Common.Log("BN::" + ex.Message);
+            }
             System.Threading.Thread m = new System.Threading.Thread(BMSCommon.Miner.Mine);
             m.Start();
             // The pool

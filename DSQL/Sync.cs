@@ -40,6 +40,9 @@ namespace BiblePay.BMS.DSQL
                     }
 
                     await BBPTestHarness.Service.ConvertToHLSDaemon(BMSCommon.API.GetCDN());
+                    await BiblePay.BMS.DSQL.PB.DailyUTXOExport(false, BMSCommon.Common.IsPrimary());
+                    await BiblePay.BMS.DSQL.PB.DailyUTXOExport(true, BMSCommon.Common.IsPrimary());
+
                     System.Threading.Thread.Sleep(60000);
                 }
                 catch (Exception ex2)
@@ -50,30 +53,6 @@ namespace BiblePay.BMS.DSQL
             }
         }
 
-        public class TSFileParams
-        {
-            public int nStart = 099999;
-            public int nEnd = 0;
-        }
-
-        public static List<string> GetTSFileParams(string sPath)
-        {
-            List<string> t = new List<string>();
-
-            if (!System.IO.File.Exists(sPath))
-               return t;
-            string sData = System.IO.File.ReadAllText(sPath);
-            string[] vData = sData.Split("\n");
-            for (int i = 0; i < vData.Length; i++)
-            {
-                string line = vData[i];
-                if (line.Contains(".ts"))
-                {
-                    t.Add(line);
-                }
-            }
-            return t;
-        }
         public static int nLoopCount = 0;
         public static bool fHobbledState = false;
         public static long METRIC_FILECOUNT = 0;

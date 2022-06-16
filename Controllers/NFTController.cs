@@ -25,6 +25,7 @@ namespace BiblePay.BMS.Controllers
 			string html = "<table><tr>";
 			html = "<div class='row js-list-filter' id='nftlist'>";
 			int nColNo = 0;
+			int nTotal = 0;
 			string sChain = IsTestNet(h) ? "test" : "main";
 
 			List<NFT> l = BMSCommon.NFT.GetListOfNFTs(sChain, GetUser(h).ERC20Address, sType);
@@ -36,14 +37,10 @@ namespace BiblePay.BMS.Controllers
 					string sScrollY = n.Description.Length > 100 ? "overflow-y:scroll;" : "";
 					string sPrice = n.BuyItNowAmount.ToString();
 					string sCaption = "";
-					if (n.Type == "orphan")
-					{
-						sCaption = "Sponsor me";
-					}
-					else 
-					{
-						sCaption = "Buy it now";
-					}
+					bool fOrphan = n.Type.ToLower() == "orphan";
+
+      				sCaption = fOrphan ?  "Sponsor me" :  "Buy it now";
+
 					string sConfirm = "Are you sure you would like to buy this NFT for " + n.BuyItNowAmount.ToString() + " BBP?";
 
 					string sBuyItNowButton = GetStandardButton(n.GetHash(), sCaption, "nft_buy", "var e={};e.nftid='" + n.GetHash() 
@@ -59,7 +56,13 @@ namespace BiblePay.BMS.Controllers
 					string sAsset = "";// "<iframe xwidth=95% style='height: 200px;width:300px;' src='" + sURLLow + "'></iframe>
 					if (sURLLow.Contains(".gif") || sURLLow.Contains("=w600") || sURLLow.Contains(".jpg") || sURLLow.Contains(".jpeg") || sURLLow.Contains(".png"))
 					{
-						sAsset = "<img style='height:200px;width:300px;' src='" + sURLLow + "'/>";
+						string sUrlToClick = fOrphan ? n.AssetBIO : n.AssetURL;
+						if (n.AssetBIO == null)
+							sUrlToClick = n.AssetURL;
+						string sImage = "<img style='max-width:99%;height:300px;object-fit:cover;' src='" + sURLLow + "'/>";
+						string sAnchor = "<a href='" + sUrlToClick + "' target='_blank'>";
+						sAsset = sAnchor + sImage + "</a>";
+						//sAsset = sImage;
 					}
 					else if (sURLLow.Contains(".mp4") || sURLLow.Contains(".mp3"))
 					{
@@ -70,16 +73,19 @@ namespace BiblePay.BMS.Controllers
 
 					string sName = n.Name;
 					string s1 = "<td style='cell-spacing:4px;padding:7px;border:1px' cellpadding=7 cellspacing=7>"
-						+ "<b>" + sName + "</b>" + sAsset + "<div style='border=1px;height:75px;width:310px;" + sScrollY + "'><font style='font-size:11px;'>"
+						+ "<b>" + sName + "</b>" + sAsset + "<div style='border=1px;xheight:75px;xwidth:310px;" + sScrollY + "'><font style='font-size:11px;'>"
 						+ n.Description + "</font></div><br>" + sFooter + "</td>";
-					string sTextBody = "<div style='border=1px;height:75px;width:310px;" + sScrollY + "'><font style='font-size:11px;'>"
+					string sTextBody = "<div style='border=1px;height:75px;xwidth:340px;" + sScrollY + "'><font style='font-size:11px;'>"
 						+ n.Description + "</font></div>";
 					s1 = sIntro + "<b>" + sName + "</b><br>" + sAsset + sTextBody + sFooter + sOutro;
 					html += s1;
 					nColNo++;
+					nTotal++;
 				}
             }
 			html += "</div>";
+			if (nTotal == 0)
+				html = "No NFTs found.";
             return html;
 		}
 
@@ -175,8 +181,12 @@ namespace BiblePay.BMS.Controllers
 							{
 								await file[i].CopyToAsync(stream);
 							}
-							string sURL = await BBPTestHarness.IPFS.UploadIPFS_Retired(sDestFN, "nft/"+sGuid);
+							// Mission Critical 1 
 
+							//string sURL = await BBPTestHarness.IPFS.UploadIPFS_Retired(sDestFN, "nft/"+sGuid);
+							string sURL = await BBPTestHarness.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, BMSCommon.Common.GetCDN());
+
+							
 							ServerToClient returnVal = new ServerToClient();
 							returnVal.returnbody = "";
 							returnVal.returntype = "uploadsuccess";
@@ -216,12 +226,11 @@ namespace BiblePay.BMS.Controllers
 				string sChain = IsTestNet(h) ? "test" : "main";
 				NFT n = new NFT();
 				n.AssetURL = GetFormData(sFormData, "txtURL");
-
 				n.Name = GetFormData(sFormData, "txtName");
 				n.OwnerERC20Address = DSQL.UI.GetUser(h).ERC20Address;
+				n.AssetBIO = GetFormData(sFormData, "txtBIOURL");
+
 				n.OwnerBBPAddress = DSQL.UI.GetUser(h).BBPAddress;
-				
-				//string id = Request.QueryString["id"] ?? "";
 				n.Action = _msMode;
 				n.Description = GetFormData(sFormData, "txtDescription");
 				n.Marketable = ToBoolInt(GetFormData(sFormData, "chkMarketable"));
@@ -230,9 +239,7 @@ namespace BiblePay.BMS.Controllers
 				n.ReserveAmount = BMSCommon.Common.GetDouble(GetFormData(sFormData, "txtReserveAmount"));
 				n.Hash = n.GetHash();
 				n.Version = 2;
-
 				n.Chain = sChain;
-
 				string sError = "";
 				n.Type = GetFormData(sFormData, "ddNFTType");
 				// todo: verify the dropdown selected value comes back along with the chkbox selected value: ddNFTType.SelectedValue;
@@ -240,12 +247,14 @@ namespace BiblePay.BMS.Controllers
 				if (n.Type == "" || n.Type == null)
 					sError += "NFT Type must be chosen. ";
 
+				if (n.Type == "Orphan" && (n.AssetBIO == null || n.AssetBIO.Length < 5))
+					sError += "For Orphans, the Asset BIO page must be populated. ";
+
 				if (_msMode == "create" && n.Deleted == 1)
 					sError += "A new NFT cannot be deleted.";
 
 				if (_msMode == "edit" && n.OwnerERC20Address != GetUser(h).ERC20Address)
 					sError += "Sorry, you must own the NFT in order to edit it.";
-
 
 				if (n.Type.ToLower() == "orphan")
 				{
@@ -289,12 +298,21 @@ namespace BiblePay.BMS.Controllers
 					sError += "Your ERC-20 Address must be populated (you can do this from Profile | Wallet | Refresh | Save). ";
 
 				double dBBPBalance = BMSCommon.Common.GetDouble(DSQL.UI.GetAvatarBalance(h, false));
-				if (dBBPBalance < 1001)
-					sError += "Sorry, you must have more than 1000 bbp available to create an NFT.  (Polygon gas fees get spent on our end). ";
-			
-				string sTXID = "";
+				if (dBBPBalance < 251)
+					sError += "Sorry, you must have more than 250 bbp available to create an NFT. ";
 
-				string sNarr = (sError == "") ? "Successfully submitted this NFT. <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>NOTE:  Please wait for one sidechain block to pass before you can view the NFT.  " : sError;
+				
+				// Pay for this NFT charge first
+				string sToAddress = WebRPC.GetFDPubKey(IsTestNet(h));
+
+				BMSCommon.WebRPC.DACResult r0 = DSQL.UI.SendBBP(h, sToAddress, 250, "", "");
+				if (r0.TXID == "")
+                {
+					sError += "Sorry, your 250 BBP payment failed.";
+                }
+
+				string sNarr = (sError == "") ? "Successfully submitted this NFT on TXID " + r0.TXID + ". <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>"
+					+ "NOTE:  Please wait for one sidechain block to pass before you can view the NFT.  " : sError;
 				if (sError == "")
 				{
 					n.Save(IsTestNet(h));
@@ -313,7 +331,6 @@ namespace BiblePay.BMS.Controllers
 				BMSCommon.Common.Log(ex.Message);
 				string s3 = DSQL.UI.MsgBoxJson(h, "Process NFT", "Error", ex.Message);
 				return s3;
-
 			}
 
 		}

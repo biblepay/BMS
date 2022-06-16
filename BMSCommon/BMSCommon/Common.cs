@@ -20,6 +20,26 @@ namespace BMSCommon
         }
 
 
+
+        public static List<string> GetTSFileParams(string sPath)
+        {
+            List<string> t = new List<string>();
+
+            if (!System.IO.File.Exists(sPath))
+                return t;
+            string sData = System.IO.File.ReadAllText(sPath);
+            string[] vData = sData.Split("\n");
+            for (int i = 0; i < vData.Length; i++)
+            {
+                string line = vData[i];
+                if (line.Contains(".ts"))
+                {
+                    t.Add(line);
+                }
+            }
+            return t;
+        }
+
         public static string xByteArrayToHexString(byte[] arrInput)
         {
             StringBuilder sOutput = new StringBuilder(arrInput.Length);

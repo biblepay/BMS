@@ -137,6 +137,33 @@ namespace BMSCommon
             return plaintext;
         }
 
+        static byte[] EncryptAES256(string plainText, byte[] Key, byte[] IV)
+        {
+            byte[] encrypted;
+            using (AesManaged aes = new AesManaged())
+            {
+                ICryptoTransform encryptor = aes.CreateEncryptor(Key, IV);
+                // Create MemoryStream    
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (CryptoStream cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+                    {
+                        using (StreamWriter sw = new StreamWriter(cs))
+                            sw.Write(plainText);
+                        encrypted = ms.ToArray();
+                    }
+                }
+            }
+            // Return encrypted data    
+            return encrypted;
+        }
+
+        public static string EncryptAES256(string sData, string password)
+        {
+            byte[] myBytedLocal = GetBytedKeyFromPassword(password);
+            byte[] myByteOut = EncryptAES256(sData, myBytedLocal, myBytedIV);
+            return System.Convert.ToBase64String(myByteOut);
+        }
 
         public static string DecryptAES256(string sData, string password)
         {

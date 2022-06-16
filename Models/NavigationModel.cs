@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BiblePay.BMS.Extensions;
+using Microsoft.AspNetCore.Http;
 
 namespace BiblePay.BMS.Models
 {
@@ -28,7 +29,10 @@ namespace BiblePay.BMS.Models
         private static List<ListItem> FillProperties(IEnumerable<ListItem> items, bool seedOnly, ListItem parent = null)
         {
             var result = new List<ListItem>();
+            double nCoreBalance = BMSCommon.WebRPC.GetCachedCoreWalletBalance(false);
 
+            //bool fLogged = DSQL.UI.GetUser(HttpContext).LoggedIn;
+        
             foreach (var item in items)
             {
                 item.Text ??= item.Title;
@@ -37,8 +41,18 @@ namespace BiblePay.BMS.Models
                 var parentRoute = (Path.GetFileNameWithoutExtension(parent?.Text ?? Empty)?.Replace(Space, Underscore) ?? Empty).ToLower();
                 var sanitizedHref = parent == null ? item.Href?.Replace(Dash, Empty) : item.Href?.Replace(parentRoute, parentRoute.Replace(Underscore, Empty)).Replace(Dash, Empty);
                 var route = Path.GetFileNameWithoutExtension(sanitizedHref ?? Empty)?.Split(Underscore) ?? Array.Empty<string>();
-
+                bool fDisabled = false;
                 item.Route = route.Length > 1 ? $"/{route.First()}/{string.Join(Empty, route.Skip(1))}" : item.Href;
+                if (nCoreBalance < 1000000)
+                {
+                    if (item.Route != null)
+                    {
+                        if (item.Route.ToLower().Contains("nft") || item.Route == "/bbp/proposaladd" || item.Route == "/bbp/proposallist" || item.Route == "/bbp/turnkeysanctuaries" || item.Route == "/bbp/portfoliobuilder" || item.Route == "/bbp/portfoliobuilderleaderboard" || item.Route == "/bbp/portfoliobuilderdonation")
+                        {
+                            fDisabled = true;
+                        }
+                    }
+                }
 
                 item.I18n = parent == null
                     ? $"nav.{item.Title.ToLower().Replace(Space, Underscore)}"
@@ -50,7 +64,12 @@ namespace BiblePay.BMS.Models
                     item.Type = ItemType.Sibling;
 
                 if (!seedOnly || item.ShowOnSeed)
-                    result.Add(item);
+                {
+                    if (!fDisabled)
+                    {
+                        result.Add(item);
+                    }
+                }
             }
 
             return result;
