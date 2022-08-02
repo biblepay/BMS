@@ -78,7 +78,8 @@ namespace BMSCommon
 			l1.Add(new Asset { Chain = "BSC", Symbol = "FIELD", ERCAddress = "0x04d50c032f16a25d1449ef04d893e95bcc54d747", Price = .003 });
 			l1.Add(new Asset { Chain = "ETH", Symbol = "SHIB", ERCAddress = "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce", Price = .00001081 });
 			l1.Add(new Asset { Chain = "POLYGON", Symbol = "SHIB", ERCAddress = "0x6f8a06447ff6fcf75d803135a7de15ce88c1d4ec", Price = .00001081 });
-
+			l1.Add(new Asset { Chain = "POLYGON", Symbol = "rETH", ERCAddress = "0x0266F4F08D82372CF0FcbCCc0Ff74309089c74d1", Price = 1000.00 });
+			l1.Add(new Asset { Chain = "ETH", Symbol = "wstETH", ERCAddress = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", Price = 1000.00 });
 			// Wrapped ERC-20 Assets:
 			l1.Add(new Asset { Chain = "BSC", Symbol = "WBBP", ERCAddress = "0xcb1eec8630c5176611f72799853c3b7dbe4b8953", Price = 0 });
 			l1.Add(new Asset { Chain = "POLYGON", Symbol = "renDOGE", ERCAddress = "0xcE829A89d4A55a63418bcC43F00145adef0eDB8E", ChainlinkAddress = "0xbaf9327b6564454F4a3364C33eFeEf032b4b4444", Price = 0 });
@@ -290,13 +291,13 @@ namespace BMSCommon
 			string sql = "Delete from quotehistory where ticker=@ticker and added='" + added + "';";
 			MySqlCommand cmd1 = new MySqlCommand(sql);
 			cmd1.Parameters.AddWithValue("@ticker", sTicker);
-			bool f1 = Database.ExecuteNonQuery(false, cmd1, "");
+			bool f1 = Database.ExecuteNonQuery(cmd1);
 			sql = "Insert Into quotehistory (id,added,ticker,usd,btc) values (uuid(),'"
 				+ added + "',@ticker,'" + sUSDValue.ToString() + "','" + sBTCValue.ToString() + "');";
 			MySqlCommand cmd2 = new MySqlCommand(sql);
 			cmd2.Parameters.AddWithValue("@ticker", sTicker);
 
-			bool f2 = Database.ExecuteNonQuery(false, cmd2, "");
+			bool f2 = Database.ExecuteNonQuery(cmd2);
 
 			if (sUSDValue < .01 && sTicker != "BBP")
 			{
@@ -352,11 +353,11 @@ namespace BMSCommon
 				MySqlCommand cmd1 = new MySqlCommand(sql);
 				cmd1.Parameters.AddWithValue("@ticker", sTicker);
 
-				Database.ExecuteNonQuery(false, cmd1, "");
+				Database.ExecuteNonQuery(cmd1);
 				sql = "Insert into sys (id,systemkey,value,updated) values (uuid(),@ticker,'" + sPrice + "',now())";
 				MySqlCommand cmd2 = new MySqlCommand(sql);
 				cmd2.Parameters.AddWithValue("@ticker", sTicker);
-				bool fSuccess = 			Database.ExecuteNonQuery(false, cmd2, "");
+				bool fSuccess = Database.ExecuteNonQuery(cmd2);
 				bool f100 = false;
 
 			}catch(Exception ex)
@@ -419,7 +420,7 @@ namespace BMSCommon
 			MySqlCommand cmd1 = new MySqlCommand(sql);
 			cmd1.Parameters.AddWithValue("@skey", sKey);
 			cmd1.Parameters.AddWithValue("@svalue", sValue);
-			bool f = Database.ExecuteNonQuery(false, cmd1, "");
+			bool f = Database.ExecuteNonQuery(cmd1);
 			return f;
         }
 
@@ -475,6 +476,10 @@ namespace BMSCommon
 		{
 			string sData1 = "";
 			double dCachedQuote = 0;
+			if (ticker == "BTC/USD")
+			{
+				ticker = "BTC/USDT";//SX has moved from USD to USDT
+			}
 
 			try
 			{

@@ -29,7 +29,6 @@ namespace BiblePay.BMS.Controllers
         public IActionResult Carousel() => View();
         public IActionResult Collapse() => View();
         public IActionResult Dropdowns() {
-            ViewBag.Notifications = DSQL.UI.GetNotifications();
             return View();
         }
         public IActionResult ListFilter() => View();

@@ -8,7 +8,29 @@
 }
 <div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
 
-    @Html.Raw(ViewBag.PoolLeaderboard)
+    <!--@Html.Raw(ViewBag.PoolLeaderboard)-->
 
-</div>
+
+    @model PoolLeaderboardModel.Models.LeaderboardResponse
+
+        <table class=saved>
+            <tr><th width=20%>BBP Address</th><th>BBP Shares<th>XMR Shares<th>Efficiency<th>Hash Rate<th>Updated<th>Height</tr>
+
+        @foreach (var leaderboardItem in Model.items)
+        {
+          <tr>
+            <td>@leaderboardItem.BBPAddress</td>
+            <td>@leaderboardItem.BBPShares</td>
+            <td>@leaderboardItem.XMRShares</td>
+            <td>@leaderboardItem.Efficiency</td>
+            <td>@leaderboardItem.HashRate</td>
+            <td>@leaderboardItem.Updated</td>
+            <td>@leaderboardItem.Height</td>
+          </tr>
+        }
+        
+        </table>
+
+
+    </div>
 @section ScriptsBlock {}

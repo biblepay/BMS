@@ -306,7 +306,7 @@ namespace BMSCommon
                     try
                     {
                         MySqlCommand m10 = new MySqlCommand(sTrans);
-                        f = Database.ExecuteNonQuery(false, m10, "");
+                        f = Database.ExecuteNonQuery(m10);
                         if (!f)
                         {
                             Common.Log("Problem with " + sTrans);
@@ -346,7 +346,7 @@ namespace BMSCommon
                     cmd1.Parameters.AddWithValue("@time", b.Time);
                     cmd1.Parameters.AddWithValue("@nonce", b.Nonce);
                     cmd1.Parameters.AddWithValue("@blocknumber", b.BlockNumber);
-                    f = Database.ExecuteNonQuery(false, cmd1, "");
+                    f = Database.ExecuteNonQuery(cmd1);
                     if (!f)
                     {
                         return false;
@@ -450,7 +450,7 @@ namespace BMSCommon
                 {
                     string sData = "START TRANSACTION; " + bSQL.ToString() + "COMMIT; ";
                     MySqlCommand m1 = new MySqlCommand(sData);
-                    bool fSuccess = Database.ExecuteNonQuery(false, m1, "");
+                    bool fSuccess = Database.ExecuteNonQuery(m1);
                     bool f1000 = false;
                 }
                 return true;
@@ -574,9 +574,10 @@ namespace BMSCommon
                             {
 
                                 string sValue = (string)theValue; // info.GetValue(p, null);
-                                if (sValue.Length > 255)
+                                int nMax = sFieldName.ToLower().Contains("data") ? 1000 : 255;
+                                if (sValue.Length > nMax)
                                 {
-                                    sValue = sValue.Substring(0, 255);  //limit of schema for string...
+                                    sValue = sValue.Substring(0, nMax);  //limit of schema for string...
                                 }
                                 sValue = sValue.Replace("'", "''");
                                 objV += "'" + sValue + "',";
@@ -613,11 +614,15 @@ namespace BMSCommon
             }
         }
 
-        public static string ReflectionTypeToMySqlType(string sPropType)
+        public static string ReflectionTypeToMySqlType(string sName, string sPropType)
         {
             if (sPropType == "System.Int32" || sPropType == "System.Int64" || sPropType == "System.Double")
             {
                 return "float";
+            }
+            if (sName.ToLower().Contains("data"))
+            {
+                return "varchar(1000)";
             }
             return "varchar(255)";
         }
@@ -664,7 +669,7 @@ namespace BMSCommon
                 {
                     string sql = "Create table " + sTableName + " (_id varchar(64) primary key);";
                     MySqlCommand cmd = new MySqlCommand(sql);
-                    Database.ExecuteNonQuery(false, cmd, "");
+                    Database.ExecuteNonQuery(cmd);
                 }
 
                 foreach (KeyValuePair<string, object> p in o.ToList())
@@ -673,14 +678,14 @@ namespace BMSCommon
                     object sFieldValue = p.Value;
 
                     string sPropType = GetPropertyType(p.Value);
-                    string sFieldType = ReflectionTypeToMySqlType(sPropType);
+                    string sFieldType = ReflectionTypeToMySqlType(sFieldName, sPropType);
                     if (!TableColumnExists(sTableName, sFieldName))
                     {
                         if (sFieldName != "table")
                         {
                             string sql = "ALTER TABLE " + sTableName + " add " + sFieldName + " " + sFieldType + ";";
                             MySqlCommand cmd = new MySqlCommand(sql);
-                            bool fOK = Database.ExecuteNonQuery(false, cmd, "");
+                            bool fOK = Database.ExecuteNonQuery(cmd);
                         }
                     }
                 }

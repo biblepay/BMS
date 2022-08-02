@@ -1,0 +1,46 @@
+﻿//Contains the areas that we are developing in the future
+
+{
+  "title": "In Development",
+  "roles": []
+}, {
+  "title": "Demos",
+  "text": "In Development",
+  "icon": "fal fa-plus-circle",
+  "roles": [],
+  "items": [
+
+    {
+      "title": "Users",
+      "href": "page_contacts.html",
+      "roles": []
+    },
+    {
+      "title": "Demo Dashboard",
+      "icon": "fal fa-info-circle",
+      "roles": [],
+      "items": [
+        {
+          "title": "Demo Table",
+          "showOnSeed": false,
+          "href": "intel_marketing_dashboard.html",
+          "roles": []
+        },
+        {
+          "title": "Demo Upload",
+          "showOnSeed": false,
+          "href": "upload_uploadfile.html",
+          "roles": []
+        }
+
+      ]
+    },
+    {
+      "title": "Chat",
+      "showOnSeed": false,
+      "href": "bbp_chat.html",
+      "roles": []
+    }
+
+  ]
+}

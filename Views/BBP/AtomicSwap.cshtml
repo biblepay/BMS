@@ -1,0 +1,48 @@
+﻿@{ ViewData["Title"] = "Atomic Swap";
+    ViewData["PageName"] = "bbp_atomicswap";
+    ViewData["Heading"] = "<i class='fal fa-key'></i> &nbsp;DOGE/BBP Atomic Swap";
+    ViewData["Category1"] = "BBP";
+    ViewData["PageDescription"] = "Fully managed and simple HODL rewards earned while helping expand our network"; }
+@section HeadBlock {
+}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+    Your DOGE deposit Address:
+    <br />
+    <input id="txtDoge" class="form-control" readonly value="@Html.Raw(ViewBag.DogeAddress)" />
+    <button class="btn-default" onclick="CopyToClipboard();">Copy To Clipboard</button>
+    <br />
+    <br />
+        <div class="thumbnail" style="background-size: 80px 80px; background: url(/images/bbp.png) no-repeat 4% 50%, url(/images/doge.png) no-repeat 11% 44%;">
+            Price Information:
+            @Html.Raw(ViewBag.PriceReport)
+        </div>
+    <br />
+    <br />
+    @Html.Raw(ViewBag.Atomic)
+    <br />
+    <ul>
+        Instructions:
+        <li>1.  Send DOGE to the address above.  Do not send more than 10MM BBP Equivalent, otherwise the transaction will be refunded.</li>
+        <li>2.  Wait for 10 DOGE confirmations (this is approximately 10 minutes).  Refresh this page.</li>
+        <li>3.  The Status will update accordingally (Received, Processing, Paid).</li>
+        <li>4.  We will send the corresponding amount of BiblePay into your web wallet.  Once the transaction is completed, your BBP balance will increase.  You can find your BBP balance by navigating to Profile.</li>
+        <li>5.  After the TXID shows PAID on this page, please allow one BBP block to pass for your web wallet balance to update.</li>
+        <li>6.  We have a limit of 10MM BBP per day.  If you send more than this the transaction will be paused until the next business day then will resume automatically.</li>
+    </ul>
+
+</div>
+@section ScriptsBlock {
+
+    <script>
+        function CopyToClipboard()
+        {
+            var txtDoge = document.getElementById("txtDoge");
+            txtDoge.select();
+            txtDoge.setSelectionRange(0, 99999); /* For mobile devices */
+            /* Copy the text inside the text field */
+            navigator.clipboard.writeText(txtDoge.value);
+            alert("Copied to clipboard: " + txtDoge.value);
+        }
+    </script>
+}

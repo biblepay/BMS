@@ -11,12 +11,16 @@ function DoCallback(action, o) {
         dataType: "json",
         contentType: "application/json; charset=utf-8",
         success: function (data, resObject) {
-            console.log(data);
+            //console.log(data);
             // This object contains the return value
-            if (data != null && data.length > 1) {
+            if (data != null && data.length > 1)
+            {
+                console.log('data[] ' + data);
+                //console.warn(jqxhr.responseText)
+
                 var obj = JSON.parse(data);
-                console.log(obj.returnbody);
-                console.log(obj.field2);
+                //console.log(obj.returnbody);
+                //console.log(obj.field2);
                 if (obj.returntype == "modal") {
                     var implant = document.getElementById("implant");
 
@@ -35,8 +39,10 @@ function DoCallback(action, o) {
                 }
             }
         },
-        error: function () {
-            alert("Error while inserting data");
+        error: function ()
+        {
+            //alert("Error while inserting data");
+            console.log('Error while inserting data');
         }
     });
     return true;
@@ -68,8 +74,6 @@ function eraseCookie(name) {
 }
 
 
-
-
 function ElementsToHTML(sType) {
     var elements = document.getElementsByTagName(sType);
 
@@ -83,6 +87,11 @@ function ElementsToHTML(sType) {
         }
 
         var row = "<col>" + id + "<col>" + value + "<row>\r\n";
+        html += row;
+    }
+    var o1 = document.getElementById('divPaste');
+    if (o1) {
+        var row = "<col>divPaste<col>" + o1.innerHTML + "<row>\r\n";
         html += row;
     }
     return html;
@@ -114,4 +123,87 @@ function removeAllChildNodes(parent) {
     }
 }
 
+
+// Infinite scrolling paginator; start at record 29
+var iGallery = 29;
+function MakeMoreVisible() {
+    //alert(iGallery);
+    for (var i = iGallery; i < iGallery + 30; i++) {
+        // $('#gtd' + i.toString()).css('visibility', 'visible');
+        $('#gtd' + i.toString()).toggleClass('galleryinvisible');
+    }
+    iGallery += 30;
+}
+
+function getParameterByName(name, url = window.location.href) {
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+
+
+// Scroll event listener
+window.addEventListener('scroll', () => {
+    const {
+        scrollTop,
+        scrollHeight,
+        clientHeight
+    } = document.documentElement;
+
+    var signalType = 0;
+    if (scrollTop === 0) {
+        signalType = 1;
+    }
+
+    if (scrollTop + clientHeight >= scrollHeight - 50) {
+        signalType = 2;
+    }
+
+    if (signalType !== 0) {
+        var pag = "0" + getParameterByName('pag');
+        var nPag = parseInt(pag);
+        var url = window.location.href;
+        var nOffset = 0;
+
+        if (signalType === 1) {
+            nOffset = -30;
+        }
+        else if (signalType === 2) {
+            nOffset = 30;
+        }
+
+        if (url.includes('TelegramChat') && signalType === 1) {
+            nOffset = 30;
+        }
+
+        var nNew = nPag + nOffset;
+        if (nNew < 1)
+            nNew = 1;
+        // First if this param exists; remove
+        if (nPag > 0) {
+            var sOld = "pag=" + (nPag).toString();
+
+            var sNew = "pag=" + (nNew).toString();
+            url = url.replace(sOld, sNew);
+        }
+        else {
+            var fQ = url.includes('?');
+            url += fQ ? '&pag=' : '?pag=';
+            url += (nNew).toString();
+        }
+        // If the paginator is enabled for the page:
+        if (nPag < 2 && nNew < 2) {
+            // Noop
+            return;
+        }
+        if (url.includes('videolist')) {
+            window.location.href = url;
+        }
+    }
+}, {
+    passive: true
+});
 

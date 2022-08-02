@@ -107,6 +107,18 @@ namespace BMSCommon
             return dt;
         }
 
+        public static List<string> GetDataList(MySqlCommand cmd, string sColName)
+        {
+            DataTable dt = BMSCommon.Database.GetDataTable(cmd);
+            List<string> l = new List<string>();
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                string h = dt.Rows[i][sColName].ToString();
+                l.Add(h);
+            }
+            return l;
+        }
+
         public static double GetScalarDouble(MySqlCommand cmd, string sField)
         {
             DataTable dt = GetDataTable(cmd);
@@ -181,9 +193,9 @@ namespace BMSCommon
         // Notes:  If we have a string date column, mysql function to convert back to date for sorting: order by by STR_TO_DATE(Added,'%m/%d/%Y %h:%i:%s') desc;
 
 
-        public static bool ExecuteNonQuery(bool fTestNet, MySqlCommand cmd1, string sDomain)
+        public static bool ExecuteNonQuery(MySqlCommand cmd1)
         {
-            MySqlConnection conn = new MySqlConnection(PCS(fTestNet, sDomain));
+            MySqlConnection conn = new MySqlConnection(PCS(false, ""));
             try
             {
                 conn.Open();

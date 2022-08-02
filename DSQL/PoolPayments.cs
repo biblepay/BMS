@@ -51,7 +51,7 @@ namespace BiblePay.BMS.DSQL
                 MySqlCommand command = new MySqlCommand(sql);
 
                 command.Parameters.AddWithValue("@batchid", batchid);
-                BMSCommon.Database.ExecuteNonQuery(false, command, "");
+                BMSCommon.Database.ExecuteNonQuery(command);
                 sql = "Select bbpaddress, sum(Reward) reward from " + sTable + " WHERE txid = @batchid and paid is null group by bbpaddress;";
 
                 command = new MySqlCommand(sql);
@@ -92,7 +92,7 @@ namespace BiblePay.BMS.DSQL
                         command = new MySqlCommand(sql);
                         command.Parameters.AddWithValue("@batchid", batchid);
                         command.Parameters.AddWithValue("@txid", txid);
-                        BMSCommon.Database.ExecuteNonQuery(false, command, "");
+                        BMSCommon.Database.ExecuteNonQuery(command);
                         return true;
                     }
                 }

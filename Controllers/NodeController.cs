@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Net.Mail;
 using System.Reflection;
@@ -363,19 +364,37 @@ namespace BiblePay.BMS.Controllers
         [Route("BMS/Debug")]
         public async Task<string> Debug()
         {
-            // test blockchair
-            // string doge = "D7hax329ifyA1CjQiTB6AkmDBrUSjLwSsf";
-            // List<BMSCommon.BlockChair.BlockChairUTXO> l = BBPTestHarness.BlockChairTestHarness.QueryUTXOs("DOGE", doge, 0);
-            // string sOwnerAddress = "BMFjMKj7SWE9iK1dKVhkTNoBwJhD7qoB7e";
-            //  int nPin = (int)BMSCommon.BlockChair.AddressToPin(sOwnerAddress, doge);
-            //  bool fPin = BMSCommon.BlockChair.CompareMask(1, nPin);
-            // mission critical
+            /*
+            DataTable dr1 = BBPTestHarness.IPFS.GetVideoDataTableRetired();
+            for (int i = 0; i < dr1.Rows.Count; i++)
+            {
+                //string sql = "Select * from social.Wo_Movies where description <> ''";
+                try
+                {
+                    Video v = new Video();
+                    v.Title = dr1.Rows[i]["name"].ToString();
+                    if (v.Title.Length > 999)
+                        v.Title = v.Title.Substring(0, 999);
 
-            //  string sEncBlockchair = BMSCommon.Encryption.EncryptAES256("A___mI4F7ZYgxq56ixO30lY9LBP6wKyY", "");
+                    v.Description = dr1.Rows[i]["description"].ToString();
+                    if (v.Description.Length > 999)
+                        v.Description = v.Description.Substring(0, 999);
 
-            //string sData = await DSQL.youtube.GetSomeVideos();
-            //return sData;
-            return "";
+                    v.Category = dr1.Rows[i]["genre"].ToString();
+                    v.Duration = dr1.Rows[i]["duration"].ToInt32();
+                    v.Cover = dr1.Rows[i]["cover"].ToString();
+                    v.Source = dr1.Rows[i]["iframe"].ToString();
+                    v.id = dr1.Rows[i]["id"].ToString();
+                    v.Save(false);
+                }
+                catch(Exception ex)
+                {
+                    bool f999 = false;
+                }
+            }
+            */
+            return "7";
+            
         }
 
         [Route("BMS/Status")]

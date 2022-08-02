@@ -64,7 +64,12 @@ namespace BiblePay.BMS.DSQL
             
             string html = "<div style='font-size:10px;'><table class=saved>";
             // Column headers
-            string sRow = "<tr><th width=5%>Address<th width=7%>Nick Name<th>Currency<th>Total BBP<th width=5%><small>Ttl Foreign</small><th>USD Value BBP<th width=5%><small>USD Value Foreign</small><th>Assessed USD<th>Coverage<th>Earnings<th>Strength</tr>";
+            string sRow = "<tr><th width=5%>Address<th width=7%>User";
+            if (sMode.ToLower() != "summary")
+            {
+                sRow += "<th width=7%>Symbol";
+            }
+            sRow += "<th>Total BBP<th width=5%><small>Ttl Foreign</small><th>USD Value BBP<th width=5%><small>USD Value Foreign</small><th>Assessed USD<th>Coverage<th>Earnings<th>Strength</tr>";
             html += sRow;
             Dictionary<string, PortfolioParticipant> u = await BBPTestHarness.BlockChairTestHarness.GenerateUTXOReport(fTestNet);
 
@@ -73,10 +78,23 @@ namespace BiblePay.BMS.DSQL
                 double nEarnings = nSuperblockLimit * pp.Value.Strength;
                 if (pp.Value.Strength > -1)
                 {
+                    string sBioURL = DSQL.UI.GetAvatarPicture(fTestNet, pp.Value.UserID);
+
+                    //User u1 = GetCachedUser(fTestNet, pp.Value.UserID);
+                    //string sAvatar = "<span class='profile-image-md rounded-circle d-block' style=\"background-image:url('" + u1.BioURL + "'); "
+                    //   +"background-size: cover;\"></span> " + pp.Value.NickName;
+
+                    string sAvatar = sBioURL + pp.Value.NickName;
+
                     sRow = "<tr><td><font style='font-size:7px;'>" + pp.Value.RewardAddress
-                        + "</font><td>" + pp.Value.NickName
-                        + "<td>Various"
-                        + "<td>" + Math.Round(pp.Value.AmountBBP, 2).ToString()
+                        + "</font>" + "<td>" + sAvatar;
+
+                    if (sMode.ToLower() != "summary")
+                    {
+                        sRow += "<td>";
+                    }
+
+                    sRow += "<td>" + Math.Round(pp.Value.AmountBBP, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountForeign, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountUSDBBP, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountUSDForeign, 2).ToString()
@@ -109,17 +127,47 @@ namespace BiblePay.BMS.DSQL
         }
 
 
+
+        public static string InsertUTXODataIntoChainLegacy(bool fTestNet, string sMessageKey, string sUTXOReport)
+        {
+            try
+            {
+                string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
+                string sTXID = "";
+                WebRPC.DACResult r0 = DSQL.UI.SendBBPOldMethod(fTestNet, sMessageKey, sBurnAddress, 5, sUTXOReport);
+                sTXID = r0.TXID;
+                if (sTXID == "")
+                {
+                    throw new Exception("Unabled to add to memory pool.");
+                }
+                return sTXID;
+            }
+            catch (Exception)
+            {
+                BMSCommon.Common.Log("An error occured in the daily utxo report. ");
+                return "";
+            }
+        }
+
+
+
+
+
         public static async Task<bool> DailyUTXOExport(bool fTestNet, bool fPrimary)
         {
             if (!fPrimary)
                 return false;
 
+
+            bool fCacheLatch = Latch(fTestNet, "cachelatch", 60 * 60);
+            if (fCacheLatch)
+            {
+                await BBPTestHarness.BlockChairTestHarness.GenerateUTXOReport(fTestNet);
+            }
+
             bool fLatch = Latch(fTestNet, "utxoexport", 60 * 30);
             if (!fLatch)
                 return false;
-
-
-            // mission critical todo: Ensure this is the primary node here, otherwise we dont want an export
 
             double nNextHeight = 0;
 
@@ -128,11 +176,6 @@ namespace BiblePay.BMS.DSQL
                 bool fExists = WebRPC.GetNextContract(fTestNet, out nNextHeight);
                 if (fExists || nNextHeight == 0)
                 {
-                    //Log("Export exists for " + fTestNet.ToString());
-                    //if (!fTestNet)
-                    // {
-                    //string sData2 = await BiblePayUtilities.ExecutePortfolioBuilderExport(fTestNet, (int)nNextHeight);
-                    // }
                     return false;
                 }
 
@@ -140,8 +183,6 @@ namespace BiblePay.BMS.DSQL
                 {
                     BMSCommon.Common.Log("CREATING UTXO DAILY EXPORT FOR HEIGHT " + nNextHeight.ToString());
                 }
-                //todo check if it already exists here.
-                //BiblePayCommon.Entity.utxointegration2 o = new BiblePayCommon.Entity.utxointegration2();
                 string sData = await ExecutePortfolioBuilderExport(fTestNet, (int)nNextHeight);
                 if (!fTestNet && sData.Length < 400)
                 {
@@ -153,17 +194,14 @@ namespace BiblePay.BMS.DSQL
                 u.nHeight = (int)nNextHeight;
                 u.data = sData;
                 BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
-                // remoe the tx from memory pool when we accept the block (connectblock)
                 t.Time = BMSCommon.Common.UnixTimestamp();
                 t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(u);
-                BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
 
                 // Check utxo signature here
-                //string sSP = BMSCommon.Common.GetConfigurationKeyValue("utxoprivkey");
                 bool fOK = true;
                 if (fOK)
                 {
-                    string UtxoTXID = WebRPC.InsertUTXODataIntoChain(fTestNet, "GSC", sData);
+                    string UtxoTXID = InsertUTXODataIntoChainLegacy(fTestNet, "GSC", sData);
                     if (UtxoTXID == "")
                     {
                         BMSCommon.Common.Log("Unable to persist utxo data");

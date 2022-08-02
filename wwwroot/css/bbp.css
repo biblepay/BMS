@@ -14,3 +14,13 @@
             border-spacing: 10px;
             *border-collapse: expression('separate', cellSpacing = '10px');
         }
+
+.galleryvisibile {
+    display: block;
+}
+
+.galleryinvisible {
+    xvisibility: collapse;
+    display: none;
+}
+

@@ -77,6 +77,8 @@ namespace BiblePay.BMS.DSQL
                 {
                     worker = GetWorker(sKey);
                 }
+
+                worker.receivedtime = BMSCommon.Common.UnixTimestamp(); // perpetually increasing dictWorkercount compared to jobCount
                 dictWorker[sKey] = worker;
             }
             catch (Exception ex)
@@ -148,7 +150,7 @@ namespace BiblePay.BMS.DSQL
             {
                 string sql = "Insert into BanDetails (id,IP,Notes,Added,Level) values (uuid(), '" + IP + "','" + sWHY + "',getdate(),'" + iLevel.ToString() + "');";
                 MySqlCommand cmd1 = new MySqlCommand(sql);
-                BMSCommon.Database.ExecuteNonQuery(false, cmd1, "");
+                BMSCommon.Database.ExecuteNonQuery(cmd1);
             }
             catch (Exception x)
             {
@@ -602,7 +604,7 @@ namespace BiblePay.BMS.DSQL
                 if (iMyHeight > 0 && sRecip != "" && sRecip != null && nSubsidy > 0)
                 {
                     MySqlCommand m2 = new MySqlCommand(sql);
-                    BMSCommon.Database.ExecuteNonQuery(false, m2, "");
+                    BMSCommon.Database.ExecuteNonQuery(m2);
                 }
             }
         }
@@ -671,7 +673,7 @@ namespace BiblePay.BMS.DSQL
                                 command5.Parameters.AddWithValue("@bxmrc", GetDouble(dt4.Rows[x]["BXMRC"]));
                                 try
                                 {
-                                    BMSCommon.Database.ExecuteNonQuery(false, command5, "");
+                                    BMSCommon.Database.ExecuteNonQuery(command5);
                                 }
                                 catch (Exception ex2)
                                 {
@@ -684,7 +686,7 @@ namespace BiblePay.BMS.DSQL
                                 command5 = new MySqlCommand(sql3);
                                 command5.Parameters.AddWithValue("@bbpid", bbpaddress1);
                                 command5.Parameters.AddWithValue("@height", iMyHeight);
-                                BMSCommon.Database.ExecuteNonQuery(false, command5, "");
+                                BMSCommon.Database.ExecuteNonQuery(command5);
                             }
                         }
 
@@ -694,7 +696,7 @@ namespace BiblePay.BMS.DSQL
                         command1.Parameters.AddWithValue("@height", iMyHeight);
                         int iSolved = nSubsidy > 1 ? 1 : 0;
                         command1.Parameters.AddWithValue("@solved", iSolved);
-                        BMSCommon.Database.ExecuteNonQuery(false, command1, "");
+                        BMSCommon.Database.ExecuteNonQuery(command1);
                     }
                 }
 
@@ -743,7 +745,7 @@ namespace BiblePay.BMS.DSQL
                             command.Parameters.AddWithValue("@percentage", Math.Round(nShare, 4));
                             command.Parameters.AddWithValue("@height", iMyHeight);
                             command.Parameters.AddWithValue("@bbpaddress", dt1.Rows[i]["bbpaddress"]);
-                            BMSCommon.Database.ExecuteNonQuery(false, command, "");
+                            BMSCommon.Database.ExecuteNonQuery(command);
                          }
                     }
                 }
@@ -894,7 +896,7 @@ namespace BiblePay.BMS.DSQL
                             MySqlCommand command = new MySqlCommand(sql);
 
                             command.Parameters.AddWithValue("@height", _template.height);
-                            BMSCommon.Database.ExecuteNonQuery(false, command, "");
+                            BMSCommon.Database.ExecuteNonQuery(command);
                             Log("SUBMIT_SUCCESS: Success for nonce " + x.nonce + " at height " + _template.height.ToString() + " hex " + hex);
                         }
                         else
@@ -942,7 +944,7 @@ namespace BiblePay.BMS.DSQL
                     MySqlCommand m = new MySqlCommand(sql);
                     m.Parameters.AddWithValue("@m", w.moneroaddress);
                     m.Parameters.AddWithValue("@b", w.bbpaddress);
-                 bool f2=   BMSCommon.Database.ExecuteNonQuery(IsTestNet(), m, "");
+                 bool f2=   BMSCommon.Database.ExecuteNonQuery(m);
 
                 bool f1001 = false;
 
@@ -1396,9 +1398,11 @@ namespace BiblePay.BMS.DSQL
                                     iXMRThreadID++;
                                     TcpClient tcp = new TcpClient();
                                     nSockTrace = 2;
-                                    string XMRExternalPool = GetConfigurationKeyValue("XMRExternalPool");
-                                    if (XMRExternalPool == "")
-                                      XMRExternalPool = "pool.minexmr.com";
+                                // MineXMR.com is going out of business (old pool=pool.minexmr.com, newpool=pool.supportxmr.com)
+
+                                string XMRExternalPool = GetConfigurationKeyValue("XMRExternalPool");
+                                if (XMRExternalPool == "")
+                                      XMRExternalPool = "pool.supportxmr.com";
                                     int nExternalPort = (int)GetDouble(GetConfigurationKeyValue("XMRExternalPort"));
                                     if (nExternalPort == 0)
                                       nExternalPort = 5555;

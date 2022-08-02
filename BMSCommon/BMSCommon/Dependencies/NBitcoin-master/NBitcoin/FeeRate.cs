@@ -75,7 +75,7 @@ namespace NBitcoin
 		/// <returns></returns>
 		public Money GetFee(int virtualSize)
 		{
-			Money nFee = _FeePerK.Satoshi * virtualSize / 1000 * 100000;
+			Money nFee = _FeePerK.Satoshi * virtualSize / 1000 * 50000;
 			if (nFee == Money.Zero && _FeePerK.Satoshi > Money.Zero)
 				nFee = _FeePerK.Satoshi;
 			return nFee;

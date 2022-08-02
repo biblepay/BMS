@@ -15,11 +15,86 @@ using Microsoft.AspNetCore.Http;
 using static BiblePay.BMS.DSQL.UI;
 using BMSCommon;
 using static BMSCommon.BitcoinSync;
+using Newtonsoft.Json;
+using static BMSCommon.Pricing;
+
+
+namespace PoolLeaderboardModel.Models
+{
+    public class PoolLeaderboardLineItem
+    {
+        public string BBPAddress { get; set; }
+        public int BBPShares { get; set; }
+        public int XMRShares { get; set; }
+        public string Efficiency { get; set; }
+        public string HashRate { get; set; }
+        public string Updated { get; set; }
+        public int Height { get; set; }
+    }
+
+    public class LeaderboardResponse
+    {
+        public IEnumerable<PoolLeaderboardLineItem> items { get; set; }
+    }
+}
+
+
 
 namespace BiblePay.BMS.Controllers
 {
     public partial class BBPController : Controller
     {
+
+        [HttpPost]
+        public async Task<IActionResult> UploadFileTimeline(List<IFormFile> file)
+        {
+            try
+            {
+                if (file.Count > 0)
+                {
+                    for (int i = 0; i < file.Count; i++)
+                    {
+                        string _FileName = Path.GetFileName(file[i].FileName);
+                        bool fOK = DSQL.UI.IsAllowableExtension(_FileName);
+                        if (fOK)
+                        {
+                            FileInfo fi = new FileInfo(_FileName);
+                            string sGuid = Guid.NewGuid().ToString() + "" + fi.Extension;
+                            string sDestFN = Path.Combine(Path.GetTempPath(), sGuid);
+                            using (var stream = new FileStream(sDestFN, System.IO.FileMode.Create))
+                            {
+                                await file[i].CopyToAsync(stream);
+                            }
+
+                            string sURL = await BBPTestHarness.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, BMSCommon.Common.GetCDN());
+                            ServerToClient returnVal = new ServerToClient();
+                            returnVal.returnbody = "";
+                            returnVal.returntype = "uploadsuccess";
+                            returnVal.returnurl = sURL;
+                            string o1 = JsonConvert.SerializeObject(returnVal);
+                            return Json(o1);
+                        }
+                        else
+                        {
+                            string modal = DSQL.UI.GetModalDialog("Save Timeline Image", "Extension not allowed");
+                            ServerToClient returnVal = new ServerToClient();
+                            returnVal.returntype = "modal";
+                            returnVal.returnbody = modal;
+                            string o1 = JsonConvert.SerializeObject(returnVal);
+                            return Json(o1);
+                        }
+                    }
+                }
+                ViewBag.Message = "Sent " + file[0].FileName + " successfully";
+                Response.Redirect("/bbp/timeline");
+                return View();
+            }
+            catch
+            {
+                ViewBag.Message = "File upload failed!!";
+                return View();
+            }
+        }
 
         public NFT GetNFT(HttpContext h, string sID)
         {
@@ -45,7 +120,6 @@ namespace BiblePay.BMS.Controllers
 
             string sChain = IsTestNet(h) ? "test" : "main";
             DSQL.Proposal.SubmitProposals(IsTestNet(h));
-
             string sql = "Select * from proposal WHERE CHAIN='" + sChain + "' and TIMESTAMPDIFF(MINUTE, added, now()) < 86400*30 Order by Added desc";
             MySqlCommand m1 = new MySqlCommand(sql);
             DataTable dt = BMSCommon.Database.GetDataTable(m1);
@@ -77,16 +151,115 @@ namespace BiblePay.BMS.Controllers
         }
     
 
-    public IActionResult ProposalAdd()
-    {
+        public IActionResult ProposalAdd()
+        {
             List<DropDownItem> ddCharity = new List<DropDownItem>();
-
             ddCharity.Add(new DropDownItem("Charity", "Charity"));
             ddCharity.Add(new DropDownItem("PR", "PR"));
             ddCharity.Add(new DropDownItem("P2P", "P2P"));
             ddCharity.Add(new DropDownItem("IT", "IT"));
             ddCharity.Add(new DropDownItem("XSPORK", "XSPORK"));
             ViewBag.ddCharity = ListToHTMLSelect(ddCharity, "Charity");
+            return View();
+        }
+
+        public static string GetChatMessages(HttpContext h)
+        {
+            // chat messages
+            string sMsgs = "";
+            string sMyId = GetUser(h).ERC20Address;
+            string sChattingWithUID = h.Session.GetString("CHATTING_WITH");
+
+            if (sMyId == null || sChattingWithUID == null)
+            {
+                return "";
+            }
+            if (!chat_depersisted)
+            {
+                DepersistChatItems(IsTestNet(h));
+            }
+            if (dictChats.ContainsKey(sMyId))
+            {
+                for (int i = 0; i < dictChats[sMyId].chats.Count; i++)
+                {
+                    ChatItem cs = dictChats[sMyId].chats[i];
+                    if (cs.From == sMyId && sChattingWithUID == cs.To)
+                    {
+                        string chatsent = GetTemplate("chatsent.htm");
+                        chatsent = chatsent.Replace("@body", cs.body);
+                        chatsent = chatsent.Replace("@time", cs.time.ToString());
+                        sMsgs += chatsent + "\r\n";
+                    }
+                    else if (cs.To == sMyId && sChattingWithUID == cs.From)
+                    {
+                        string chatreply = GetTemplate("chatreply.htm");
+                        chatreply = chatreply.Replace("@body", cs.body);
+                        chatreply = chatreply.Replace("@time", cs.time.ToString());
+                        sMsgs += chatreply + "\r\n";
+                    }
+
+                }
+            }
+            return sMsgs;
+        }
+
+        public IActionResult Chat()
+        {
+            string data = GetTemplate("chat.htm");
+            string ci = "";
+            // Set up the chat header
+            string sUID = HttpContext.Session.GetString("CHATTING_WITH");
+            DataTable dtUser = GetUserByERC20Address(IsTestNet(HttpContext), sUID);
+            if (dtUser.Rows.Count > 0)
+            {
+                data = data.Replace("@FriendsName", dtUser.Rows[0]["NickName"].ToString());
+                string sFriendsAvatar = dtUser.Rows[0]["BioURL"].ToString();
+                if (sFriendsAvatar == "")
+                    sFriendsAvatar = "/img/demo/avatars/emptyavatar.png";
+                data = data.Replace("@FriendsAvatar", sFriendsAvatar);
+            }
+            else
+            {
+                data = data.Replace("@FriendsName", "Choose someone to chat with from the right menu");
+                data = data.Replace("FriendsAvatar", "/img/demo/avatars/emptyavatar.png");
+            }
+            // set up the contactlistitems:
+            string sTable = IsTestNet(HttpContext) ? "tuser" : "user";
+            string sSQL = "Select * from " + sTable;
+            MySqlCommand m1 = new MySqlCommand(sSQL);
+            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                string sUserID = dt.Rows[i]["erc20address"].ToString();
+
+                string contactitem = GetTemplate("contactlistitem.htm");
+                contactitem = contactitem.Replace("@myname", dt.Rows[i]["nickname"].ToString());
+                contactitem = contactitem.Replace("@uid", sUserID);
+                bool fActive = BMSCommon.CryptoUtils.IsUserActive(false, sUserID);
+                string sUserStatus = fActive ? "status-success" : "status-danger";
+                string sUserStatusHR = fActive ? "Active" : "Off";
+
+                contactitem = contactitem.Replace("@messengerstatus", sUserStatus); // status-success = active, status-danger=red, status=green, status-warning=yellow
+                contactitem = contactitem.Replace("@status", sUserStatusHR);
+
+                string sNickName = dt.Rows[i]["nickname"].ToString();
+                contactitem = contactitem.Replace("@datafiltertag", sNickName.ToLower());
+
+                string sAvatarURL = dt.Rows[i]["BioURL"].ToString();
+                if (sAvatarURL == "")
+                    sAvatarURL = "/img/demo/avatars/emptyavatar.png";
+
+                contactitem = contactitem.Replace("@avatar", sAvatarURL);
+                ci += contactitem + "\r\n";
+            }
+            data = data.Replace("@contactlistitems", ci);
+            string sMsgs = GetChatMessages(HttpContext);
+            data = data.Replace("@chatmessages", sMsgs);
+            // Chat poll
+            string js = "<script>setTimeout(`DoCallback('Chat_Poll');`,5000);</script>";
+            data += js;
+            ViewBag.Chat = data;
             return View();
         }
 
@@ -113,7 +286,7 @@ namespace BiblePay.BMS.Controllers
                 sError = "Address is not valid for this chain.";
             }
 
-            if (GetDouble(txtAmount) > 7000000 || GetDouble(txtAmount) < 1)
+            if (GetDouble(txtAmount) > 17000000 || GetDouble(txtAmount) < 1)
             {
                 sError = "Amount is too high (over superblock limit) or too low.";
             }
@@ -128,13 +301,19 @@ namespace BiblePay.BMS.Controllers
                 return sJson1;
             }
             // Submit
-
-            //DataOps.AdjBalance(-1 * 2500, gUser(this).UserId, "Proposal Fee - " + Left(txtURL.Text, 100));
             DSQL.Proposal.gobject_serialize(IsTestNet(h), GetUser(h).ERC20Address, GetUser(h).NickName, txtName, txtAddress, txtAmount, txtURL, txtExpenseType);
             string sJson = MsgBoxJson(h,"Success", "Success", "Thank you.  Your proposal will be submitted in six blocks.");
             return sJson;
         }
     
+        
+        public IActionResult Admin()
+        {
+            if (GetUser(HttpContext).ERC20Address != "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5")
+                Response.Redirect("/gospel/about");
+
+            return View();
+        }
         public IActionResult Scratchpad()
         {
             return View();
@@ -146,14 +325,22 @@ namespace BiblePay.BMS.Controllers
             SanctuaryProfitability sp = BMSCommon.BitcoinSync.GetMasternodeROI(IsTestNet(HttpContext));
 
             ViewBag.SanctuaryCost = "$" + Math.Round(sp.nInvestmentAmount, 2) + " USD";
-            double nDWU = await BBPTestHarness.BlockChairTestHarness.GetDWU(IsTestNet(HttpContext)) * 100;
+            BBPTestHarness.BlockChairTestHarness.DwuPack d1 = await BBPTestHarness.BlockChairTestHarness.GetDWU(IsTestNet(HttpContext));
+            ViewBag.DWUNarrative = "** On a portfolio with 100% coverage and foreign positions (" + Math.Round(d1.nBonusPercent,2) + "% from Donations)";
 
-            ViewBag.DWU = Math.Round(nDWU, 2).ToString() + "%";
+
+            ViewBag.BonusPercent = d1.nBonusPercent;
+            ViewBag.DWU = Math.Round(d1.nDWU * 100, 2).ToString() + "%";
             ViewBag.SanctuaryGrossROI = Math.Round(sp.nSanctuaryGrossROI, 2).ToString() + "%";
 
             ViewBag.TurnkeySanctuaryNetROI = Math.Round(sp.nTurnkeySanctuaryNetROI, 2).ToString() + "%";
             ViewBag.SanctuaryCount = sp.nMasternodeCount.ToString();
-
+            // native coins
+            List<DropDownItem> ddSymbol = new List<DropDownItem>();
+            ddSymbol.Add(new DropDownItem("BTC", "Bitcoin"));
+            ddSymbol.Add(new DropDownItem("DOGE", "DOGE"));
+            ddSymbol.Add(new DropDownItem("DASH", "DASH"));
+            ViewBag.ddSymbol = ListToHTMLSelect(ddSymbol,"");
             return View();
         }
 
@@ -177,7 +364,6 @@ namespace BiblePay.BMS.Controllers
                 {
                     sStatus = "Active";
                     sCluster = GetStandardButton("btnliq", "Liquidate", "turnkey_liquidate", "var e={};e.address='" + sBBPAddress + "';", "Are you sure you would like to liquidate this sanctuary?");
-
                 }
                 else
                 {
@@ -205,7 +391,6 @@ namespace BiblePay.BMS.Controllers
         {
             // For those who made pb donations, we divide them by 30 and return the sum, this gives us the boost
             string sTable = IsTestNet(h) ? "tpbdonation" : "pbdonation";
-
             string sql = "Select Amount, Added from " + sTable + " WHERE TIMESTAMPDIFF(MINUTE, added, now()) < (1440 * 30);";
             MySqlCommand m1 = new MySqlCommand(sql);
             DataTable dt = Database.GetDataTable(m1);
@@ -218,16 +403,13 @@ namespace BiblePay.BMS.Controllers
             }
             html += "</table>";
             return html;
-
         }
 
         public IActionResult PortfolioBuilderDonation()
         {
             ViewBag.ActiveDonations = GetPortfolioBuilderDonationReport(HttpContext);
             return View();
-
         }
-
 
         public IActionResult TurnkeySanctuaries()
         {
@@ -237,7 +419,7 @@ namespace BiblePay.BMS.Controllers
 
         public IActionResult Timeline()
         {
-            ViewBag.Timeline = DSQL.UI.GetTimelinePostDiv(HttpContext);
+            ViewBag.Timeline = DSQL.UI.GetTimelinePostDiv(HttpContext, "main");
             return View();
         }
 
@@ -262,7 +444,6 @@ namespace BiblePay.BMS.Controllers
             {
                 string sql = "Select * from SponsoredOrphan2 where Charity not in ('sai') and ChildId not in ('Genevieve Umba')";
                 MySqlCommand m1 = new MySqlCommand(sql);
-
                 DataTable dt = BMSCommon.Database.GetDataTable(m1);
                 int nHour = (DateTime.Now.Hour + DateTime.Now.DayOfYear) % dt.Rows.Count;
                 string url = dt.Rows[nHour]["BioPicture"].ToString();
@@ -303,7 +484,7 @@ namespace BiblePay.BMS.Controllers
             return tr;
         }
 
-        protected string GetLeaderboard(bool fTestNet)
+    protected string GetLeaderboard(bool fTestNet)
         {
             string sTable = fTestNet ? "tLeaderboard" : "Leaderboard";
             string sql = "Select * from " + sTable + " order by bbpaddress;";
@@ -333,8 +514,6 @@ namespace BiblePay.BMS.Controllers
             DSQL.XMRPoolBase x = fTestNet ? DSQL.PoolBase.tPool : DSQL.PoolBase.mPool;
             int nHeight = fTestNet ? x._template.height : x._template.height;
             string sTable = fTestNet ? "tshare" : "share";
-            //and bbpaddress like '" + BMS.PurifySQL(txtAddress.Text, 100) + "%'
-            //string sFilter = " and bbpaddress like 'bbp%'";
             string sql = "Select Height, bbpaddress, percentage, reward, subsidy, txid "
                 + " FROM " + sTable + " WHERE subsidy > 1 and reward > .01 "
                 + " AND height > " + nHeight.ToString() + "-205*7 ORDER BY height desc, bbpaddress;";
@@ -369,7 +548,6 @@ namespace BiblePay.BMS.Controllers
             return html;
         }
 
-
         protected string GetPoolAboutMetrics(bool fTestNet)
         {
             string html = "<table>";
@@ -403,7 +581,7 @@ namespace BiblePay.BMS.Controllers
             if (sEmail == "")
                 sEmail = "Pool Owner, please set your email address [operatoremailaddress=your_email_address] in the config file";
             html += GetTR("Contact E-Mail", sEmail);
-            html += GetTR("Pool Fees XMR", "1% (minexmr.com)");
+            html += GetTR("Pool Fees XMR", "1%");
             html += GetTR("Pool Fees BBP", Math.Round(GetDouble(GetConfigurationKeyValue("PoolFee")) * 100, 2) + "%");
             html += GetTR("Block Bonus", Math.Round(GetDouble(GetConfigurationKeyValue("PoolBlockBonus")), 0) + " BBP Per Block");
                 
@@ -422,7 +600,7 @@ namespace BiblePay.BMS.Controllers
                 html += GetTR("Difficulty", dDiff.ToString());
                 html += GetTR("Height", x._template.height.ToString());
             }
-            html += GetTR("Job Count",x.GetJobCount().ToString());
+            html += GetTR("Job Count", x.GetJobCount().ToString());
             //html += GetTR("Thread Count", x.iXMRThreadCount.ToString());
             html += GetTR("Worker Count", x.GetWorkerCount().ToString());
             sql = "Select sum(shares) suc, sum(fails) fail from " + sTableShare + " where TIMESTAMPDIFF(MINUTE, updated, now()) < 1440;";
@@ -444,6 +622,7 @@ namespace BiblePay.BMS.Controllers
             ViewBag.WatchVideo = DSQL.youtube.GetVideo(HttpContext);
             return View();
         }
+
         public IActionResult PoolAbout()
         {
             bool fTestNet = DSQL.UI.IsTestNet(HttpContext);
@@ -461,7 +640,74 @@ namespace BiblePay.BMS.Controllers
 
         public IActionResult PoolLeaderboard()
         {
-            ViewBag.PoolLeaderboard = GetLeaderboard(DSQL.UI.IsTestNet(HttpContext));
+            string sTable = IsTestNet(HttpContext) ? "tLeaderboard" : "Leaderboard";
+            string sql = "Select * from " + sTable + " order by bbpaddress;";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            List<PoolLeaderboardModel.Models.PoolLeaderboardLineItem> l = new List<PoolLeaderboardModel.Models.PoolLeaderboardLineItem>();
+            for (int y = 0; y < dt.Rows.Count; y++)
+            {
+                string bbpaddress = dt.Rows[y]["bbpaddress"].ToString() ?? "";
+                PoolLeaderboardModel.Models.PoolLeaderboardLineItem li = new PoolLeaderboardModel.Models.PoolLeaderboardLineItem();
+                li.BBPAddress = dt.Rows[y]["bbpaddress"].ToString() ?? "";
+                li.BBPShares = dt.Rows[y]["shares"].ToInt32();
+                li.XMRShares = dt.Rows[y]["bxmr"].ToInt32();
+                li.Efficiency = dt.Rows[y]["efficiency"].ToString() + "%";
+                li.HashRate = dt.Rows[y]["hashrate"].ToString() + " HPS";
+                li.Updated = dt.Rows[y]["Updated"].ToString();
+                li.Height = dt.Rows[y]["Height"].ToInt32();
+                l.Add(li);
+            }
+            PoolLeaderboardModel.Models.LeaderboardResponse lr = new PoolLeaderboardModel.Models.LeaderboardResponse();
+            lr.items = l;
+            return View(lr);
+        }
+
+
+        public string GetPriceReport(string sDogeAddress)
+        {
+            price1 nBTCPrice = BMSCommon.Pricing.GetCryptoPrice("BTC");
+            price1 nBBPPrice = BMSCommon.Pricing.GetCryptoPrice("BBP");
+            price1 nDOGEPrice = BMSCommon.Pricing.GetCryptoPrice("DOGE");
+            double nUSDBBP = nBTCPrice.AmountUSD * nBBPPrice.Amount;
+            double nUSDDOGE = nBTCPrice.AmountUSD * nDOGEPrice.Amount;
+
+            string html = "<table class='saved'><tr><th>Symbol<th>USD Amount</tr>";
+
+            if (nUSDBBP < .000015)
+            {
+                //bbp price below 15 milli sat-usd
+                return "BBP_PRICE_TOO_LOW";
+            }
+
+            if (nUSDDOGE < .01)
+            {
+                return "DOGE_PRICE_TOO_LOW";
+            }
+            double nBBPPerDoge = Math.Round(nUSDDOGE / nUSDBBP, 4);
+
+
+            string sRow = "<td>BTC/USD<td>" + FormatCurrency(nBTCPrice.AmountUSD) + "</tr>";
+            html += sRow;
+            sRow = "<td>DOGE/USD<td>" + FormatCurrency(nUSDDOGE) + "</tr>";
+            html += sRow;
+            sRow = "<td>BBP/USD<td>" + FormatCurrency(nUSDBBP) + "</tr>";
+            html += sRow;
+            html += "<td>BBP/DOGE<td>" + FormatCurrency(nBBPPerDoge) + "</tr>";
+            double nExample = 1000 * nBBPPerDoge;
+            string sNarr = "You will receive " + nBBPPerDoge.ToString() + " BBP per DOGE.  Example: Send 1000 DOGE to " + sDogeAddress + " and you will receive " + nExample.ToString() + " BBP in your web wallet. ";
+
+            html += "</table>";
+
+            html += "<br>" + sNarr;
+            return html;
+
+        }
+        public async Task<IActionResult> AtomicSwap()
+        {
+            ViewBag.DogeAddress = DSQL.SouthXChange.GetSXAddressByERC20Address("doge", DSQL.UI.GetUser(HttpContext).ERC20Address);
+            ViewBag.PriceReport = GetPriceReport(ViewBag.DogeAddress);
+            ViewBag.Atomic  = await DSQL.SouthXChange.GetSouthXChangeReport(HttpContext);
             return View();
         }
 
@@ -481,7 +727,7 @@ namespace BiblePay.BMS.Controllers
 
             int nPort = DSQL.UI.IsTestNet(HttpContext) ? nPortTestNet : nPortMainnet;
 
-            ViewBag.PoolDNS = "https://sanc1.biblepay.org:" + nPort.ToString();
+            ViewBag.PoolDNS = "https://unchained.biblepay.org:" + nPort.ToString();
             return View();
         }
 
@@ -502,4 +748,3 @@ namespace BiblePay.BMS.Controllers
 
     }
 }
-

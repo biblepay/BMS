@@ -155,7 +155,7 @@ namespace BiblePay.BMS.DSQL
                 m1.Parameters.AddWithValue("@Name", sName);
                 m1.Parameters.AddWithValue("@Address", sAddress);
                 m1.Parameters.AddWithValue("@Amount", sAmount);
-                bool f1100 = BMSCommon.Database.ExecuteNonQuery(false, m1, "");
+                bool f1100 = BMSCommon.Database.ExecuteNonQuery(m1);
                 gobject_prepare(fTestNet, sID, unixStartTimestamp, sHex);
                 return true;
             }
@@ -182,7 +182,7 @@ namespace BiblePay.BMS.DSQL
             string sPrepareTXID = oOut.Result.ToString();
             string sql4 = "Update proposal Set PrepareTXID='" + sPrepareTXID + "',Updated=now() where id = '" + sID + "';";
             MySqlCommand m1 = new MySqlCommand(sql4);
-            bool f12000 =             BMSCommon.Database.ExecuteNonQuery(false, m1, "");
+            bool f12000 =             BMSCommon.Database.ExecuteNonQuery(m1);
             bool f12001 = false;
 
         }
@@ -211,7 +211,7 @@ namespace BiblePay.BMS.DSQL
                     // Update the record allowing us to know this has been submitted
                     string sql = "Update proposal set Submitted=now(),SubmitTXID='" + sSubmitTXID + "' where id = '" + sID + "'";
                     MySqlCommand m1 = new MySqlCommand(sql);
-                    BMSCommon.Database.ExecuteNonQuery(fTestNet, m1, "");
+                    BMSCommon.Database.ExecuteNonQuery(m1);
                     return true;
                 }
                 return false;

@@ -1,20 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Google.Apis.Services;
+using Google.Apis.YouTube.v3;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Services;
-using Google.Apis.Upload;
-using Google.Apis.Util.Store;
-using Google.Apis.YouTube.v3;
-using Google.Apis.YouTube.v3.Data;
-using Microsoft.AspNetCore.Http;
 
 namespace BiblePay.BMS.DSQL
 {
@@ -55,11 +44,7 @@ namespace BiblePay.BMS.DSQL
 
             // Add each result to the appropriate list, and then display the lists of
             // matching videos, channels, and playlists.
-            //<iframe width="1380" height="552" src="https://www.youtube.com/embed/wAyBTgib8d8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
             string html = "";
-
-
             foreach (var searchResult in searchListResponse.Items)
             {
                 switch (searchResult.Id.Kind)
@@ -87,10 +72,6 @@ namespace BiblePay.BMS.DSQL
                         break;
                 }
             }
-
-           // Console.WriteLine(String.Format("Videos:\n{0}\n", string.Join("\n", videos)));
-           // Console.WriteLine(String.Format("Channels:\n{0}\n", string.Join("\n", channels)));
-           // Console.WriteLine(String.Format("Playlists:\n{0}\n", string.Join("\n", playlists)));
             return html;
         }
     }

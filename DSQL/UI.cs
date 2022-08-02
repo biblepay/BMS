@@ -2,18 +2,68 @@
 using Microsoft.AspNetCore.Http;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
+using ScrapySharp.Network;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using static BMSCommon.CryptoUtils;
 
 namespace BiblePay.BMS.DSQL
 {
+
+    public static class TimeUtility
+    {
+        const int SECOND = 1;
+        const int MINUTE = 60 * SECOND;
+        const int HOUR = 60 * MINUTE;
+        const int DAY = 24 * HOUR;
+        const int MONTH = 30 * DAY;
+        public static string GetRelativeTime(DateTime yourDate)
+        {
+            var ts = new TimeSpan(DateTime.UtcNow.Ticks - yourDate.Ticks);
+            double delta = Math.Abs(ts.TotalSeconds);
+
+            if (delta < 1 * MINUTE)
+                return ts.Seconds == 1 ? "one second ago" : ts.Seconds + " seconds ago";
+
+            if (delta < 2 * MINUTE)
+                return "a minute ago";
+
+            if (delta < 45 * MINUTE)
+                return ts.Minutes + " minutes ago";
+
+            if (delta < 90 * MINUTE)
+                return "an hour ago";
+
+            if (delta < 24 * HOUR)
+                return ts.Hours + " hours ago";
+
+            if (delta < 48 * HOUR)
+                return "yesterday";
+
+            if (delta < 30 * DAY)
+                return ts.Days + " days ago";
+
+            if (delta < 12 * MONTH)
+            {
+                int months = Convert.ToInt32(Math.Floor((double)ts.Days / 30));
+                return months <= 1 ? "one month ago" : months + " months ago";
+            }
+            else
+            {
+                int years = Convert.ToInt32(Math.Floor((double)ts.Days / 365));
+                return years <= 1 ? "one year ago" : years + " years ago";
+            }
+        }
+    }
 
 
     public static class SessionExtensions
@@ -38,6 +88,74 @@ namespace BiblePay.BMS.DSQL
 
     public static class UI
     {
+
+        public class ChatItem
+        {
+            public string body;
+            public DateTime time;
+            public string To;
+            public string From;
+        }
+
+        public class ChatSession
+        {
+            public List<ChatItem> chats = new List<ChatItem>();
+        }
+
+        public static Dictionary<string, ChatSession> dictChats = new Dictionary<string, ChatSession>();
+
+        public static bool PersistDatabaseChatItem(bool fTestNet, ChatItem ci)
+        {
+            string sql = "insert into chat (id,added,Recipient,Sender,body) values (uuid(), now(), @recipient, @sender, @body);";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            m1.Parameters.AddWithValue("@recipient", ci.To);
+            m1.Parameters.AddWithValue("@sender", ci.From);
+            m1.Parameters.AddWithValue("@body", ci.body);
+            bool fIns = BMSCommon.Database.ExecuteNonQuery(m1);
+            return fIns;
+        }
+
+        public static void AddChatItem(bool fTestNet, ChatItem ci, bool fPersist)
+        {
+            if (!dictChats.ContainsKey(ci.From))
+            {
+                ChatSession cs = new ChatSession();
+                dictChats.Add(ci.From, cs);
+            }
+            if (!dictChats.ContainsKey(ci.To))
+            {
+                ChatSession cs1 = new ChatSession();
+                dictChats.Add(ci.To, cs1);
+            }
+            DSQL.UI.dictChats[ci.From].chats.Add(ci);
+            DSQL.UI.dictChats[ci.To].chats.Add(ci);
+            string sURL = "/bbp/chat";
+            if (fPersist)
+            {
+                InsertNotification(fTestNet, ci.To, ci.From, "You have received a chat message", "chat", sURL);
+                PersistDatabaseChatItem(fTestNet, ci);
+            }
+        }
+
+        public static bool chat_depersisted = false;
+        public static void DepersistChatItems(bool fTestNet)
+        {
+            string sql = "Select * from chat order by Added;";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                ChatItem ci = new ChatItem();
+                ci.body = dt.Rows[i]["body"].ToString();
+                ci.From = dt.Rows[i]["sender"].ToString();
+                ci.To = dt.Rows[i]["recipient"].ToString();
+                ci.time = Convert.ToDateTime(dt.Rows[i]["Added"]);
+                AddChatItem(fTestNet, ci, false);
+
+            }
+            chat_depersisted = true;
+        }
+
         public struct ServerToClient
         {
             public string returnbody;
@@ -56,8 +174,104 @@ namespace BiblePay.BMS.DSQL
             }
         }
 
-        
+        public static bool IsShadyAddress(string url)
+        {
+            try
+            {
 
+                Uri myUri = new Uri(url);
+                string host = myUri.Host;
+                bool fContainsNumbers = host.All(char.IsDigit);
+                if (fContainsNumbers)
+                {
+                    return true;
+                }
+
+                IPHostEntry hostEntry;
+                hostEntry = Dns.GetHostEntry(host);
+                IPAddress[] ipv4Addresses = Array.FindAll(
+                        Dns.GetHostEntry(host).AddressList,
+                            a => a.AddressFamily == AddressFamily.InterNetwork);
+
+                IPAddress[] ipv4MyAddresses = Dns.GetHostAddresses(Dns.GetHostName());
+                //DNS supports more than one record
+                for (int i = 0; i < hostEntry.AddressList.Length; i++)
+                {
+                    bool fIsLoopback = IPAddress.IsLoopback(hostEntry.AddressList[i]);
+                    if (fIsLoopback)
+                    {
+                        return true;
+                    }
+
+                }
+                for (int i = 0; i < ipv4Addresses.Length; i++)
+                {
+                    bool fIsLoopback = IPAddress.IsLoopback(ipv4Addresses[i]);
+                    if (fIsLoopback)
+                    {
+                        return true;
+                    }
+                    for (int j = 0; j < ipv4MyAddresses.Length; j++)
+                    {
+                        if (ipv4Addresses[i].ToString() == ipv4MyAddresses[j].ToString())
+                            return true;
+                    }
+
+                }
+                string s99 = "";
+
+            }
+            catch (Exception ex)
+            {
+                return true;
+            }
+            return false;
+        }
+
+
+        public static async Task<string> Scrapper(string url)
+        {
+            try
+            {
+                url = HttpUtility.UrlDecode(url);
+                ScrapingBrowser browser = new ScrapingBrowser();
+                WebPage page;
+                bool fShady = IsShadyAddress(url);
+                bool fHTTProtocols = false;
+                if (url.Contains("https://") || url.Contains("http://"))
+                {
+                    fHTTProtocols = true;
+                }
+                if (url.Contains("127.0.0.1") || url.Contains("localhost") || url.Contains("//127") || url.Contains("local"))
+                {
+                    url = "";
+                }
+                if (fShady || !fHTTProtocols)
+                {
+                    url = "";
+                }
+                string webUrl = url;
+                page = await browser.NavigateToPageAsync(new Uri(webUrl));
+
+                var title = page.Html.SelectSingleNode("//meta[@property='og:title']")?.GetAttributeValue("content", string.Empty);
+                if (string.IsNullOrEmpty(title))
+                    title = page.Html.SelectSingleNode("//title")?.InnerText;
+
+                var description = page.Html.SelectSingleNode("//meta[@property='og:description']")?.GetAttributeValue("content", string.Empty);
+                if (string.IsNullOrEmpty(description))
+                    description = page.Html.SelectSingleNode("//meta[@name='description']")?.GetAttributeValue("content", string.Empty);
+
+                var image = page.Html.SelectSingleNode("//meta[@property='og:image']")?.GetAttributeValue("content", string.Empty);
+                if (string.IsNullOrEmpty(image))
+                    image = page.Html.SelectNodes("//img").FirstOrDefault().GetAttributeValue("src", string.Empty);
+
+                string sDiv = "<div>Title: " + title + "<br>Description: " + description + "<br><img src='" + image + "' /></div>";
+                return sDiv;
+            }catch(Exception ex)
+            {
+                return "";
+            }
+        }
         public static BMSCommon.WebRPC.DACResult SendBBP(HttpContext h, string sToAddress, double nAmount, string sOptPayload = "", string sOptNonce = "")
         {
             BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(h,sOptNonce);
@@ -72,6 +286,27 @@ namespace BiblePay.BMS.DSQL
                 return r;
             }
             r = BMSCommon.WebRPC.SendRawTx(IsTestNet(h), sTXID);
+            return r;
+        }
+
+        public static BMSCommon.WebRPC.DACResult SendBBPOldMethod(bool fTestNet, string sType, string sToAddress, double nAmount, string sPayload)
+        {
+
+            string sPackaged = BMSCommon.WebRPC.PackageMessage(fTestNet, sType, sPayload);
+
+            string sPrivKey = BMSCommon.WebRPC.GetFDPair(fTestNet);
+            string sPubKey = BMSCommon.WebRPC.GetFDPubKey(fTestNet);
+            string sUnspentData = BMSCommon.WebRPC.GetAddressUTXOs(fTestNet, sPubKey);
+            string sErr = "";
+            string sTXID = "";
+            NBitcoin.Crypto.BBPTransaction.PrepareFundingTransaction(fTestNet, nAmount, sToAddress, sPrivKey, sPackaged, sUnspentData, out sErr, out sTXID);
+            BMSCommon.WebRPC.DACResult r = new BMSCommon.WebRPC.DACResult();
+            if (sErr != "")
+            {
+                r.Error = sErr;
+                return r;
+            }
+            r = BMSCommon.WebRPC.SendRawTx(fTestNet, sTXID);
             return r;
         }
 
@@ -112,6 +347,22 @@ namespace BiblePay.BMS.DSQL
         {
             var s = string.Format("{0:0.00}", Math.Round(myNumber,2));
             return s;
+        }
+
+        public static string FormatCurrency(double nMyNumber)
+        {
+            var s = string.Format("{0:0.0000000000}", nMyNumber);
+            return s;
+        }
+
+        public static DataTable GetUserByERC20Address(bool fTestNet, string sERC20Address)
+        {
+            string sTable = fTestNet  ? "tuser" : "user";
+            string sql = "Select * from " + sTable + " where ERC20Address=@erc;";
+            MySqlCommand m1 = new MySqlCommand(sql);
+            m1.Parameters.AddWithValue("@erc", sERC20Address);
+            DataTable dt = Database.GetDataTable(m1);
+            return dt;
         }
 
         public static string GetBioURL(HttpContext h)
@@ -228,38 +479,72 @@ namespace BiblePay.BMS.DSQL
             return sData;
         }
 
-        private static long nLastBalanceMain = 0;
-        private static long nLastBalanceTest = 0;
+        public static string GetNotificationCountHR(HttpContext h)
+        {
+            //You got 151 notifications
+            double nCount = GetSessionDouble(h, "notificationcount");
+            string sData = "You've got " + nCount.ToString() + " notification(s).";
+            return sData;
+        }
 
+        public static int GetNotificationCount(HttpContext h)
+        {
+            int n1 = (int)GetSessionDouble(h, "notificationcount");
+            return n1;
+        }
         public static string GetAvatarBalance(HttpContext h, bool fEraseCache)
         {
             return FormatUSD(GetAvatarBalanceNumeric(h, fEraseCache));
         }
+
+        public static double GetSessionDouble(HttpContext h, string sKey)
+        {
+            string sChain = GetChain(h);
+            double n = BMSCommon.Common.GetDouble(h.Session.GetString(sChain + "_" + sKey));
+            return n;
+        }
+
+        public static void SetSessionDouble(HttpContext h, string sKey, double nValue)
+        {
+            string sChain = GetChain(h);
+            h.Session.SetString(sChain + "_" + sKey, nValue.ToString());
+        }
+
+        public static string GetAvatarPicture(bool fTestNet, string sUserID)
+        {
+            User u1 = GetCachedUser(fTestNet, sUserID);
+            string sBioURL = "";
+            if (u1 == null)
+            {
+                sBioURL = "/img/demo/avatars/emptyavatar.png";
+            }
+            else
+            {
+                sBioURL = u1.BioURL;
+            }
+            string sAvatar = "<span class='profile-image-md rounded-circle d-block' style=\"background-image:url('" + sBioURL + "'); "
+                + "background-size: cover;\"></span> ";
+            return sAvatar;
+        }
         public static double GetAvatarBalanceNumeric(HttpContext h, bool fEraseCache)
         {
             BMSCommon.CryptoUtils.User u = GetUser(h);
-            long nLastBal = IsTestNet(h) ? nLastBalanceTest : nLastBalanceMain;
-            long nElapsed = BMSCommon.Common.UnixTimestamp() - nLastBal;
+            long nElapsed = (long)(BMSCommon.Common.UnixTimestamp() - GetSessionDouble(h, "lastbalancecheck"));
             string sChain = GetChain(h);
+            BMSCommon.CryptoUtils.SetLastUserActivity(IsTestNet(h), u.ERC20Address);
             
-            if (nElapsed < 60*3 && !fEraseCache)
+            if (nElapsed < 60*2 && !fEraseCache)
             {
                 double nNewBal = BMSCommon.Common.GetDouble(h.Session.GetString(sChain + "_balance"));
-                if (nNewBal != 0)
-                    return nNewBal;
+                //BMSCommon.Common.Log("(1)AVATAR_BALANCE::" + nElapsed.ToString() + "," + nNewBal.ToString());
+                return nNewBal;
             }
             double nBal = QueryAddressBalance(IsTestNet(h), u.BBPAddress);
             if (nBal == 0)
                 nBal = -1;
+            //BMSCommon.Common.Log("(2)AVATAR_BALANCE::" + nElapsed.ToString() + "," + nBal.ToString());
 
-            if (IsTestNet(h))
-            {
-                nLastBalanceTest = BMSCommon.Common.UnixTimestamp();
-            }
-            else
-            {
-                nLastBalanceMain = BMSCommon.Common.UnixTimestamp();
-            }
+            SetSessionDouble(h, "lastbalancecheck", BMSCommon.Common.UnixTimestamp());
             h.Session.SetString(sChain + "_balance", nBal.ToString());
             return nBal;
         }
@@ -297,6 +582,7 @@ namespace BiblePay.BMS.DSQL
             return "";
         }
 
+        
         
         public static BMSCommon.CryptoUtils.User GetUser(HttpContext s)
         {
@@ -408,21 +694,25 @@ namespace BiblePay.BMS.DSQL
             return data;
         }
 
-        public static string GetTimelinePostDiv(HttpContext h)
+        public static string GetTimelinePostDiv(HttpContext h, string sParentID)
         {
             string data = GetTemplate("timeline.htm");
             // This is the reply to dialog, hence we replace with the active user:
             data = data.Replace("@BioURL",GetBioURL(h));
+            data = data.Replace("@parentid", sParentID);
             // Append the posts, one by one from all who posted on this thread.
-            List<Timeline> l = Timeline.Get(IsTestNet(h));
+            List<Timeline> l = Timeline.Get(IsTestNet(h), sParentID);
             for (int i = 0; i < l.Count; i++)
             {
                 User uRow =CryptoUtils.GetCachedUser(IsTestNet(h), l[i].ERC20Address);
-
-                string entry = GetTemplate("timelinepost.htm");
-                entry = entry.Replace("@BioURL", uRow.BioURL);
-                entry = entry.Replace("@VALUE", l[i].Body);
-                data += "\r\n" + entry;
+                if (uRow != null)
+                {
+                    string entry = GetTemplate("timelinepost.htm");
+                    entry = entry.Replace("@BioURL", uRow.BioURL);
+                    entry = entry.Replace("@VALUE", l[i].Body);
+                    entry = entry.Replace("@divPaste", l[i].dataPaste);
+                    data += "\r\n" + entry;
+                }
             }
             return data;
         }
@@ -456,7 +746,7 @@ namespace BiblePay.BMS.DSQL
             return data;
         }
 
-        public static string GetNotificationItem(string id, string avatarURL, string message, string fullname, string timerelative, string status)
+        public static string GetNotificationItem(string id, string avatarURL, string message, string fullname, DateTime dtTime, string status)
         {
             string data = GetTemplate("notificationrecord.htm");
             data = data.Replace("@id", id);
@@ -464,28 +754,72 @@ namespace BiblePay.BMS.DSQL
             data = data.Replace("@message", message);
             data = data.Replace("@fullname", fullname);
             data = data.Replace("@status", status);
-            data = data.Replace("@timerelative", "4 seconds ago");
+            string sRelativeTime = TimeUtility.GetRelativeTime(dtTime);
+            data = data.Replace("@timerelative", sRelativeTime);
             return data;
         }
 
-        public static string GetNotifications()
+        public static bool InsertNotification(bool fTestNet, string sUID, string sFromUser, string sBody, string sType, string sURL)
         {
-            string html = "";
-            for (int i = 0; i < 14; i++)
-            {
-                string status = "status-danger";
-                if (i == 0)
-                    status = "status-warning";
-                if (i == 1)
-                    status = "status-danger";
-                if (i == 2)
-                    status = "statusinfo";
-                if (i == 3)
-                    status = "status";
+            string sKey = sType + sUID + sFromUser;
 
-                string row = GetNotificationItem(i.ToString(), "/img/demo/avatars/avatar-m.png", "Hello furry friend " + i.ToString(), "James Cheoo", "4 seconds in the future", status);
+            bool fLatch = BMSCommon.Pricing.Latch(fTestNet, sKey, 60 * 60 * 1);
+            if (!fLatch)
+                return false;
+
+            string sTable = fTestNet ? "tnotification" : "notification";
+            string sql = "Insert into " + sTable + " (id, uid, fromuser, time, added, body, type, URL) values (uuid(), @uid, @fromuser, UNIX_TIMESTAMP(now()), now(), @body, @type, @URL);";
+            MySqlCommand cmd1 = new MySqlCommand(sql);
+            cmd1.Parameters.AddWithValue("@fromuser", sFromUser);
+            cmd1.Parameters.AddWithValue("@uid", sUID);
+            cmd1.Parameters.AddWithValue("@body", sBody);
+            cmd1.Parameters.AddWithValue("@type", sType);
+            cmd1.Parameters.AddWithValue("@URL", sURL);
+
+            bool f = Database.ExecuteNonQuery(cmd1);
+            return f;
+        }
+
+        public static string LevelToStatus(int i)
+        {
+            string status = "status-danger";
+            if (i == 0)
+                status = "status-warning";
+            if (i == 1)
+                status = "status-danger";
+            if (i == 2)
+                status = "statusinfo";
+            if (i == 3)
+                status = "status";
+            return status;
+        }
+
+        public static string GetNotifications(HttpContext h, string sUserID)
+        {
+            string sTable = IsTestNet(h) ? "tnotification" : "notification";
+            string sql = "Select * from " + sTable + " where uid=@uid;";
+            MySqlCommand cmd1 = new MySqlCommand(sql);
+            cmd1.Parameters.AddWithValue("@uid", sUserID);
+            DataTable dt = BMSCommon.Database.GetDataTable(cmd1);
+            string html = "";
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                User uRow = CryptoUtils.GetCachedUser(IsTestNet(h), dt.Rows[i]["FromUser"].ToString());
+                DateTime dtTime = Convert.ToDateTime(dt.Rows[i]["added"]);
+                bool fActive = IsUserActive(false, uRow.ERC20Address);
+
+                string sStatus = fActive ? "status-success" : "status-danger";
+
+                string sAnchor = "<a href='" + dt.Rows[i]["URL"].ToString() + "'>";
+                string sFullMessage = sAnchor + dt.Rows[i]["body"].ToString() + "</a>";
+
+                string row = GetNotificationItem(i.ToString(), uRow.BioURL,
+                    sFullMessage, uRow.NickName, dtTime, sStatus); 
                 html += row + "\r\n";
             }
+            double nCount = dt.Rows.Count;
+            SetSessionDouble(h, "notificationcount", nCount);
+
             return html;
         }
 
@@ -509,8 +843,5 @@ namespace BiblePay.BMS.DSQL
 
 
     }
-
-
-
 
 }

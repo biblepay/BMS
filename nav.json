@@ -63,10 +63,13 @@
           "title": "Turnkey Sanctuaries",
           "href": "bbp_turnkeysanctuaries.html",
           "roles": []
+        },
+        {
+          "title": "Atomic Swap",
+          "showOnSeed": false,
+          "href": "bbp_atomicswap.html",
+          "roles": []
         }
-
-
-
 
       ]
     },
@@ -220,6 +223,38 @@
 
 
 
+    {
+      "title": "Social Media",
+      "icon": "fal fa-comment",
+      "roles": [
+        "Administrator"
+      ],
+      "items": [
+        {
+          "title": "Chat",
+          "href": "bbp_chat.html",
+          "roles": []
+        },
+        {
+          "title": "Watch Videos",
+          "href": "bbp_videolist.html",
+          "disabled": false,
+          "roles": []
+        },
+        {
+          "title": "Favorite Gospel Videos",
+          "href": "gospel_gospelvideos.html",
+          "disabled": false,
+          "roles": []
+        }
+
+      ]
+    },
+
+
+
+
+
 
     {
       "title": "Gospel of Jesus",
@@ -260,74 +295,11 @@
           "roles": []
         }
       ]
-    },
-
-    {
-      "title": "Videos",
-      "icon": "fal fa-tv",
-      "roles": [
-        ""
-      ],
-      "items": [
-        {
-          "title": "Watch Videos",
-          "href": "bbp_videos.html",
-          "disabled": false,
-          "roles": []
-        }
-      ]
-    },
-    {
-      "title": "In Development",
-      "roles": []
-    },
-    {
-      "title": "Demos",
-      "text": "In Development",
-      "icon": "fal fa-plus-circle",
-      "roles": [],
-      "items": [
-        {
-          "title": "Users",
-          "href": "page_contacts.html",
-          "roles": []
-        },
-        {
-          "title": "Demo Dashboard",
-          "icon": "fal fa-info-circle",
-          "roles": [],
-          "items": [
-            {
-              "title": "Demo Table",
-              "showOnSeed": false,
-              "href": "intel_marketing_dashboard.html",
-              "roles": []
-            },
-            {
-              "title": "Demo Upload",
-              "showOnSeed": false,
-              "href": "upload_uploadfile.html",
-              "roles": []
-            }
-
-          ]
-        },
-        {
-          "title": "Scratchpad",
-          "showOnSeed": false,
-          "href": "bbp_scratchpad.html",
-          "roles": []
-        },
-        {
-          "title": "Turnkey Sanc",
-          "showOnSeed": false,
-          "href": "bbp_turnkeysanctuary.html",
-          "roles": []
-        }
-
-
-
-      ]
     }
+
+
+
+
+
   ]
-}
+  }

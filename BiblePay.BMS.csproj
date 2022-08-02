@@ -14,24 +14,32 @@
   <ItemGroup>
     <Compile Remove="BMS.BMSD\**" />
     <Compile Remove="BMSCommon\**" />
+    <Compile Remove="Models\Tetris\**" />
+    <Compile Remove="Pages\Partials\**" />
     <Compile Remove="Views\Docs\**" />
     <Compile Remove="Views\FormPlugins\**" />
     <Compile Remove="Views\Statistics\**" />
     <Compile Remove="Views\Utilities\**" />
     <Content Remove="BMS.BMSD\**" />
     <Content Remove="BMSCommon\**" />
+    <Content Remove="Models\Tetris\**" />
+    <Content Remove="Pages\Partials\**" />
     <Content Remove="Views\Docs\**" />
     <Content Remove="Views\FormPlugins\**" />
     <Content Remove="Views\Statistics\**" />
     <Content Remove="Views\Utilities\**" />
     <EmbeddedResource Remove="BMS.BMSD\**" />
     <EmbeddedResource Remove="BMSCommon\**" />
+    <EmbeddedResource Remove="Models\Tetris\**" />
+    <EmbeddedResource Remove="Pages\Partials\**" />
     <EmbeddedResource Remove="Views\Docs\**" />
     <EmbeddedResource Remove="Views\FormPlugins\**" />
     <EmbeddedResource Remove="Views\Statistics\**" />
     <EmbeddedResource Remove="Views\Utilities\**" />
     <None Remove="BMS.BMSD\**" />
     <None Remove="BMSCommon\**" />
+    <None Remove="Models\Tetris\**" />
+    <None Remove="Pages\Partials\**" />
     <None Remove="Views\Docs\**" />
     <None Remove="Views\FormPlugins\**" />
     <None Remove="Views\Statistics\**" />
@@ -58,8 +66,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="App.razor" />
+    <Content Remove="Pages\Tetris.razor" />
+    <Content Remove="Pages\_Imports.razor" />
     <Content Remove="Views\AspNetCore\Editions.cshtml" />
     <Content Remove="wwwroot\templates\updLeaderboard.htm" />
+    <Content Remove="_Imports.razor" />
   </ItemGroup>
 
 
@@ -76,6 +88,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.2" />
     <PackageReference Include="Nethereum.Signer.EIP712" Version="4.4.1" />
+    <PackageReference Include="PRO-Systems.SouthXchange.API" Version="1.0.19" />
+    <PackageReference Include="ScrapySharp" Version="3.0.0" />
+    <PackageReference Include="System.Net.Http.Json" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

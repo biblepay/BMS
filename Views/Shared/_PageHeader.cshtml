@@ -79,9 +79,9 @@
         <span class="badge badge-icon">!</span>
     </a>}
         <div>
-            <a href="#" class="header-icon" data-toggle="dropdown" title="You got 11 notifications">
+            <a href="#" class="header-icon" data-toggle="dropdown" title="@ViewBag.NotificationCountHR">
                 <i class="@(Settings.Theme.IconPrefix) fa-bell"></i>
-                <span class="badge badge-icon">1</span>
+                <span class="badge badge-icon">@ViewBag.NotificationCount</span>
             </a>
             <div class="dropdown-menu dropdown-menu-animated dropdown-xl">
                 <partial name="_DropdownNotification" />

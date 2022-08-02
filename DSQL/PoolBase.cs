@@ -98,7 +98,7 @@ namespace BiblePay.BMS.DSQL
                     {
                         try
                         {
-                            BMSCommon.Database.ExecuteNonQuery(false, lSQL[i], "");
+                            BMSCommon.Database.ExecuteNonQuery(lSQL[i]);
                         }
                         catch (Exception ex2)
                         {

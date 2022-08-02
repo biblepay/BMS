@@ -43,10 +43,10 @@ namespace BMSCommon
             return sPubKey;
         }
 
-        private static string GetFDPair(bool fTestNet)
+        public static string GetFDPair(bool fTestNet)
         {
-            // pub BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM
-            // testnet pub yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN
+            // publickey_prod=BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM
+            // publickey_test=yTrEKf8XQ7y7tychC2gWuGw1hsLqBybnEN
             string sProd = BMSCommon.Common.GetConfigurationKeyValue("foundationprivkey");
             string sTest = BMSCommon.Common.GetConfigurationKeyValue("foundationtestprivkey");
             return fTestNet ? sTest : sProd;
@@ -89,7 +89,7 @@ namespace BMSCommon
             public string SignMessage;
         };
 
-        public static string InsertUTXODataIntoChain(bool fTestNet, string sMessageKey, string sUTXOData)
+        public static string RPCInsertUTXODataIntoChain(bool fTestNet, string sMessageKey, string sUTXOData)
         {
             try
             {
@@ -103,8 +103,8 @@ namespace BMSCommon
                 string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
                 string sError = "";
                 double nAmount = 101;
-                //string sXML = "<MK>" + sMessageKey + "</MK><MV>" + sUTXOData + "</MV><BOMSG>" + m.SignMessage + "</BOMSG><BOSIG>" + m.Signature + "</BOSIG><BOSIGNER>" + m.SigningPublicKey + "</BOSIGNER>";
-                                string sTXID = BMSCommon.WebRPC.PushChainData2(fTestNet, sMessageKey, sUTXOData);
+                string sTXID = BMSCommon.WebRPC.PushChainData2(fTestNet, sMessageKey, sUTXOData);
+                //string sTXID = WebRPC..  BMSCommon.WebRPC.PushChainData2(fTestNet, sMessageKey, sUTXOData);
                 if (sTXID == "")
                 {
                     throw new Exception("Unabled to add to memory pool.");
@@ -117,9 +117,6 @@ namespace BMSCommon
                 return "";
             }
         }
-
-
-
 
 
         public static bool VerifySignature(bool fTestNet, string BBPAddress, string sMessage, string sSig)
@@ -176,7 +173,6 @@ namespace BMSCommon
             return sUTXO;
         }
 
-
         public static double GetBBPPosition(bool fTestNet, string sAddress)
         {
             List<SimpleUTXO> l = GetBBPUTXOs2(fTestNet, sAddress);
@@ -187,7 +183,6 @@ namespace BMSCommon
             }
             return nTotal;
         }
-
 
         public static string GetRawTransaction(string sTxid, bool fTestNet)
         {
@@ -229,7 +224,8 @@ namespace BMSCommon
                         else
                         {
                             sAddress = "?";
-                        } //Happens when pool pays itself
+                        }
+                        //Happens when pool pays itself
                         sOut += sAmount + "," + sAddress + "," + height + "|";
                     }
                     else
@@ -259,7 +255,7 @@ namespace BMSCommon
                 oParams[1] = 1;
                 dynamic oOut = n.SendCommand("getrawtransaction", oParams);
                 // Loop Through the Vouts and get the recip ids and the amounts
-                string sOut = "";
+                string sOut = String.Empty;
                 double locktime = oOut.Result["locktime"] == null ? 0 : GetDouble(oOut.Result["locktime"].ToString());
                 double height1 = oOut.Result["height"] == null ? 0 : GetDouble(oOut.Result["height"].ToString());
                 double height = 0;
@@ -301,7 +297,6 @@ namespace BMSCommon
             }
         }
 
-
         public static double GetAmtFromRawTx(string sRaw, string sAddress, out int nHeight)
         {
             string[] vData = sRaw.Split(new string[] { "|" }, StringSplitOptions.None);
@@ -330,7 +325,6 @@ namespace BMSCommon
             return 0;
         }
 
-
         public static bool SubmitBlock(bool fTestNet, string hex)
         {
             try
@@ -353,8 +347,6 @@ namespace BMSCommon
             }
             return false;
         }
-
-
 
         public static void GetSubsidy(bool fTestNet, int nHeight, ref string sRecipient, ref double nSubsidy)
         {
@@ -395,7 +387,6 @@ namespace BMSCommon
                 Log("GS " + ex.Message);
             }
             return s;
-
         }
 
 
@@ -405,11 +396,8 @@ namespace BMSCommon
             MessageSigner m = fTestNet ? _MessageSignerTest : _MessageSignerMain;
             if (m.Signature == null || m.Signature == "")
                 throw new Exception("Unable to sign.");
-            //string sSig = SignMessage(fTestNet, sFoundationSignPrivKey, sSignMessage);
             string sXML = "<MK>" + sType + "</MK><MV>" + sData + "</MV><BOMSG>" + m.SignMessage + "</BOMSG><BOSIG>" + m.Signature 
                 + "</BOSIG><BOSIGNER>" + m.SigningPublicKey + "</BOSIGNER>";
-
-            
             return sXML;
         }
 
@@ -418,9 +406,19 @@ namespace BMSCommon
             try
             {
                 object[] oParams = new object[2];
-                oParams[0] = "bmstransaction";
                 string sPackaged = PackageMessage(fTestNet, sType, sData);
-                oParams[1] = sPackaged;
+                if (sPackaged.Length > 2000 && false)
+                {
+                    oParams = new object[3];
+                    oParams[1] = sPackaged.Substring(0, 2000);
+                    oParams[2] = sPackaged.Substring(2000, sPackaged.Length - 2000);
+                }
+                else
+                {
+                    oParams[1] = sPackaged;
+                }
+                oParams[0] = "bmstransaction";
+
                 NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
                 dynamic oOut = n.SendCommand("exec", oParams);
                 string sTXID = oOut.Result["txid"];
@@ -477,8 +475,6 @@ namespace BMSCommon
                         }
                     }
                 }
-                bool f1 = false;
-
             }
             catch (Exception ex)
             {

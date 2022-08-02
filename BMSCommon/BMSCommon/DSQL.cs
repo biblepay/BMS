@@ -48,14 +48,65 @@ namespace BMSCommon
         }
     }
 
+	public class Video
+    {
+		public string Added;
+		public int Time;
+		public int Version = 1;
+		public string table = "Video";
+		public string Title;
+		public string Description;
+		public string Category;
+		public string Cover;
+		public string Source;
+		public double Duration;
+		public string id;
+		public void Save(bool fTestNet)
+		{
+			this.Time = BMSCommon.Common.UnixTimestamp();
+			BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
+			t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(this);
+			BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
+		}
+		public static List<Video> Get(bool fTestNet, string id)
+		{
+			string sTable = fTestNet ? "tVideo" : "Video";
+			string sWhere = id == "" ? "" : "where id=@id";
+
+			string sql = "Select * from " + sTable + " " + sWhere + " order by time desc;";
+
+			MySqlCommand m1 = new MySqlCommand(sql);
+			m1.Parameters.AddWithValue("@id", id);
+
+			DataTable dt = BMSCommon.Database.GetDataTable(m1);
+			List<Video> l = new List<Video>();
+			for (int i = 0; i < dt.Rows.Count; i++)
+			{
+				Video v = new Video();
+				v.Title = dt.Rows[i]["Title"].ToString();
+				v.Description = dt.Rows[i]["Description"].ToString();
+				v.Category = dt.Rows[i]["Category"].ToString();
+				v.Cover = dt.Rows[i]["Cover"].ToString();
+				v.Source = dt.Rows[i]["Source"].ToString();
+				v.Duration = dt.Rows[i]["Duration"].ToInt32();
+				v.id = dt.Rows[i]["id"].ToString();
+				v.Time = dt.Rows[i]["time"].ToInt32();
+				l.Add(v);
+			}
+			return l;
+
+		}
+	}
 	public class Timeline
     {
 		public string Added;
 		public int Time;
 		public string Body;
+		public string dataPaste;
 		public string ERC20Address;
 		public string BBPAddress;
-		public int Version = 1;
+		public string ParentID;
+		public int Version = 2;
 		public string table = "Timeline";
 		public void Save(bool fTestNet)
 		{
@@ -68,12 +119,12 @@ namespace BMSCommon
 			txList.Add(t);
 		}
 
-		public static List<Timeline> Get(bool fTestNet)
+		public static List<Timeline> Get(bool fTestNet, string sParentID)
         {
 			string sTable = fTestNet ? "tTimeline" : "Timeline";
-			string sql = "Select * from " + sTable + " order by time desc;";
-
+			string sql = "Select * from " + sTable + " WHERE parentid=@parentid order by time desc;";
 			MySqlCommand m1 = new MySqlCommand(sql);
+			m1.Parameters.AddWithValue("parentid", sParentID);
 			DataTable dt = BMSCommon.Database.GetDataTable(m1);
 			List<Timeline> l = new List<Timeline>();
 			for (int i = 0; i < dt.Rows.Count; i++)
@@ -83,13 +134,12 @@ namespace BMSCommon
 				t.BBPAddress = dt.Rows[i]["BBPAddress"].ToString();
 				t.Time = dt.Rows[i]["time"].ToInt32();
 				t.ERC20Address = dt.Rows[i]["ERC20Address"].ToString();
+				t.ParentID = dt.Rows[i]["ParentID"].ToString();
+				t.dataPaste = dt.Rows[i]["dataPaste"].ToString();
 				l.Add(t);
-
 			}
 			return l;
-
 		}
-
 	}
 	public class UTXOPosition
 	{
@@ -117,11 +167,8 @@ namespace BMSCommon
 			BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
 			t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(this);
 			BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
-			List<CryptoUtils.Transaction> txList = new List<CryptoUtils.Transaction>();
-			txList.Add(t);
 		}
 	}
-
 
 	public class NFT
 	{
@@ -187,12 +234,10 @@ namespace BMSCommon
 			{
 				BMSCommon.BitcoinSync.AddToMemoryPool2(fTestNet, t);
 			}
-			catch(Exception ex)
+			catch(Exception)
             {
 				return false;
             }
-			List<CryptoUtils.Transaction> txList = new List<CryptoUtils.Transaction>();
-			txList.Add(t);
 			return true;
 		}
 		public NFTCategory GetCategory()
@@ -247,15 +292,8 @@ namespace BMSCommon
 		{
 
 			List<string> lBanned = new List<string>();
-
-			//for (int i = 0; i < oNftBlacklist.Count; i++)
-			//{
-			//	lBanned.Add(oNftBlacklist[i].hash);
-			//}
-
-			int MIN_NFT_VERSION = 3;
+     		int MIN_NFT_VERSION = 3;
 			List<NFT> nList = new List<NFT>();
-			//string sChain = fTestNet ? "test" : "main";
 			string sFilter = "";
 			if (sTypes == "my")
 			{
@@ -319,5 +357,4 @@ namespace BMSCommon
 			return null;
 		}
 	}
-
 }

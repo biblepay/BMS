@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Net.Mail;
+using System.Threading.Tasks;
 using BMSCommon;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using static BiblePay.BMS.Controllers.BBPController;
 using static BiblePay.BMS.DSQL.UI;
+using static BMSCommon.CryptoUtils;
 using static BMSCommon.Encryption;
 using static BMSCommon.WebRPC;
 
@@ -40,7 +42,6 @@ namespace BiblePay.BMS.Controllers
             e.Add(e2);
             var model = e;
             ViewBag.DynamicTable = DSQL.UI.GetBasicTable("t", "the new dynamic table");
-            ViewBag.Notifications = DSQL.UI.GetNotifications();
             ViewBag.Accordian = DSQL.UI.GetAccordian("a1", "[Accordian] Collapse", "<br>A dynamic table inside a dynamic accordian.");
             return View(model);
         }
@@ -77,7 +78,7 @@ namespace BiblePay.BMS.Controllers
         }
 
         [HttpPost]
-        public JsonResult ProcessDoCallback([FromBody] ClientToServer o)
+        public async Task<JsonResult> ProcessDoCallback([FromBody] ClientToServer o)
         {
             ServerToClient returnVal = new ServerToClient();
 
@@ -151,21 +152,37 @@ namespace BiblePay.BMS.Controllers
             }
             else if (o.Action == "timeline_post")
             {
-                string sData = GetFormData(o.FormData, "txtPost");
+                string sData = GetFormData(o.FormData, "txtBody");
+                string sPaste = GetFormData(o.FormData, "divPaste");
+                dynamic oExtra = Newtonsoft.Json.JsonConvert.DeserializeObject(o.ExtraData);
+                string sParentID = oExtra.parentid.Value;
+                string sError = "";
+
+                if (sParentID == null || sParentID == "")
+                    sError = "Parent ID invalid.";
+
                 Timeline t = new Timeline();
                 t.Body = sData;
+                t.dataPaste = sPaste;
                 t.ERC20Address = GetUser(HttpContext).ERC20Address;
                 t.BBPAddress = GetUser(HttpContext).BBPAddress;
                 t.Added = DateTime.Now.ToString();
-                string sError = "";
-             
+                t.ParentID = sParentID;
+                
                 if (sError != "")
                 {
-                    string s1 = MsgBoxJson(HttpContext, "Portfolio Builder - Add", "Error", sError);
+                    string s1 = MsgBoxJson(HttpContext, "Timeline Post", "Error", sError);
                     return Json(s1);
                 }
 
                 t.Save(IsTestNet(HttpContext));
+                // Redirect user to the Timeline to show the post
+                string m = "location.reload();";
+                returnVal.returnbody = m;
+                returnVal.returntype = "javascript";
+                string o1 = JsonConvert.SerializeObject(returnVal);
+                return Json(o1);
+
             }
             else if (o.Action == "video_search")
             {
@@ -224,6 +241,55 @@ namespace BiblePay.BMS.Controllers
                 BMSCommon.WebRPC.DACResult r0 = DSQL.UI.SendBBP(HttpContext, n.OwnerBBPAddress, nAmount, sPayload);
                 if (r0.TXID != "")
                 {
+                    User uBuyer = GetUser(HttpContext);
+                    DataTable dtSeller = GetUserByERC20Address(IsTestNet(HttpContext), n.OwnerERC20Address);
+                    MailAddress mTo = new MailAddress("rob@biblepay.org","Team BiblePay");
+                    MailMessage m = new MailMessage();
+                    m.To.Add(mTo);
+                    MailAddress mBCC1 = new MailAddress(uBuyer.EmailAddress, uBuyer.NickName);
+                    string sSellerEmail = dtSeller.Rows[0]["EmailAddress"].ToString() ?? "";
+                    string sSellerNickName = dtSeller.Rows[0]["NickName"].ToString() ?? "";
+                    if (sSellerEmail == null)
+                        sSellerEmail = "Unknown Seller";
+                    if (sSellerNickName == "")
+                        sSellerNickName = "Unknown Seller NickName";
+
+                    if (n.Type.ToLower() == "orphan")
+                    {
+                        m.CC.Add(mBCC1);
+                        try
+                        {
+                            MailAddress mBCC2 = new MailAddress(sSellerEmail, sSellerNickName);
+                            m.Bcc.Add(mBCC2);
+                        }
+                        catch (Exception ex2) { }
+
+
+                    }
+                    else
+                    {
+                        m.Bcc.Add(mBCC1);
+                        try
+                        {
+                            MailAddress mBCC2 = new MailAddress(sSellerEmail, sSellerNickName);
+                            m.Bcc.Add(mBCC2);
+                        }
+                        catch (Exception ex2) { }
+
+                    }
+
+                    string sSubject = (n.Type.ToLower() == "orphan") ? "Orphan Sponsored " + n.GetHash() : "Bought NFT " + n.GetHash();
+
+                    m.Subject = sSubject;
+                    string sPurchaseNarr = (n.Type.ToLower() == "orphan") ? "has been sponsored" : "has been purchased";
+
+                    m.Body = "<br>Dear " + sSellerNickName + ", " + sPurchaseNarr + " by " + uBuyer.NickName + " for " + nAmount.ToString() + ".  <br><br><br><h3>" 
+                        + n.Name + "</h3><br><br><div><span>" + n.Description + "</div><br><br><br><img src='" + n.AssetURL 
+                        + "' width=400 height=400/><br><br><br>Thank you for using BiblePay!";
+
+                    m.IsBodyHtml = true;
+                    BBPTestHarness.IPFS.SendMail(false, m);
+
                     // Transfer the actual NFT
                     n.TXID = r0.TXID;
                     n.Action = "buy";
@@ -252,6 +318,23 @@ namespace BiblePay.BMS.Controllers
                 string o1 = JsonConvert.SerializeObject(returnVal);
                 return Json(o1);
             }
+            else if (o.Action == "scrapy_paste")
+            {
+                string sBody = GetFormData(o.FormData, "txtBody");
+                string sParsed = "";
+                for (int i = 0; i < 3; i++)
+                {
+                    sParsed = await DSQL.UI.Scrapper(sBody);
+                    if (sParsed != "")
+                        break;
+                }
+
+                string m = "var p = document.getElementById('divPaste');p.innerHTML=\"" + sParsed + "\";";
+                returnVal.returnbody = m;
+                returnVal.returntype = "javascript";
+                string o1 = JsonConvert.SerializeObject(returnVal);
+                return Json(o1);
+            }
             else if (o.Action == "portfoliobuilder_add")
             {
                 UTXOPosition u = new UTXOPosition();
@@ -264,6 +347,10 @@ namespace BiblePay.BMS.Controllers
                 bool fValid = BMSCommon.BlockChair.ValidateForeignAddress(u.Symbol, u.ForeignAddress);
                 if (!fValid)
                     sError = "Foreign Address invalid.";
+
+                fValid = BMSCommon.BlockChair.ValidateTicker(u.Symbol);
+                if (!fValid)
+                    sError = "Invalid ticker symbol.";
 
                 if (sError != "")
                 {
@@ -287,6 +374,77 @@ namespace BiblePay.BMS.Controllers
                 string outdata = JsonConvert.SerializeObject(returnVal);
                 return Json(outdata);
             }
+            else if (o.Action == "chat_select")
+            {
+                dynamic a = Newtonsoft.Json.JsonConvert.DeserializeObject(o.ExtraData);
+                string sUID = a.id.Value;
+                if (sUID == GetUser(HttpContext).ERC20Address)
+                {
+                    string s1 = MsgBoxJson(HttpContext, "Chat Error", "Error", "You cannot chat with yourself.");
+                    return Json(s1);
+                }
+                HttpContext.Session.SetString("CHATTING_WITH", sUID);
+                string m = "location.href='/bbp/chat';";
+                returnVal.returnbody = m;
+                returnVal.returntype = "javascript";
+                string o1 = JsonConvert.SerializeObject(returnVal);
+                return Json(o1);
+            }
+            else if (o.Action == "Chat_Poll")
+            {
+                string sMsgs = BBPController.GetChatMessages(HttpContext);
+                string m = "var p = document.getElementById('chat_container');"
+                    + "if (p.innerHTML != `" + sMsgs + "`) { p.innerHTML=`" + sMsgs + "`;p.scrollTop = p.scrollHeight; } setTimeout(`DoCallback('Chat_Poll')`,5000);";
+                returnVal.returnbody = m;
+                returnVal.returntype = "javascript";
+                string o1 = JsonConvert.SerializeObject(returnVal);
+                return Json(o1);
+            }
+            else if (o.Action == "Chat_Send")
+            {
+                if (GetUser(HttpContext).LoggedIn==false)
+                {
+                    string s1 = MsgBoxJson(HttpContext, "Chat Error", "Error", "You must be logged in to chat.");
+                    return Json(s1);
+                }
+
+                string sSend = GetFormData(o.FormData, "msgr_input");
+                try
+                {
+                    if (sSend != "")
+                    {
+                        DSQL.UI.ChatItem ci = new ChatItem();
+                        ci.From = GetUser(HttpContext).ERC20Address;
+                        string sToUID = HttpContext.Session.GetString("CHATTING_WITH");
+                        if (sToUID != null)
+                        {
+                            ci.To = sToUID;
+                            ci.body = sSend;
+                            ci.time = DateTime.Now;
+                            DSQL.UI.AddChatItem(IsTestNet(HttpContext), ci, true);
+                        }
+                        else
+                        {
+                            string s1 = MsgBoxJson(HttpContext, "Chat Error", "Error", "You must choose someone to chat with first.");
+                            return Json(s1);
+
+
+                        }
+                    }
+                    string sMsgs = BBPController.GetChatMessages(HttpContext);
+                    string m = "var b=document.getElementById('msgr_input');b.value='';var p = document.getElementById('chat_container');"
+                        +"p.innerHTML=`" + sMsgs + "`;p.scrollTop = p.scrollHeight;";
+                    returnVal.returnbody = m;
+                    returnVal.returntype = "javascript";
+                    string o1 = JsonConvert.SerializeObject(returnVal);
+                    return Json(o1);
+                }
+                catch(Exception ex)
+                {
+                    return Json(ex.Message);
+                }
+
+            }
             else if (o.Action == "admin_addexpense")
             {
                 // Add revenue record, add expense record, and add OrphanExpense distribution
@@ -295,17 +453,12 @@ namespace BiblePay.BMS.Controllers
                 string sNotes = GetFormData(o.FormData, "txtNotes");
                 string sAdded = GetFormData(o.FormData, "txtAdded");
                 sAdded = Convert.ToDateTime(sAdded).ToString();
-
-
-
-
                 dynamic a = Newtonsoft.Json.JsonConvert.DeserializeObject(o.ExtraData);
                 string sOpType= a.OpType.Value;
                 string sError = "";
 
                 if (sOpType != "PAYMENT" && sOpType != "CHARGE")
                     sError = "Invalid Operation Type";
-
 
                 if (sCharityName != "CAMEROON-ONE" && sCharityName != "SAI" && sCharityName != "KAIROS")
                     sError = "Invalid Charity Name";
@@ -349,6 +502,7 @@ namespace BiblePay.BMS.Controllers
                     nModifier = 1;
                 }
                 double nAmount = nModifier * (nExpenseTotal / dt.Rows.Count);
+                
 
                 for (int i = 0; i < dt.Rows.Count; i++)
                 {
@@ -427,7 +581,7 @@ namespace BiblePay.BMS.Controllers
                     MySqlCommand cmd1 = new MySqlCommand(sql);
                     cmd1.Parameters.AddWithValue("@txid", r0.TXID);
                     cmd1.Parameters.AddWithValue("@amount", nAmount);
-                    bool f = Database.ExecuteNonQuery(false, cmd1, "");
+                    bool f = Database.ExecuteNonQuery(cmd1);
                     string s3 = MsgBoxJson(HttpContext, "Donation", "Success", "Thank you for your donation; your help is greatly appreciated in adding users to our project and ultimately helping more orphans. "
                         + "<br><br>Your receipt TXID: " + r0.TXID + "<br><br> Thank you for using BIBLEPAY.  ");
                     return Json(s3);
@@ -466,7 +620,7 @@ namespace BiblePay.BMS.Controllers
                 string sData = "<ul>Store this in a safe place.";
                 for (int i = 0; i < d.Rows.Count;i++)
                 {
-                    string sNonce = d.Rows[0]["nonce"].ToString();
+                    string sNonce = d.Rows[i]["nonce"].ToString();
                     BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(HttpContext, sNonce);
                     string sRow = "Sanctuary " + sNonce + " has a pubkey=" + k.PubKey + ",privkey=" + k.PrivKey + "\r\n";
                     sData += "<li>" + sRow;
@@ -538,6 +692,15 @@ namespace BiblePay.BMS.Controllers
                 string d1 = MsgBoxJson(HttpContext, "Turnkey Liquidation", "Success", sResult);
                 return Json(d1);
 
+            }
+            else if (o.Action == "Profile_RefreshBalance")
+            {
+                DSQL.UI.GetAvatarBalance(HttpContext, true);
+                string m = "location.href='page/profile';";
+                returnVal.returnbody = m;
+                returnVal.returntype = "javascript";
+                string o1 = JsonConvert.SerializeObject(returnVal);
+                return Json(o1);
             }
             else if (o.Action == "Profile_SendBBP")
             {
@@ -646,7 +809,7 @@ namespace BiblePay.BMS.Controllers
                 m1.Parameters.AddWithValue("@nonce", sNonce);
                 m1.Parameters.AddWithValue("@bbpaddress", k.PubKey);
 
-                bool fIns = BMSCommon.Database.ExecuteNonQuery(false, m1, "");
+                bool fIns = BMSCommon.Database.ExecuteNonQuery(m1);
                 if (!fIns)
                 {
                     string d = MsgBoxJson(HttpContext, "Turnkey Sanctuary-Create", "Error", "Sorry, we were unable to provision your sanctuary.  Please e-mail contact@biblepay.org with the Config information and we will manually deal with this or fix the issue.  Thank you for using BiblePay.  ");
@@ -774,13 +937,10 @@ namespace BiblePay.BMS.Controllers
                 cookieOptions.Expires = new DateTimeOffset(DateTime.Now.AddDays(7));
             }
             return Json("");
-
         }
-
 
         public IActionResult AnalyticsDashboard() => View();
         public IActionResult Introduction() => View();
-        
         public IActionResult Privacy() => View();
     }
 }

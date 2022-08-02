@@ -55,10 +55,13 @@ namespace BiblePay.BMS
                     controller.ViewBag.LoginStatus = DSQL.UI.GetLogInStatus(controller.HttpContext);
                     controller.ViewBag.BioURL = DSQL.UI.GetBioURL(controller.HttpContext);
                     controller.ViewBag.Balance = DSQL.UI.GetAvatarBalance(controller.HttpContext, false);
+                    controller.ViewBag.NotificationCountHR = DSQL.UI.GetNotificationCountHR(controller.HttpContext);
+                    controller.ViewBag.NotificationCount = DSQL.UI.GetNotificationCount(controller.HttpContext);
                     controller.ViewBag.LoginAction = DSQL.UI.GetLogInAction(controller.HttpContext);
 
                     BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(controller.HttpContext);
                     controller.ViewBag.NickName = u.NickName;
+                    controller.ViewBag.Notifications = DSQL.UI.GetNotifications(controller.HttpContext, DSQL.UI.GetUser(controller.HttpContext).ERC20Address);
                     //also you have access to the httpcontext & route in controller.HttpContext & controller.RouteData
                 }
 
@@ -121,7 +124,9 @@ namespace BiblePay.BMS
             //services.AddAntiforgery(o => o.HeaderName = "XSRF-TOKEN");
 
             services.AddRazorPages().AddRazorRuntimeCompilation();
-
+            services.AddRazorPages(); //1
+            services.AddServerSideBlazor();//2
+            
             services.ConfigureApplicationCookie(options =>
             {
                 options.LoginPath = "/Identity/Account/Login";
@@ -142,7 +147,7 @@ namespace BiblePay.BMS
             services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
             {
                 builder.WithOrigins(new string[] { "https://dec.app", "https://hitch.social", "https://www.hitch.social",
-                    "https://social.biblepay.org", "http://social.biblepay.org", "https://*", "http://localhost", "https://localhost" })
+                    "https://social.biblepay.org", "http://social.biblepay.org", "https://localhost:8443", "https://*", "http://localhost", "https://localhost" })
                        .AllowAnyMethod()
                        .AllowAnyHeader();
             }));
@@ -205,6 +210,7 @@ namespace BiblePay.BMS
                     "default",
                     "{controller=BMS}/{action=Status}");
                 endpoints.MapRazorPages();
+                endpoints.MapBlazorHub(); //3
             });
 
 

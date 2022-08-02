@@ -11,7 +11,7 @@ namespace BMSCommon
     public static class PortfolioBuilder
     {
 
-        public static double nSuperblockLimit = 125000;
+        public static double nSuperblockLimit = 270427;
         public static List<PPUser> lLastPB = new List<PPUser>();
         public static Dictionary<string, List<Portfolios>> dictUTXO = new Dictionary<string, List<Portfolios>>();
         public static int nLastPB = 0;

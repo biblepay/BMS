@@ -19,11 +19,9 @@ namespace BiblePay.BMS.Controllers
 	public partial class BBPController : Controller
 	{
 
-
 		public static string GetNFTDisplayList(HttpContext h, string sType)
 		{
-			string html = "<table><tr>";
-			html = "<div class='row js-list-filter' id='nftlist'>";
+			string html = "<div class='row js-list-filter' id='nftlist'>";
 			int nColNo = 0;
 			int nTotal = 0;
 			string sChain = IsTestNet(h) ? "test" : "main";

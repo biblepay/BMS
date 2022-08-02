@@ -18,14 +18,14 @@ namespace BiblePay.BMS.Controllers
         {
             if (sURL == "xmrinquiry")
             {
-                sURL = "https://minexmr.com/dashboard";
+                sURL = "https://supportxmr.com";
             }
-            // Reserved:  This same routine is supposed to handle the MineXMR dashboard view... We can refactor this when we port that page in.
+            // Reserved:  This same routine is supposed to handle the XMR pool payment owed page.
             sURL = sURL.Replace("javascript", "");
             sURL = sURL.Replace("script:", "");
             Regex rgx = new Regex("[^a-zA-Z0-9]");
             string sCleansed = rgx.Replace(sURL.ToLower(), "");
-            bool fOK = sURL.StartsWith("https://minexmr.com/dashboard") || sURL.StartsWith("https://www.freebibleimages.org/") || sURL.StartsWith("https://wiki.biblepay.org/");
+            bool fOK = sURL.StartsWith("https://supportxmr.com") || sURL.StartsWith("https://www.freebibleimages.org/") || sURL.StartsWith("https://wiki.biblepay.org/");
             if (sURL.ToLower().Contains("script") || sURL.ToLower().Contains("javascript") || sURL.ToLower().Contains("(") || sURL.Contains(")"))
                 fOK = false;
             if (sURL.ToLower().Contains("javas	cript"))
@@ -44,7 +44,10 @@ namespace BiblePay.BMS.Controllers
                 return "404";
             }
         }
-
+        public IActionResult GospelVideos()
+        {
+            return View();
+        }
         protected string GetGospelContentFromFile(string sType)
         {
             string sPath = System.IO.Path.Combine(BMSCommon.Database.msContentRootPath, "wwwroot/media/JesusChrist/" + sType + ".htm");

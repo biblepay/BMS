@@ -365,7 +365,8 @@ namespace NBitcoin.Crypto
 				}
 				// 1541 is the mask for DSQL
 				NBitcoin.Money nSpent = 0;
-				NBitcoin.Money nLgMsgFee = new NBitcoin.Money((decimal)nReq, NBitcoin.MoneyUnit.BTC) + new NBitcoin.Money(1541, NBitcoin.MoneyUnit.Satoshi);
+				NBitcoin.Money nLgMsgFee = new NBitcoin.Money((decimal)nReq, NBitcoin.MoneyUnit.BTC) + new NBitcoin.Money(1541, NBitcoin.MoneyUnit.Satoshi) * 1;
+
 				// Step 1 - Spend the actual destination amount first
 				txBuilder.Send(pkSpendToAddress, nSpend);
 				
@@ -375,6 +376,7 @@ namespace NBitcoin.Crypto
 				{
 					txBuilder.Send(pkBurnAddress, nLgMsgFee);
 					nSpent += nLgMsgFee;
+
 				}
 				if (nSpent > nVinTotal)
 				{
@@ -391,7 +393,7 @@ namespace NBitcoin.Crypto
 				}
 
 
-				NBitcoin.Money fees1 = EstFee(tx.GetVirtualSize() + sPayload.Length + sPayload.Length) + new NBitcoin.Money((decimal)1.25, NBitcoin.MoneyUnit.BTC);
+				NBitcoin.Money fees1 = EstFee(tx.GetVirtualSize() + sPayload.Length + sPayload.Length) + new NBitcoin.Money((decimal)1.25, NBitcoin.MoneyUnit.BTC) * 2;
 				txBuilder.SendFees(fees1);
 				tx = txBuilder.BuildTransaction(true, sPayload);
 
@@ -811,6 +813,12 @@ namespace NBitcoin.Crypto
 			var vBook = book[iBookNumber].Split(new string[] { "|" }, StringSplitOptions.None);
 			return vBook[1];
 		}
+		public string GetShortBook(int iBookNumber)
+		{
+			if (iBookNumber < 0 || iBookNumber > (int)(book.Length - 1)) return "";
+			var vBook = book[iBookNumber].Split(new string[] { "|" }, StringSplitOptions.None);
+			return vBook[0];
+		}
 
 		public List<string> GetBookList()
 		{
@@ -821,6 +829,18 @@ namespace NBitcoin.Crypto
 				b.Add(sBook);
 			}
 			return b;
+		}
+
+		public List<string> GetShortBookList()
+		{
+			List<string> b = new List<string>();
+			for (int i = 0; i < 66; i++)
+			{
+				string sShort = GetShortBook(i);
+				b.Add(sShort);
+			}
+			return b;
+
 		}
 
 		public string GetBookByName(string sName)
