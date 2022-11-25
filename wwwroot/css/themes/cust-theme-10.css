@@ -359,7 +359,7 @@ html body {
       color: #859891; }
 
 .header-icon {
-  color: #666666; }
+  color: #080808; }
   .header-icon:not(.btn) > [class*='fa-']:first-child,
   .header-icon:not(.btn) > .ni:first-child {
     color: #778c85; }
@@ -414,7 +414,7 @@ html body {
   cursor: pointer; }
 
 .app-list-item {
-  color: #666666; }
+  color: #080808; }
   .app-list-item:hover {
     border: 1px solid #e3e3e3; }
   .app-list-item:active {
@@ -1113,7 +1113,7 @@ label.menu-open-button {
 /* backgrounds */
 .bg-white {
   background-color: #fff;
-  color: #666666; }
+  color: #080808; }
 
 .bg-faded {
   background-color: #f7f9fa; }
@@ -1321,7 +1321,7 @@ code {
   color: #424242; }
 
 .settings-panel .list {
-  color: #666666; }
+  color: #080808; }
   .settings-panel .list:hover {
     color: #333333;
     background: rgba(255, 255, 255, 0.7); }

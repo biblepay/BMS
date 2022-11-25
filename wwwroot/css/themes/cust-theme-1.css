@@ -359,7 +359,7 @@ html body {
       color: #bd7baa; }
 
 .header-icon {
-  color: #666666; }
+  color: #076666; }
   .header-icon:not(.btn) > [class*='fa-']:first-child,
   .header-icon:not(.btn) > .ni:first-child {
     color: #b56a9f; }
@@ -1112,8 +1112,8 @@ label.menu-open-button {
 
 /* backgrounds */
 .bg-white {
-  background-color: #fff;
-  color: #666666; }
+  background-color: rgba(255,255,255,.20);
+  color: #076666; }
 
 .bg-faded {
   background-color: #f7f9fa; }

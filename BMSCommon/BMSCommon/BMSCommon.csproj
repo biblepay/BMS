@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -15,12 +15,16 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.7.8.7" />
+    <PackageReference Include="FFMpegCore" Version="4.8.0" />
     <PackageReference Include="LightningDB" Version="0.14.1" />
-    <PackageReference Include="MySql.Data" Version="8.0.28" />
+    <PackageReference Include="MySql.Data" Version="8.0.30" />
     <PackageReference Include="Nethereum.Hex" Version="4.5.0" />
     <PackageReference Include="Nethereum.Signer" Version="4.5.0" />
     <PackageReference Include="Nethereum.Web3" Version="4.5.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="uplink.NET" Version="2.9.2958" />
+    <PackageReference Include="uplink.NET.Linux" Version="2.9.2958" />
+    <PackageReference Include="uplink.NET.Win" Version="2.9.2958" />
   </ItemGroup>
 
   <ItemGroup>

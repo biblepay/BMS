@@ -3,11 +3,16 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using BiblePay.BMS.Extensions;
 using Microsoft.AspNetCore.Http;
 using MySql.Data.MySqlClient;
 using SouthXchange;
 using SouthXchange.Model;
+using static BMSCommon.BitcoinSyncModel;
+using static BMSCommon.CryptoUtils;
+using static BMSCommon.Model;
 using static BMSCommon.Pricing;
+using static BMSCommon.StringExtension;
 
 namespace BiblePay.BMS.DSQL
 {
@@ -21,7 +26,7 @@ namespace BiblePay.BMS.DSQL
             m1.Parameters.AddWithValue("@symbol", sSymbol);
             m1.Parameters.AddWithValue("@amt", nAmount);
             m1.Parameters.AddWithValue("@address", sAddress);
-            bool f = BMSCommon.Database.ExecuteNonQuery(m1);
+            bool f = BMSCommon.Database.ExecuteNonQuery2(m1);
             return f;
         }
 
@@ -33,7 +38,7 @@ namespace BiblePay.BMS.DSQL
             m1.Parameters.AddWithValue("@bbptxid", BBPTXID);
             m1.Parameters.AddWithValue("@bbpamt", nBBPAmount);
             m1.Parameters.AddWithValue("@status", sStatus);
-            bool f = BMSCommon.Database.ExecuteNonQuery(m1);
+            bool f = BMSCommon.Database.ExecuteNonQuery2(m1);
             return f;
         }
 
@@ -44,7 +49,7 @@ namespace BiblePay.BMS.DSQL
             m1.Parameters.AddWithValue("@symbol", sSymbol);
             m1.Parameters.AddWithValue("@address",sAddress);
             m1.Parameters.AddWithValue("@erc20", sERC20Address);
-            bool f = BMSCommon.Database.ExecuteNonQuery(m1);
+            bool f = BMSCommon.Database.ExecuteNonQuery2(m1);
             return f;
         }
 
@@ -68,11 +73,11 @@ namespace BiblePay.BMS.DSQL
             if (!bValid)
                 return "BBP_PAY_ADDRESS_INVALID";
 
-            if (sForeignAddress == "" || sForeignAddress == null)
+            if (sForeignAddress == String.Empty || sForeignAddress == null)
                 return "FOREIGN_ADDRESS_EMPTY";
 
             string poolAccount = BMSCommon.Common.GetConfigurationKeyValue("PoolPayAccount");
-            if (poolAccount == "")
+            if (poolAccount == String.Empty)
                 return "BMS_NOT_CONFIGURED";
             // Verify the bbp price is actually healthy
             price1 nBTCPrice = BMSCommon.Pricing.GetCryptoPrice("BTC");
@@ -98,7 +103,7 @@ namespace BiblePay.BMS.DSQL
             m1.Parameters.AddWithValue("@symbol", sSymbol);
             m1.Parameters.AddWithValue("@fa", sForeignAddress);
 
-            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            DataTable dt = BMSCommon.Database.GetDataTable2(m1);
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 string sID = dt.Rows[i]["id"].ToString();
@@ -108,9 +113,9 @@ namespace BiblePay.BMS.DSQL
                 {
                     string sUpd = "Update SouthXChange set STATUS='PAYING' where id='" + sID + "';";
                     MySqlCommand mUpd = new MySqlCommand(sUpd);
-                    BMSCommon.Database.ExecuteNonQuery(mUpd);
-                    List<BMSCommon.WebRPC.Payment> Payments = new List<BMSCommon.WebRPC.Payment>();
-                    BMSCommon.WebRPC.Payment p = new BMSCommon.WebRPC.Payment();
+                    BMSCommon.Database.ExecuteNonQuery2(mUpd);
+                    List<ChainPayment> Payments = new List<ChainPayment>();
+                    ChainPayment p = new ChainPayment();
                     p.bbpaddress = sBBPAddress;
                     p.amount = nBBPAmount;
                     Payments.Add(p);
@@ -123,31 +128,33 @@ namespace BiblePay.BMS.DSQL
                     }
                 }
             }
-            return "";
+            return String.Empty;
         }
 
         public async static Task<string> GetSouthXChangeReport(HttpContext h)
         {
             string sCurrency = "doge";
-            if (!DSQL.UI.GetUser(h).LoggedIn)
+            User u0 = h.GetCurrentUser();
+
+            if (!u0.LoggedIn)
                 return "NOT_LOGGED_IN";
-            string sERC20 = DSQL.UI.GetUser(h).ERC20Address;
-            string sBBPAddress = DSQL.UI.GetUser(h).BBPAddress;
-            if (sERC20 == null || sERC20 == "")
+            string sERC20 = u0.ERC20Address;
+            string sBBPAddress = u0.BBPAddress;
+            if (String.IsNullOrEmpty(sERC20))
             {
                 return "NO_ERC_ADDRESS";
             }
-            if (sBBPAddress == null || sBBPAddress == "")
+            if (String.IsNullOrEmpty(sBBPAddress))
             {
                 return "NO_BBP_ADDRESS";
             }
             string sxc1 = BMSCommon.Common.GetConfigurationKeyValue("sxcontext1");
-            if (sxc1 == "")
+            if (sxc1 == String.Empty)
                 return "NO_SXC_CONFIGURATION";
             var context = new SxcContext(sxc1, BMSCommon.Common.GetConfigurationKeyValue("sxcontext2"));
 
             string sDOGE = GetSXAddressByERC20Address(sCurrency, sERC20);
-            if (sDOGE == "")
+            if (sDOGE == String.Empty)
             {
                 // Make new DOGE address;
                 AddressModel a = await context.GenerateNewAddressAsync(sCurrency);
@@ -158,7 +165,7 @@ namespace BiblePay.BMS.DSQL
                 }
             }
 
-            if (sDOGE == "")
+            if (sDOGE == String.Empty)
                 return "NO_FOREIGN_ADDRESS";
 
             // Insert any hashes that do not exist in our table
@@ -188,16 +195,23 @@ namespace BiblePay.BMS.DSQL
 
             string html = "<table class='saved'><th>Date<th>DOGE TXID<th>Amount<th>BBP TXID<th>BBP Amount<th>Status";
 
-            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            DataTable dt = BMSCommon.Database.GetDataTable2(m1);
             if (dt.Rows.Count == 0)
             {
-                html = "";
+                html = String.Empty;
                 return html;
             }
             for (int i = 0; i < dt.Rows.Count; i++)
             {
-                string sRow = "<tr><td>" + dt.Rows[i]["Added"].ToString() + "<td>" + dt.Rows[i]["hash"].ToString()
-                    + "<td>" + dt.Rows[i]["Amount"].ToString() + "<td>" + dt.Rows[i]["BBPTXID"].ToString() + "<td>" + dt.Rows[i]["BBPAmount"].ToString() 
+                string sRow = "<tr><td width=5%>" 
+                    + dt.Rows[i]["Added"].ObjToMilitaryTime() 
+                    + "<td width=5% style='font-size:7px;'>" 
+                    + dt.Rows[i]["hash"].ToString()
+                    + "<td>" 
+                    + dt.Rows[i]["Amount"].ToString() 
+                    + "<td td width=5% style='font-size:7px;'>"
+                    + dt.Rows[i]["BBPTXID"].ToString() + "<td>" 
+                    + dt.Rows[i]["BBPAmount"].ToString() 
                     + "<td>" + dt.Rows[i]["Status"].ToString() + "</tr>\r\n";
 
                 html += sRow;

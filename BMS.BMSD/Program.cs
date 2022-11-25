@@ -31,7 +31,6 @@ namespace BiblePay.BMSD
                 switch (K)
                 {
                     case ConsoleKey.F1:
-                        pdf();
                         break;
                     case ConsoleKey.F3:
                         break;
@@ -64,25 +63,6 @@ namespace BiblePay.BMSD
             }
         }
 
-        private static void pdf()
-        {
-            /*
-            string html = "<html><br>Hi there<br></html>";
-            Common.Log("1");
-
-            byte[] content = Pdf.From(html).Portrait().Content();
-            Common.Log("2");
-
-            var contentLength = content.Length;
-
-            string folder2 = "mypdf.pdf";
-            System.IO.File.WriteAllBytes(folder2, content);
-            Common.Log("3");
-            */
-
-
-
-        }
 
         private static void UpgNode()
         {
@@ -129,7 +109,6 @@ namespace BiblePay.BMSD
             {
                 // Upgrade
                 System.Threading.Thread.Sleep(1000);  //Wait for upgrader to die off
-                //string sBindURL = BMSCommon.Common.GetConfigurationKeyValue("bindurl");
                 if (false)
                 {
                     Console.WriteLine("This node does not have a configuration file.  Please nano /inetpub/wwwroot/bms/bms.conf");

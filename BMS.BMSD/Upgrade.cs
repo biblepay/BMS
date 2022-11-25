@@ -29,7 +29,6 @@ namespace BiblePay.BMSD
             MyWebClient wc = new MyWebClient();
             try
             {
-                //string sLocalPath = System.IO.Path.Combine(sDir, sFN);
                 if (System.IO.File.Exists(sLocalLocation))
                 {
                     System.IO.File.Delete(sLocalLocation);

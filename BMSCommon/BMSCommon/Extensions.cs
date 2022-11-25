@@ -6,31 +6,183 @@ using System.Text;
 namespace BMSCommon
 {
 
-    public static class MyObjectExtensions
-    {
-        public static Int32 ToInt32(this object obj)
-        {
-            return Convert.ToInt32(obj);
-        }
-    }
 
 
-    public static class DataRowExtensions
+
+    public static class DataTableExtensions
     {
         public static int ToInt(this DataRow row, int index)
         {
-            return Convert.ToInt32(row[index].ToString());
+                return Convert.ToInt32(row[index].ToString());
         }
 
         public static int ToInt(this DataRow row, string index)
         {
-            return Convert.ToInt32(row[index].ToString());
+                return Convert.ToInt32(row[index].ToString());
         }
+        public static TimeSpan Elapsed(this DateTime datetime)
+        {
+            return DateTime.Now - datetime;
+        }
+
+        public static DataTable FilterDataTable(this DataTable table, string sql)
+        {
+            try
+            {
+                DataRow[] dr1 = table.Select(sql);
+                DataTable dtNew = new DataTable();
+                if (dr1.Length > 0)
+                {
+                    dtNew = table.Clone();
+
+                    foreach (DataRow temp in dr1)
+                    {
+                        dtNew.ImportRow(temp);
+                    }
+                }
+                return dtNew;
+            }
+            catch (Exception ex)
+            {
+                DataTable dt1 = new DataTable();
+                return dt1;
+            }
+        }
+
+        public static DataTable SortDataTable(this DataTable table, string sql)
+        {
+            try
+            {
+                table.DefaultView.Sort = sql;
+                table.DefaultView.ApplyDefaultSort = true;
+                return table;
+            }
+            catch (Exception ex)
+            {
+                return table;
+            }
+
+        }
+
+        public static DataTable FilterAndSort(this DataTable table, string sFilter, string sSort)
+        {
+            try
+            {
+                DataRow[] dr1 = table.Select(sFilter, sSort);
+                DataTable dtNew = new DataTable();
+                if (dr1.Length > 0)
+                {
+                    dtNew = table.Clone();
+
+                    foreach (DataRow temp in dr1)
+                    {
+                        dtNew.ImportRow(temp);
+                    }
+                }
+                return dtNew;
+            }
+            catch (Exception)
+            {
+                DataTable dt1 = new DataTable();
+                return dt1;
+            }
+        }
+
+
+        public static string GetColValue(this DataTable table, string colName)
+        {
+            if (table.Rows.Count < 1)
+                return String.Empty;
+            if (!table.Columns.Contains(colName))
+                return String.Empty;
+            return table.Rows[0][colName].ToString();
+        }
+
+        public static double GetColDouble(this DataTable table, string colName)
+        {
+            return BMSCommon.Common.GetDouble(table.Rows[0][colName].ToString());
+        }
+
+        public static int GetColInt(this DataTable table, string colName)
+        {
+            return (int)BMSCommon.Common.GetDouble(table.Rows[0][colName].ToString());
+        }
+
+        public static string GetColValue(this DataTable table, int iRow, string colName)
+        {
+            if (!table.Columns.Contains(colName))
+            {
+                return "";
+            }
+            return table.Rows[iRow][colName].ToString();
+        }
+
+        public static double GetColDouble(this DataRowView dr, string colName)
+        {
+            if (dr == null)
+                return 0;
+
+
+            double nOut = BMSCommon.Common.GetDouble(dr[colName].ToString());
+            return nOut;
+        }
+
+
+        public static double GetColDouble(this DataTable table, int iRow, string colName)
+        {
+            if (table.Rows.Count == 0)
+                return 0;
+
+            double nOut = BMSCommon.Common.GetDouble(table.Rows[iRow][colName].ToString());
+            return nOut;
+        }
+        public static DateTime GetColDateTime(this DataTable table, int iRow, string sColName)
+        {
+            DateTime dt = new DateTime();
+
+            if (table.Rows.Count == 0)
+                return dt;
+
+            double nOut = BMSCommon.Common.GetDouble(table.Rows[iRow][sColName].ToString());
+            dt = BMSCommon.Common.FromUnixTimeStamp((int)nOut);
+            return dt;
+        }
+
     }
 
 
-    public static class MyExtensions
+
+    public static class MyObjectExtensions
     {
+        public static Int32 AsInt32(this object obj)
+        {
+            return Convert.ToInt32(obj);
+        }
+        public static double AsDouble(this object obj)
+        {
+            double d = Common.GetDouble(obj);
+            return d;
+        }
+
+        public static string ToShortDateString(this object obj)
+        {
+            if (obj==null || obj.ToString()==String.Empty)
+            {
+                return String.Empty;
+            }
+            DateTime dt = Convert.ToDateTime(obj);
+            return dt.ToShortDateString();
+        }
+        public static string Percentage2(this object obj)
+        {
+            double n = Math.Round(AsDouble(obj) * 100, 2);
+            string s = n.ToString() + "%";
+            return s;
+        }
+
+      
+       
+    
         public static int WordCount(this String str)
         {
             return str.Split(new char[] { ' ', '.', '?' },
@@ -107,6 +259,21 @@ namespace BMSCommon
                 return vSplitData;
             }
 
+        public static string ToMilitaryTime(this string o)
+        {
+            return ObjToMilitaryTime(o);
+        }
+            public static string ObjToMilitaryTime(this object o)
+            {
+                if (o==null)
+                {
+                  return String.Empty;
+                }
+                DateTime dt = Convert.ToDateTime(o);
+                string sMyMilitary = dt.ToString("MM-dd-yy HH:mm");
+                return sMyMilitary;
+            }
+
             public static double ToDouble(this string o)
             {
                 try
@@ -125,4 +292,5 @@ namespace BMSCommon
             }
 
         }
+
 }

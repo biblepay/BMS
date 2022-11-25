@@ -1,7 +1,7 @@
-﻿{
+{
   "iisSettings": {
-    "windowsAuthentication": false, 
-    "anonymousAuthentication": true, 
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
     "iisExpress": {
       "applicationUrl": "http://localhost:43837",
       "sslPort": 44314
@@ -18,10 +18,10 @@
     "BiblePay.BMS": {
       "commandName": "Project",
       "launchBrowser": true,
-      "applicationUrl": "https://localhost:8443;http://localhost:8444",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      },
+      "applicationUrl": "https://localhost:8440;http://localhost:8441"
     }
   }
 }

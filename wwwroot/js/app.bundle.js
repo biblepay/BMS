@@ -2125,8 +2125,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 	// Fixed header and fixed sidebar?  BiblePay
 
-		initApp.pushSettings('header-function-fixed');
-	   initApp.pushSettings('nav-function-fixed');
+	initApp.pushSettings('header-function-fixed');
+	initApp.pushSettings('nav-function-fixed');
+	initApp.pushSettings('mod-bigger-font');
+
+	// High contrast
+	//initApp.pushSettings('mod-high-contrast');
+
+
 
 
 	/**

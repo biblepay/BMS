@@ -150,7 +150,7 @@ namespace BiblePay.BMS.DSQL
             {
                 string sql = "Insert into BanDetails (id,IP,Notes,Added,Level) values (uuid(), '" + IP + "','" + sWHY + "',getdate(),'" + iLevel.ToString() + "');";
                 MySqlCommand cmd1 = new MySqlCommand(sql);
-                BMSCommon.Database.ExecuteNonQuery(cmd1);
+                BMSCommon.Database.ExecuteNonQuery2(cmd1);
             }
             catch (Exception x)
             {
@@ -386,9 +386,9 @@ namespace BiblePay.BMS.DSQL
 
         public static string GetChartOfSancs()
         {
-            BMSCommon.Pricing.BBPChart b = new BMSCommon.Pricing.BBPChart();
+            BMSCommon.BBPCharting.BBPChart b = new BMSCommon.BBPCharting.BBPChart();
             b.Name = "Number of Sanctuaries vs Monthly Reward";
-            BMSCommon.Pricing.ChartSeries c = new BMSCommon.Pricing.ChartSeries();
+            BMSCommon.BBPCharting.ChartSeries c = new BMSCommon.BBPCharting.ChartSeries();
             b.CollectionSeries.Add(c);
             c.Name = "Monthly Reward";
             for (double iSancs = 20; iSancs < 104; iSancs += 1)
@@ -396,7 +396,7 @@ namespace BiblePay.BMS.DSQL
                 double dRevenue = (205 / iSancs) * 3700 * 30.01; 
                 c.DataPoint.Add(dRevenue);
             }
-            return BMSCommon.Pricing.GenerateJavascriptChart(b);
+            return BMSCommon.BBPCharting.GenerateJavascriptChart(b);
         }
 
 
@@ -408,14 +408,12 @@ namespace BiblePay.BMS.DSQL
             string sql = "select HashRate,Height From " + sTable + " where height > "
                 + nMin.ToString() + " and height < " + nMax.ToString() + " order by height";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable( cmd1 );
-            BMSCommon.Pricing.BBPChart b = new BMSCommon.Pricing.BBPChart();
+            DataTable dt = BMSCommon.Database.GetDataTable2( cmd1 );
+            BMSCommon.BBPCharting.BBPChart b = new BMSCommon.BBPCharting.BBPChart();
             b.Name = "Hashrate over 24 hours";
-            BMSCommon.Pricing.ChartSeries c = new BMSCommon.Pricing.ChartSeries();
-            //b.CollectionSeries = new List<BMSCommon.Pricing.ChartSeries>();
+            BMSCommon.BBPCharting.ChartSeries c = new BMSCommon.BBPCharting.ChartSeries();
             c.BorderColor = "blue";
             c.BackgroundColor = "darkblue";
-
             b.CollectionSeries.Add(c);
             for (int i = 0; i < dt.Rows.Count; i += 1)
             {
@@ -424,10 +422,9 @@ namespace BiblePay.BMS.DSQL
                 b.XAxis.Add(Height);
                 c.DataPoint.Add(dR);
             }
-            string html = BMSCommon.Pricing.GenerateJavascriptChart(b);
+            string html = BMSCommon.BBPCharting.GenerateJavascriptChart(b);
             return html;
         }
-
 
         public string GetChartOfWorkers()
         {
@@ -437,11 +434,11 @@ namespace BiblePay.BMS.DSQL
 
             string sql = "select minercount, height From " + sTable + " where height > " + nMin.ToString() + " and height < " + nMax.ToString() + " order by height";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(cmd1);
-            BMSCommon.Pricing.BBPChart b = new BMSCommon.Pricing.BBPChart();
+            DataTable dt = BMSCommon.Database.GetDataTable2(cmd1);
+            BMSCommon.BBPCharting.BBPChart b = new BMSCommon.BBPCharting.BBPChart();
 
             b.Name = "Workers over 24 hours";
-            BMSCommon.Pricing.ChartSeries c = new BMSCommon.Pricing.ChartSeries();
+            BMSCommon.BBPCharting.ChartSeries c = new BMSCommon.BBPCharting.ChartSeries();
             c.Name = "Workers";
             c.BorderColor = "blue";
             c.BackgroundColor = "darkblue";
@@ -454,7 +451,7 @@ namespace BiblePay.BMS.DSQL
                 b.XAxis.Add(Height);
                 c.DataPoint.Add(dWorkers);
             }
-            string html = BMSCommon.Pricing.GenerateJavascriptChart(b);
+            string html = BMSCommon.BBPCharting.GenerateJavascriptChart(b);
             return html;
         }
 
@@ -465,9 +462,9 @@ namespace BiblePay.BMS.DSQL
             string sTable = _fTestNet ? "thashrate" : "hashrate";
             string sql = "select SolvedCount, height From " + sTable + " where height > " + nMin.ToString() + " and height < " + nMax.ToString() + " order by height;";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(cmd1);
-            BMSCommon.Pricing.BBPChart b= new BMSCommon.Pricing.BBPChart();
-            BMSCommon.Pricing.ChartSeries c = new BMSCommon.Pricing.ChartSeries();
+            DataTable dt = BMSCommon.Database.GetDataTable2(cmd1);
+            BMSCommon.BBPCharting.BBPChart b= new BMSCommon.BBPCharting.BBPChart();
+            BMSCommon.BBPCharting.ChartSeries c = new BMSCommon.BBPCharting.ChartSeries();
             c.Name = "Blocks Solved";
             c.BorderColor = "blue";
             c.BackgroundColor = "darkblue";
@@ -483,7 +480,7 @@ namespace BiblePay.BMS.DSQL
                 b.XAxis.Add(Height);
                 c.DataPoint.Add(dWorkers);
             }
-            string html = BMSCommon.Pricing.GenerateJavascriptChart(b);
+            string html = BMSCommon.BBPCharting.GenerateJavascriptChart(b);
             return html;
         }
 
@@ -501,7 +498,6 @@ namespace BiblePay.BMS.DSQL
         }
 
 
-
         public void ClearBans()
         {
             // Clear banned pool users
@@ -509,15 +505,13 @@ namespace BiblePay.BMS.DSQL
             {
                 dictBan.Clear();
                 return;
-                // NOTE: The table 'bans' does not exist yet (needs ported from foundation.biblepay.org);
-
-                // Memorize the excess banlist
+                // Memorize the banlist
                 string sTable = _fTestNet ? "tworker" : "worker";
                 string sLeaderboard = _fTestNet ? "tLeaderboard" : "Leaderboard";
                 string sql = "Select distinct dbo.iponly(ip) ip from " + sTable + " where bbpaddress in (select bbpaddress from " 
                     + sLeaderboard + " where efficiency < .20) UNION ALL Select IP from bans;";
                 MySqlCommand m1 = new MySqlCommand(sql);
-                DataTable dt = BMSCommon.Database.GetDataTable(m1);
+                DataTable dt = BMSCommon.Database.GetDataTable2(m1);
                 lBanList.Clear();
                 for (int i = 0; i < dt.Rows.Count; i++)
                 {
@@ -604,7 +598,7 @@ namespace BiblePay.BMS.DSQL
                 if (iMyHeight > 0 && sRecip != "" && sRecip != null && nSubsidy > 0)
                 {
                     MySqlCommand m2 = new MySqlCommand(sql);
-                    BMSCommon.Database.ExecuteNonQuery(m2);
+                    BMSCommon.Database.ExecuteNonQuery2(m2);
                 }
             }
         }
@@ -653,7 +647,7 @@ namespace BiblePay.BMS.DSQL
                             string sql3 = "Select * from " + sTable + " WHERE Paid is null and height = @height;";
                             MySqlCommand command3 = new MySqlCommand(sql3);
                             command3.Parameters.AddWithValue("@height", iMyHeight);
-                            DataTable dt4 = BMSCommon.Database.GetDataTable(command3);
+                            DataTable dt4 = BMSCommon.Database.GetDataTable2(command3);
 
                             for (int x = 0; x < dt4.Rows.Count; x++)
                             {
@@ -673,7 +667,7 @@ namespace BiblePay.BMS.DSQL
                                 command5.Parameters.AddWithValue("@bxmrc", GetDouble(dt4.Rows[x]["BXMRC"]));
                                 try
                                 {
-                                    BMSCommon.Database.ExecuteNonQuery(command5);
+                                    BMSCommon.Database.ExecuteNonQuery2(command5);
                                 }
                                 catch (Exception ex2)
                                 {
@@ -686,7 +680,7 @@ namespace BiblePay.BMS.DSQL
                                 command5 = new MySqlCommand(sql3);
                                 command5.Parameters.AddWithValue("@bbpid", bbpaddress1);
                                 command5.Parameters.AddWithValue("@height", iMyHeight);
-                                BMSCommon.Database.ExecuteNonQuery(command5);
+                                BMSCommon.Database.ExecuteNonQuery2(command5);
                             }
                         }
 
@@ -696,7 +690,7 @@ namespace BiblePay.BMS.DSQL
                         command1.Parameters.AddWithValue("@height", iMyHeight);
                         int iSolved = nSubsidy > 1 ? 1 : 0;
                         command1.Parameters.AddWithValue("@solved", iSolved);
-                        BMSCommon.Database.ExecuteNonQuery(command1);
+                        BMSCommon.Database.ExecuteNonQuery2(command1);
                     }
                 }
 
@@ -707,7 +701,7 @@ namespace BiblePay.BMS.DSQL
                     string sql = "Select shares,sucXMRC,bxmr,bbpaddress,subsidy from " + sTable + " WHERE subsidy > 1 and percentage is null and "
                         + sHeightRange + " and paid is null;";
                     MySqlCommand m0 = new MySqlCommand(sql);
-                    DataTable dt1 = BMSCommon.Database.GetDataTable(m0);
+                    DataTable dt1 = BMSCommon.Database.GetDataTable2(m0);
                     if (dt1.Rows.Count > 0)
                     {
                         // First get the total shares
@@ -745,7 +739,7 @@ namespace BiblePay.BMS.DSQL
                             command.Parameters.AddWithValue("@percentage", Math.Round(nShare, 4));
                             command.Parameters.AddWithValue("@height", iMyHeight);
                             command.Parameters.AddWithValue("@bbpaddress", dt1.Rows[i]["bbpaddress"]);
-                            BMSCommon.Database.ExecuteNonQuery(command);
+                            BMSCommon.Database.ExecuteNonQuery2(command);
                          }
                     }
                 }
@@ -782,7 +776,7 @@ namespace BiblePay.BMS.DSQL
             }
             catch (Exception)
             {
-                return "";
+                return String.Empty;
             }
         }
     
@@ -894,10 +888,9 @@ namespace BiblePay.BMS.DSQL
                         {
                             string sql = "Update " + sTable + " set Solved=1 where height=@height;";
                             MySqlCommand command = new MySqlCommand(sql);
-
                             command.Parameters.AddWithValue("@height", _template.height);
-                            BMSCommon.Database.ExecuteNonQuery(command);
-                            Log("SUBMIT_SUCCESS: Success for nonce " + x.nonce + " at height " + _template.height.ToString() + " hex " + hex);
+                            BMSCommon.Database.ExecuteNonQuery2(command);
+                            //Log("SUBMIT_SUCCESS: Success for nonce " + x.nonce + " at height " + _template.height.ToString() + " hex " + hex);
                         }
                         else
                         {
@@ -934,7 +927,7 @@ namespace BiblePay.BMS.DSQL
                 string sql = "SELECT moneroaddress FROM " + sTable + "  WHERE moneroaddress=@m;";
                 MySqlCommand m1 = new MySqlCommand(sql);
                 m1.Parameters.AddWithValue("@m", w.moneroaddress);
-                DataTable mdata = BMSCommon.Database.GetDataTable(m1);
+                DataTable mdata = BMSCommon.Database.GetDataTable2(m1);
                 if (mdata.Rows.Count > 0)
                     return;
 
@@ -944,7 +937,7 @@ namespace BiblePay.BMS.DSQL
                     MySqlCommand m = new MySqlCommand(sql);
                     m.Parameters.AddWithValue("@m", w.moneroaddress);
                     m.Parameters.AddWithValue("@b", w.bbpaddress);
-                 bool f2=   BMSCommon.Database.ExecuteNonQuery(m);
+                 bool f2=   BMSCommon.Database.ExecuteNonQuery2(m);
 
                 bool f1001 = false;
 
@@ -1138,9 +1131,21 @@ namespace BiblePay.BMS.DSQL
                                     {
                                         // No Op (Leave in)
                                     }
-                                    else if (sJson != "")
+                                    else if (sJson.Contains("mining.subscribe"))
+                                {
+                                    // no op
+                                }
+                                    else if (sJson.Contains("mining.altruism"))
+                                {
+
+                                }
+                                else if (sJson.Contains("mining.authorize") || sJson.Contains("Unauthenticated"))
+                                {
+
+                                }
+                                else if (sJson != "")
                                     {
-                                        Console.WriteLine("msg1:"+sJson);
+                                        Console.WriteLine("msg1_:"+sJson);
                                     }
                                 }
 
@@ -1189,72 +1194,77 @@ namespace BiblePay.BMS.DSQL
                                     for (int i = 0; i < vData.Length; i++)
                                     {
                                         string sJson = vData[i];
-                                        if (sJson.Contains("result"))
+                                    if (sJson.Contains("result"))
+                                    {
+                                        WorkerInfo w = GetWorker(socketid);
+                                        SetWorker(w, socketid);
+                                        JObject oStratum = JObject.Parse(sJson);
+                                        string status = oStratum["result"]["status"].ToString();
+                                        int id = (int)GetDouble(oStratum["id"]);
+                                        if (id == 1 && status == "OK" && sJson.Contains("blob"))
                                         {
-                                            WorkerInfo w = GetWorker(socketid);
-                                            SetWorker(w, socketid);
-                                            JObject oStratum = JObject.Parse(sJson);
-                                            string status = oStratum["result"]["status"].ToString();
-                                            int id = (int)GetDouble(oStratum["id"]);
-                                            if (id == 1 && status == "OK" && sJson.Contains("blob"))
-                                            {
-                                                // BiblePay Pool to Miner
-                                                nTrace = 22;
-                                                double nJobId = GetDouble(oStratum["result"]["job"]["job_id"].ToString());
-                                                XMRJob x = RetrieveXMRJob(socketid);
-                                                x.blob = oStratum["result"]["job"]["blob"].ToString();
-                                                x.target = oStratum["result"]["job"]["target"].ToString();
-                                                x.seed = oStratum["result"]["job"]["seed_hash"].ToString();
-                                                x.difficulty = ConvertTargetToDifficulty(x);
-                                                PutXMRJob(x);
-                                            }
-                                            else if (id > 1 && status == "OK")
-                                            {
-                                                // They solved an XMR
-                                                int iCharity = fCharity ? 1 : 0;
-                                                nTrace = 24;
-                                                // Weight adjusted share
-                                                XMRJob x = RetrieveXMRJob(socketid);
-                                                double nShareAdj = WeightAdjustedShare(x);
-                                                nDebugCount++;
-                                                System.Diagnostics.Debug.WriteLine("solved " + nDebugCount.ToString());
-                                                InsShare(bbpaddress, nShareAdj, 0, _template.height, nShareAdj, iCharity, moneroaddress);
-                                            }
-                                            else if (id > 1 && status != "OK" && status != "KEEPALIVED")
-                                            {
-                                                nTrace = 25;
-                                                InsShare(bbpaddress, 0, 1, _template.height, 0, 0, moneroaddress);
-                                            }
-                                        }
-                                        else if (sJson.Contains("submit"))
-                                        {
-                                            // Noop
-                                        }
-                                        else if (sJson.Contains("\"method\":\"job\""))
-                                        {
-                                            nTrace = 26;
-                                            JObject oStratum = JObject.Parse(sJson);
-                                            nTrace = 27;
-                                            double nJobId = GetDouble(oStratum["params"]["job_id"].ToString());
+                                            // BiblePay Pool to Miner
+                                            nTrace = 22;
+                                            double nJobId = GetDouble(oStratum["result"]["job"]["job_id"].ToString());
                                             XMRJob x = RetrieveXMRJob(socketid);
-                                            x.blob = oStratum["params"]["blob"].ToString();
-                                            x.target = oStratum["params"]["target"].ToString();
-                                            x.seed = oStratum["params"]["seed_hash"].ToString();
+                                            x.blob = oStratum["result"]["job"]["blob"].ToString();
+                                            x.target = oStratum["result"]["job"]["target"].ToString();
+                                            x.seed = oStratum["result"]["job"]["seed_hash"].ToString();
                                             x.difficulty = ConvertTargetToDifficulty(x);
                                             PutXMRJob(x);
-                                            nTrace = 27.9;
                                         }
-                                        else if (sJson != "")
+                                        else if (id > 1 && status == "OK")
                                         {
-                                            Console.WriteLine("msg15:"+sJson);
-                                            if (sJson.ToLower().Contains("invalid share"))
-                                            {
-                                               // Lets ban the user for 5 mins otherwise the XMR pool might ban us.
-                                               WorkerInfo w = GetWorker(socketid);  
-                                               w.banneduntil = BMSCommon.Common.UnixTimestamp() + (60 * 60 * 5);
-                                               SetWorker(w, socketid);
-                                            }
+                                            // They solved an XMR
+                                            int iCharity = fCharity ? 1 : 0;
+                                            nTrace = 24;
+                                            // Weight adjusted share
+                                            XMRJob x = RetrieveXMRJob(socketid);
+                                            double nShareAdj = WeightAdjustedShare(x);
+                                            nDebugCount++;
+                                            System.Diagnostics.Debug.WriteLine("solved " + nDebugCount.ToString());
+                                            InsShare(bbpaddress, nShareAdj, 0, _template.height, nShareAdj, iCharity, moneroaddress);
                                         }
+                                        else if (id > 1 && status != "OK" && status != "KEEPALIVED")
+                                        {
+                                            nTrace = 25;
+                                            InsShare(bbpaddress, 0, 1, _template.height, 0, 0, moneroaddress);
+                                        }
+                                    }
+                                    else if (sJson.Contains("submit"))
+                                    {
+                                        // Noop
+                                    }
+                                    else if (sJson.Contains("\"method\":\"job\""))
+                                    {
+                                        nTrace = 26;
+                                        JObject oStratum = JObject.Parse(sJson);
+                                        nTrace = 27;
+                                        double nJobId = GetDouble(oStratum["params"]["job_id"].ToString());
+                                        XMRJob x = RetrieveXMRJob(socketid);
+                                        x.blob = oStratum["params"]["blob"].ToString();
+                                        x.target = oStratum["params"]["target"].ToString();
+                                        x.seed = oStratum["params"]["seed_hash"].ToString();
+                                        x.difficulty = ConvertTargetToDifficulty(x);
+                                        PutXMRJob(x);
+                                        nTrace = 27.9;
+                                    }
+                                    else if (sJson.Contains("Unauthenticated"))
+                                    {
+                                        //noop
+                                    }
+                                    else if (sJson != "")
+                                    {
+                                        Console.WriteLine("msg15:" + sJson);
+                                        if (sJson.ToLower().Contains("invalid share") || sJson.ToLower().Contains("currently banned for"))
+                                        {
+                                            // Lets ban the user for 5 mins otherwise the XMR pool might ban us.
+                                            WorkerInfo w = GetWorker(socketid);
+                                            w.banneduntil = BMSCommon.Common.UnixTimestamp() + (60 * 60 * 5);
+                                            SetWorker(w, socketid);
+                                            System.Threading.Thread.Sleep(2000);
+                                        }
+                                    }
                                     }
                                 }
 
@@ -1326,7 +1336,10 @@ namespace BiblePay.BMS.DSQL
                         string poolAccount = GetConfigurationKeyValue("PoolPayAccount");
                         string sPAKey = _fTestNet ? "tPoolAddress" : "PoolAddress";
                         string sPoolAddress = GetConfigurationKeyValue(sPAKey);
-
+                        if (System.Diagnostics.Debugger.IsAttached)
+                    {
+                        return;
+                    }
                         if (poolAccount == "" || sPoolAddress == "")
                         {
                             BMSCommon.Common.Log("This pool configuration has no key set for PoolPayAccount.  Unable to start pool.  You also need to set PoolAddress.  ");

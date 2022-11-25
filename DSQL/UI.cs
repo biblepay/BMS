@@ -1,4 +1,6 @@
-﻿using BMSCommon;
+﻿using BiblePay.BMS.Extensions;
+using BMSCommon;
+using BMSCommon.Models;
 using Microsoft.AspNetCore.Http;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
@@ -15,6 +17,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using static BMSCommon.CryptoUtils;
+using static BMSCommon.Model;
+using static BMSCommon.Pricing;
 
 namespace BiblePay.BMS.DSQL
 {
@@ -65,29 +69,26 @@ namespace BiblePay.BMS.DSQL
         }
     }
 
-
-    public static class SessionExtensions
-    {
-        public static void SetObject(this ISession session, string key, object value)
-        {
-            session.SetString(key, JsonConvert.SerializeObject(value));
-        }
-
-        public static T GetObject<T>(this ISession session, string key)
-        {
-            var value = session.GetString(key);
-            return value == null ? default(T) : JsonConvert.DeserializeObject<T>(value);
-        }
-
-        public static bool ObjectExists(this ISession session, string key)
-        {
-            var value = session.GetString(key);
-            return (value == null ? false : true);
-        }
-    }
-
     public static class UI
     {
+
+        public static double ConvertUSDToBiblePay(double nUSD)
+        {
+            price1 nBTCPrice = BMSCommon.Pricing.GetCryptoPrice("BTC");
+            price1 nBBPPrice = BMSCommon.Pricing.GetCryptoPrice("BBP");
+            double nUSDBBP = nBTCPrice.AmountUSD * nBBPPrice.Amount;
+            double nOut = nUSD / (nUSDBBP + .000000001);
+            return nOut;
+        }
+
+        public static double ConvertBBPToUSD(double nBBP)
+        {
+            price1 nBTCPrice = BMSCommon.Pricing.GetCryptoPrice("BTC");
+            price1 nBBPPrice = BMSCommon.Pricing.GetCryptoPrice("BBP");
+            double nUSDBBP = nBTCPrice.AmountUSD * nBBPPrice.Amount;
+            double nOut = nUSDBBP * nBBP;
+            return nOut;
+        }
 
         public class ChatItem
         {
@@ -111,7 +112,7 @@ namespace BiblePay.BMS.DSQL
             m1.Parameters.AddWithValue("@recipient", ci.To);
             m1.Parameters.AddWithValue("@sender", ci.From);
             m1.Parameters.AddWithValue("@body", ci.body);
-            bool fIns = BMSCommon.Database.ExecuteNonQuery(m1);
+            bool fIns = BMSCommon.Database.ExecuteNonQuery2(m1);
             return fIns;
         }
 
@@ -142,7 +143,7 @@ namespace BiblePay.BMS.DSQL
         {
             string sql = "Select * from chat order by Added;";
             MySqlCommand m1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(m1);
+            DataTable dt = BMSCommon.Database.GetDataTable2(m1);
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 ChatItem ci = new ChatItem();
@@ -162,6 +163,104 @@ namespace BiblePay.BMS.DSQL
             public string returntype;
             public string returnurl;
         }
+        public class ServerToClient2
+        {
+            public string Body { get; set; }
+            public string Type { get; set; }
+            public string Error { get; set; }
+            public ServerToClient2()
+            {
+                Body = String.Empty;
+                Type = String.Empty;
+                Error = String.Empty;
+            }
+        }
+
+        public class DOMItem
+        {
+            public string ID { get; set; }
+            public string Value { get; set; }
+            public double AsDouble
+            {
+                get
+                {
+                    if (Value == null || Value == String.Empty)
+                        return 0;
+                    return Convert.ToDouble(Value);
+                }
+            }
+
+
+            public Int32 AsInt32
+            {
+                get
+                {
+                    if (Value == null || Value == String.Empty)
+                        return 0;
+                    return Convert.ToInt32(Value);
+                }
+            }
+
+
+            public string ParentID { get; set; }
+            public string GUID { get; set; }
+            public DOMItem()
+            {
+                ID = String.Empty;
+                Value = String.Empty;
+                ParentID = String.Empty;
+                GUID = Guid.NewGuid().ToString();
+            }
+        }
+
+        public class TransformDOM
+        {
+            public string FormData { get; set; }
+            public Dictionary<string, DOMItem> dictForm = new Dictionary<string, DOMItem>();
+            public List<string> lParents = new List<string>();
+
+            private void TransformFormData()
+            {
+                if (FormData == String.Empty)
+                    return;
+                dictForm.Clear();
+                lParents.Clear();
+                string[] vRows = FormData.Split("<row>");
+                for(int i = 0; i < vRows.Count(); i++)
+                {
+                    string[] vCols = vRows[i].Split("<col>");
+                    if (vCols.Length > 2)
+                    {
+                        DOMItem d = new DOMItem();
+                        d.ParentID = vCols[0];
+                        d.ID = vCols[1];
+                        d.Value = vCols[2];
+                        d.GUID = Guid.NewGuid().ToString();
+                        dictForm[d.GUID] = d;
+                        if (!lParents.Contains(d.ParentID) && d.ParentID != null)
+                            lParents.Add(d.ParentID);
+                    }
+                }
+            }
+
+            public DOMItem GetDOMItem(string sParentID, string sElementID)
+            {
+               foreach(KeyValuePair<string, DOMItem> kvp in dictForm)
+               {
+                    if (kvp.Value.ParentID==sParentID && kvp.Value.ID == sElementID)
+                    {
+                        return kvp.Value;
+                    }
+                }
+                return null;
+            }
+            public TransformDOM(string _FormData)
+            {
+                FormData = _FormData;
+                TransformFormData();
+            }
+        }
+
 
         public class DropDownItem
         {
@@ -178,7 +277,6 @@ namespace BiblePay.BMS.DSQL
         {
             try
             {
-
                 Uri myUri = new Uri(url);
                 string host = myUri.Host;
                 bool fContainsNumbers = host.All(char.IsDigit);
@@ -218,10 +316,9 @@ namespace BiblePay.BMS.DSQL
                     }
 
                 }
-                string s99 = "";
 
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return true;
             }
@@ -272,14 +369,14 @@ namespace BiblePay.BMS.DSQL
                 return "";
             }
         }
-        public static BMSCommon.WebRPC.DACResult SendBBP(HttpContext h, string sToAddress, double nAmount, string sOptPayload = "", string sOptNonce = "")
+        public static DACResult SendBBP(HttpContext h, string sToAddress, double nAmount, string sOptPayload = "", string sOptNonce = "")
         {
             BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(h,sOptNonce);
             string sData = BMSCommon.WebRPC.GetAddressUTXOs(IsTestNet(h), k.PubKey);
             string sErr = "";
             string sTXID = "";
             NBitcoin.Crypto.BBPTransaction.PrepareFundingTransaction(IsTestNet(h), nAmount, sToAddress, k.PrivKey, sOptPayload, sData, out sErr, out sTXID);
-            BMSCommon.WebRPC.DACResult r = new BMSCommon.WebRPC.DACResult();
+            DACResult r = new DACResult();
             if (sErr != "")
             {
                 r.Error = sErr;
@@ -289,18 +386,32 @@ namespace BiblePay.BMS.DSQL
             return r;
         }
 
-        public static BMSCommon.WebRPC.DACResult SendBBPOldMethod(bool fTestNet, string sType, string sToAddress, double nAmount, string sPayload)
+        public static DACResult SendBBPFromSubscription(bool fTestNet, BMSCommon.Encryption.KeyType kPayer, string sToAddress, double nAmount, string sOptPayload = "", string sOptNonce = "")
         {
+            string sData = BMSCommon.WebRPC.GetAddressUTXOs(fTestNet, kPayer.PubKey);
+            string sErr = "";
+            string sTXID = "";
+            NBitcoin.Crypto.BBPTransaction.PrepareFundingTransaction(fTestNet, nAmount, sToAddress, kPayer.PrivKey, sOptPayload, sData, out sErr, out sTXID);
+            BMSCommon.Model.DACResult r = new BMSCommon.Model.DACResult();
+            if (sErr != "")
+            {
+                r.Error = sErr;
+                return r;
+            }
+            r = BMSCommon.WebRPC.SendRawTx(fTestNet, sTXID);
+            return r;
+        }
 
-            string sPackaged = BMSCommon.WebRPC.PackageMessage(fTestNet, sType, sPayload);
-
+        public static BMSCommon.Model.DACResult SendBBPOldMethod(bool fTestNet, string sType, string sToAddress, double nAmount, string sPayload)
+        {
+            string sPackaged = BMSCommon.WebRPC.PackageBBPChainDataMessage(fTestNet, sType, sPayload);
             string sPrivKey = BMSCommon.WebRPC.GetFDPair(fTestNet);
             string sPubKey = BMSCommon.WebRPC.GetFDPubKey(fTestNet);
             string sUnspentData = BMSCommon.WebRPC.GetAddressUTXOs(fTestNet, sPubKey);
             string sErr = "";
             string sTXID = "";
             NBitcoin.Crypto.BBPTransaction.PrepareFundingTransaction(fTestNet, nAmount, sToAddress, sPrivKey, sPackaged, sUnspentData, out sErr, out sTXID);
-            BMSCommon.WebRPC.DACResult r = new BMSCommon.WebRPC.DACResult();
+            DACResult r = new DACResult();
             if (sErr != "")
             {
                 r.Error = sErr;
@@ -355,19 +466,9 @@ namespace BiblePay.BMS.DSQL
             return s;
         }
 
-        public static DataTable GetUserByERC20Address(bool fTestNet, string sERC20Address)
-        {
-            string sTable = fTestNet  ? "tuser" : "user";
-            string sql = "Select * from " + sTable + " where ERC20Address=@erc;";
-            MySqlCommand m1 = new MySqlCommand(sql);
-            m1.Parameters.AddWithValue("@erc", sERC20Address);
-            DataTable dt = Database.GetDataTable(m1);
-            return dt;
-        }
-
         public static string GetBioURL(HttpContext h)
         {
-            BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(h);
+            BMSCommon.CryptoUtils.User u = h.GetCurrentUser();
             string sBIO = GetBioURL(u.BioURL);
             return sBIO;
         }
@@ -494,6 +595,8 @@ namespace BiblePay.BMS.DSQL
         }
         public static string GetAvatarBalance(HttpContext h, bool fEraseCache)
         {
+            EnsurePMCached(h);
+
             return FormatUSD(GetAvatarBalanceNumeric(h, fEraseCache));
         }
 
@@ -510,10 +613,10 @@ namespace BiblePay.BMS.DSQL
             h.Session.SetString(sChain + "_" + sKey, nValue.ToString());
         }
 
-        public static string GetAvatarPicture(bool fTestNet, string sUserID)
+        public static async Task<string> GetAvatarPicture(bool fTestNet, string sUserID)
         {
-            User u1 = GetCachedUser(fTestNet, sUserID);
-            string sBioURL = "";
+            User u1 = await GetCachedUser(fTestNet, sUserID);
+            string sBioURL = String.Empty;
             if (u1 == null)
             {
                 sBioURL = "/img/demo/avatars/emptyavatar.png";
@@ -528,11 +631,10 @@ namespace BiblePay.BMS.DSQL
         }
         public static double GetAvatarBalanceNumeric(HttpContext h, bool fEraseCache)
         {
-            BMSCommon.CryptoUtils.User u = GetUser(h);
+            BMSCommon.CryptoUtils.User u = h.GetCurrentUser();
             long nElapsed = (long)(BMSCommon.Common.UnixTimestamp() - GetSessionDouble(h, "lastbalancecheck"));
             string sChain = GetChain(h);
             BMSCommon.CryptoUtils.SetLastUserActivity(IsTestNet(h), u.ERC20Address);
-            
             if (nElapsed < 60*2 && !fEraseCache)
             {
                 double nNewBal = BMSCommon.Common.GetDouble(h.Session.GetString(sChain + "_balance"));
@@ -549,7 +651,23 @@ namespace BiblePay.BMS.DSQL
             return nBal;
         }
 
-        
+        private static async void PMCacheStart()
+        {
+            
+            await BBPTestHarness.BlockChairTestHarness.GetDWU(false);
+
+        }
+        public static void EnsurePMCached(HttpContext h)
+        {
+            string sDate = h.Session.GetString("pmcached");
+            if (sDate == null || sDate != System.DateTime.Now.ToShortDateString())
+            {
+                h.Session.SetString("pmcached", System.DateTime.Now.ToShortDateString());
+                System.Threading.Thread t = new System.Threading.Thread(PMCacheStart);
+                t.Start();
+            }
+        }
+
 
         public static string GetChain(HttpContext s)
         {
@@ -584,29 +702,30 @@ namespace BiblePay.BMS.DSQL
 
         
         
-        public static BMSCommon.CryptoUtils.User GetUser(HttpContext s)
+        public static async Task<BMSCommon.CryptoUtils.User> GetUser(HttpContext s)
         {
             string sKey = IsTestNet(s) ? "tUser" : "User";
             BMSCommon.CryptoUtils.User u = s.Session.GetObject<BMSCommon.CryptoUtils.User>(sKey);
             if (u == null)
                 u = new BMSCommon.CryptoUtils.User();
-
-
             
-            if (u.ERC20Address=="" || u.ERC20Address == null)
+            if (u.ERC20Address==String.Empty || u.ERC20Address == null)
             {
-                s.Request.Cookies.TryGetValue("erc20address", out u.ERC20Address);
+                string e = String.Empty;
+                s.Request.Cookies.TryGetValue("erc20address", out e);
+                u.ERC20Address = e;
             }
 
-            if (!u.LoggedIn && u.ERC20Address != "")
+            if (!u.LoggedIn && u.ERC20Address != String.Empty)
             {
-                u = BMSCommon.CryptoUtils.DepersistUser(IsTestNet(s),u.ERC20Address);
+                u = await GetCachedUser(IsTestNet(s),u.ERC20Address);
                 s.Session.SetObject(sKey, u);
                 if (u.ERC20Address == "" || u.ERC20Address == null)
                 {
-                    s.Request.Cookies.TryGetValue("erc20address", out u.ERC20Address);
+                    string f = String.Empty;
+                    s.Request.Cookies.TryGetValue("erc20address", out f);
+                    u.ERC20Address = f;
                 }
-
             }
 
             BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(s);
@@ -619,29 +738,25 @@ namespace BiblePay.BMS.DSQL
             {
                 u.LoggedIn = false;
             }
-
-
-
             return u;
         }
 
         public static void SetUser(BMSCommon.CryptoUtils.User u, HttpContext s)
         {
             string sKey = IsTestNet(s) ? "tUser" : "User";
-
             s.Session.SetObject(sKey, u);
         }
 
-        public static string GetLogInAction(HttpContext s)
+        public static async Task<string> GetLogInAction(HttpContext s)
         {
-            string s1 = GetLogInStatus(s);
+            string s1 = await GetLogInStatus(s);
             string sLogOut = "var c = confirm('Are you sure you want to Log Out?'); if (c) { DoCallback('profile_logout'); }";
             string sLoc = s1 == "LOGGED OUT" ? "location.href='/page/profile';" : sLogOut;
             return sLoc;
         }
-        public static string GetLogInStatus(HttpContext s)
+        public static async Task<string> GetLogInStatus(HttpContext s)
         {
-            BMSCommon.CryptoUtils.User u = GetUser(s);
+            BMSCommon.CryptoUtils.User u = await GetUser(s);
             string status = "";
             BMSCommon.Encryption.KeyType k = GetKeyPair(s);
 
@@ -677,9 +792,30 @@ namespace BiblePay.BMS.DSQL
             }
             return k;
         }
+
+        public static BMSCommon.Encryption.KeyType GetKeyPair2(bool fTestNet, string sERC20Address, string sSig, string sNonce = "")
+        {
+            BMSCommon.Encryption.KeyType k = new BMSCommon.Encryption.KeyType();
+            DSQL.ERC712Authenticator b = new DSQL.ERC712Authenticator();
+            bool f = b.VerifyERC712Signature(sSig, sERC20Address);
+            if (f)
+            {
+                    string sDerivationSource = sSig + sNonce;
+                    k = BMSCommon.Encryption.DeriveKey(fTestNet, sDerivationSource);
+                    return k;
+            }
+            return k;
+        }
+
+        public static BMSCommon.Encryption.KeyType GetKeyPair3(bool fTestNet, string sDerivSource)
+        {
+            BMSCommon.Encryption.KeyType k = new BMSCommon.Encryption.KeyType();
+            k = BMSCommon.Encryption.DeriveKey(fTestNet, sDerivSource);
+            return k;
+        }
         public static string GetTemplate(string sName)
         {
-            string sLoc = Path.Combine(BMSCommon.Database.msContentRootPath, "wwwroot/templates/" + sName);
+            string sLoc = Path.Combine(BMSCommon.Model.msContentRootPath, "wwwroot/templates/" + sName);
             string data = System.IO.File.ReadAllText(sLoc);
             return data;
         }
@@ -694,17 +830,17 @@ namespace BiblePay.BMS.DSQL
             return data;
         }
 
-        public static string GetTimelinePostDiv(HttpContext h, string sParentID)
+        public static async Task<string> GetTimelinePostDiv(HttpContext h, string sParentID)
         {
             string data = GetTemplate("timeline.htm");
             // This is the reply to dialog, hence we replace with the active user:
             data = data.Replace("@BioURL",GetBioURL(h));
             data = data.Replace("@parentid", sParentID);
             // Append the posts, one by one from all who posted on this thread.
-            List<Timeline> l = Timeline.Get(IsTestNet(h), sParentID);
+            List<Timeline> l = await Timeline.Get(IsTestNet(h), sParentID);
             for (int i = 0; i < l.Count; i++)
             {
-                User uRow =CryptoUtils.GetCachedUser(IsTestNet(h), l[i].ERC20Address);
+                User uRow = await CryptoUtils.GetCachedUser(IsTestNet(h), l[i].ERC20Address);
                 if (uRow != null)
                 {
                     string entry = GetTemplate("timelinepost.htm");
@@ -759,11 +895,11 @@ namespace BiblePay.BMS.DSQL
             return data;
         }
 
-        public static bool InsertNotification(bool fTestNet, string sUID, string sFromUser, string sBody, string sType, string sURL)
+        public static async Task<bool> InsertNotification(bool fTestNet, string sUID, string sFromUser, string sBody, string sType, string sURL)
         {
             string sKey = sType + sUID + sFromUser;
 
-            bool fLatch = BMSCommon.Pricing.Latch(fTestNet, sKey, 60 * 60 * 1);
+            bool fLatch = await BMSCommon.Database.LatchNew(fTestNet, sKey, 60 * 60 * 1);
             if (!fLatch)
                 return false;
 
@@ -775,8 +911,7 @@ namespace BiblePay.BMS.DSQL
             cmd1.Parameters.AddWithValue("@body", sBody);
             cmd1.Parameters.AddWithValue("@type", sType);
             cmd1.Parameters.AddWithValue("@URL", sURL);
-
-            bool f = Database.ExecuteNonQuery(cmd1);
+            bool f = Database.ExecuteNonQuery2(cmd1);
             return f;
         }
 
@@ -794,17 +929,17 @@ namespace BiblePay.BMS.DSQL
             return status;
         }
 
-        public static string GetNotifications(HttpContext h, string sUserID)
+        public static async Task<string> GetNotifications(HttpContext h, string sUserID)
         {
             string sTable = IsTestNet(h) ? "tnotification" : "notification";
             string sql = "Select * from " + sTable + " where uid=@uid;";
             MySqlCommand cmd1 = new MySqlCommand(sql);
             cmd1.Parameters.AddWithValue("@uid", sUserID);
-            DataTable dt = BMSCommon.Database.GetDataTable(cmd1);
-            string html = "";
+            DataTable dt = BMSCommon.Database.GetDataTable2(cmd1);
+            string html = String.Empty;
             for (int i = 0; i < dt.Rows.Count; i++)
             {
-                User uRow = CryptoUtils.GetCachedUser(IsTestNet(h), dt.Rows[i]["FromUser"].ToString());
+                User uRow = await CryptoUtils.GetCachedUser(IsTestNet(h), dt.Rows[i]["FromUser"].ToString());
                 DateTime dtTime = Convert.ToDateTime(dt.Rows[i]["added"]);
                 bool fActive = IsUserActive(false, uRow.ERC20Address);
 
@@ -829,7 +964,7 @@ namespace BiblePay.BMS.DSQL
             data = data.Replace("@tableid", tableid);
             data = data.Replace("@tablename", title);
             string th = "<th>Col1</th><th>Col2</th><th>Col3</th>";
-            string tr = "";
+            string tr = String.Empty;
             for (int i = 0; i < 50; i++)
             {
                 string row = "<tr><td>Val " + i.ToString() + "</td><td>col2 " + i.ToString() + "</td><td>value 3</td></tr>";
@@ -840,7 +975,49 @@ namespace BiblePay.BMS.DSQL
             return data;
         }
 
+        public static string GetChartOfGenericDataTradingView(List<QuantChart> l, string sChartType)
+        {
+            DateTime dtOldTime = new DateTime();
+            string[] sDataSet = new string[10];
 
+            for (int ch = 0; ch < l.Count; ch++)
+            {
+                for (int i = 0; i < l[ch].Chart.Count; i++)
+                {
+                        QuantChartItem dp = l[ch].Chart[i];
+                        DateTime dtchart = dp.date.AddDays(0);
+
+                        string sRow = "{ time: '" + dtchart.ToString("yyyy-MM-dd") + "', value: " + (dp.value).ToString() + " },";
+                        string sStick = "{ time: '" + dtchart.ToString("yyyy-MM-dd") + "', open: " + dp.value.ToString() + ", high: " + dp.value.ToString() + ", low: " + dp.value.ToString() + ", close: " + (dp.value+1).ToString() + "},";
+                        string sActive = sChartType == "candlestick" ? sStick : sRow;
+                        if (dtOldTime == dtchart)
+                        {
+                            bool f999 = false;
+                        }
+                    else
+                    {
+                        sDataSet[ch] += sActive;
+                    }
+                    dtOldTime = dtchart;
+                }
+            }
+            for (int i = 0; i < l.Count; i++)
+            {
+                sDataSet[i] = sDataSet[i].Substring(0, sDataSet[i].Length - 1);
+            }
+            string sGuid = Guid.NewGuid().ToString();
+            string sJSName = (sChartType == "candlestick") ? "chart_tradingview_candle.htm" : "chart_tradingview_area.htm";
+            string sTemplate = GetTemplate(sJSName);
+
+            sTemplate = sTemplate.Replace("seriesdata0", sDataSet[0]);
+            sTemplate = sTemplate.Replace("@chartid0", "chart" + sGuid);
+            for (int i = 1; i < l.Count; i++)
+            {
+                string sSeriesNew = "chart.addLineSeries({color:'rgba(4,111,232,1)',lineWidth:2,}).setData([" + sDataSet[i] + "]);";
+                sTemplate = sTemplate.Replace("seriesdata" + i.ToString(), sSeriesNew);
+            }
+            return sTemplate;
+        }
 
     }
 

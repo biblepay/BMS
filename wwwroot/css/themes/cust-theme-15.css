@@ -359,7 +359,7 @@ html body {
       color: #7289aa; }
 
 .header-icon {
-  color: #666666; }
+  color: #151515; }
   .header-icon:not(.btn) > [class*='fa-']:first-child,
   .header-icon:not(.btn) > .ni:first-child {
     color: #627ca0; }
@@ -414,7 +414,7 @@ html body {
   cursor: pointer; }
 
 .app-list-item {
-  color: #666666; }
+  color: #151515; }
   .app-list-item:hover {
     border: 1px solid #e3e3e3; }
   .app-list-item:active {
@@ -445,9 +445,11 @@ html body {
     display: block; }
   .nav-menu li.active:not(.open) > a:before {
     color: #24b3a4; }
-
-.nav-menu li a {
-  color: #a4afbf; }
+  /*BBP: Changing the left menu foreground to be whiter: from a4afbf to ffffff*/
+.nav-menu li a 
+{
+    
+  color: #c4cfdf; }
   .nav-menu li a .dl-ref.label {
     color: rgba(255, 255, 255, 0.7); }
   .nav-menu li a > [class*='fa-'],
@@ -476,10 +478,11 @@ html body {
 .nav-menu li b.collapse-sign {
   color: #7289aa; }
 
+/*BBP: Brightening the left menu*/
 .nav-menu li > ul {
   background-color: rgba(0, 0, 0, 0.1); }
   .nav-menu li > ul li a {
-    color: #95a2b5; }
+    color: #a5c2c5; }
     .nav-menu li > ul li a > [class*='fa-'],
     .nav-menu li > ul li a > .ni {
       color: #687b95; }
@@ -587,7 +590,7 @@ html body {
       .nav-function-top .page-sidebar .primary-nav .nav-menu > li > ul {
         background: #4f5d71; }
         .nav-function-top .page-sidebar .primary-nav .nav-menu > li > ul li a {
-          color: #a4afbf; }
+          color: #c4cfdf; }
         .nav-function-top .page-sidebar .primary-nav .nav-menu > li > ul li ul {
           background: #4f5d71; }
         .nav-function-top .page-sidebar .primary-nav .nav-menu > li > ul li:hover > a {
@@ -1111,9 +1114,12 @@ label.menu-open-button {
     border-color: #627ca0; }
 
 /* backgrounds */
-.bg-white {
-  background-color: #fff;
-  color: #666666; }
+.bg-white 
+{
+  background-color: rgba(255,255,255,.5);
+  color: #151515; 
+  font-weight:400 !important;
+}
 
 .bg-faded {
   background-color: #f7f9fa; }

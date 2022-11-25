@@ -14,32 +14,32 @@
   <ItemGroup>
     <Compile Remove="BMS.BMSD\**" />
     <Compile Remove="BMSCommon\**" />
+    <Compile Remove="Data\**" />
     <Compile Remove="Models\Tetris\**" />
-    <Compile Remove="Pages\Partials\**" />
     <Compile Remove="Views\Docs\**" />
     <Compile Remove="Views\FormPlugins\**" />
     <Compile Remove="Views\Statistics\**" />
     <Compile Remove="Views\Utilities\**" />
     <Content Remove="BMS.BMSD\**" />
     <Content Remove="BMSCommon\**" />
+    <Content Remove="Data\**" />
     <Content Remove="Models\Tetris\**" />
-    <Content Remove="Pages\Partials\**" />
     <Content Remove="Views\Docs\**" />
     <Content Remove="Views\FormPlugins\**" />
     <Content Remove="Views\Statistics\**" />
     <Content Remove="Views\Utilities\**" />
     <EmbeddedResource Remove="BMS.BMSD\**" />
     <EmbeddedResource Remove="BMSCommon\**" />
+    <EmbeddedResource Remove="Data\**" />
     <EmbeddedResource Remove="Models\Tetris\**" />
-    <EmbeddedResource Remove="Pages\Partials\**" />
     <EmbeddedResource Remove="Views\Docs\**" />
     <EmbeddedResource Remove="Views\FormPlugins\**" />
     <EmbeddedResource Remove="Views\Statistics\**" />
     <EmbeddedResource Remove="Views\Utilities\**" />
     <None Remove="BMS.BMSD\**" />
     <None Remove="BMSCommon\**" />
+    <None Remove="Data\**" />
     <None Remove="Models\Tetris\**" />
-    <None Remove="Pages\Partials\**" />
     <None Remove="Views\Docs\**" />
     <None Remove="Views\FormPlugins\**" />
     <None Remove="Views\Statistics\**" />
@@ -67,8 +67,6 @@
 
   <ItemGroup>
     <Content Remove="App.razor" />
-    <Content Remove="Pages\Tetris.razor" />
-    <Content Remove="Pages\_Imports.razor" />
     <Content Remove="Views\AspNetCore\Editions.cshtml" />
     <Content Remove="wwwroot\templates\updLeaderboard.htm" />
     <Content Remove="_Imports.razor" />
@@ -85,17 +83,21 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="3.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="3.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.24" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.3.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.2" />
     <PackageReference Include="Nethereum.Signer.EIP712" Version="4.4.1" />
     <PackageReference Include="PRO-Systems.SouthXchange.API" Version="1.0.19" />
     <PackageReference Include="ScrapySharp" Version="3.0.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.3" />
     <PackageReference Include="System.Net.Http.Json" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="B:\BiblePay\BBPTestHarness\BBPTestHarness\BBPTestHarness\BBPTestHarness.csproj" />
     <ProjectReference Include="B:\BiblePay\BiblePayBMS\BMS\BMSCommon\BMSCommon\BMSCommon.csproj" />
+    <ProjectReference Include="C:\Users\rachalupa\source\repos\OptionsShared\OptionsShared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

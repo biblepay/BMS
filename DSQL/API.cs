@@ -1,12 +1,18 @@
-﻿using MySql.Data.MySqlClient;
+﻿using BMSCommon;
+using MySql.Data.MySqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using static BiblePay.BMS.Common;
+using static BMSCommon.BitcoinSync;
 using static BMSCommon.Common;
+using static BMSCommon.Model;
 using static BMSCommon.WebRPC;
 
 namespace BiblePay.BMS.DSQL
@@ -94,7 +100,7 @@ namespace BiblePay.BMS.DSQL
         }
     }
 
-    public static class Proposal
+    public static class GovernanceProposal
     { 
 
         private static string GJE(string sKey, string sValue, bool bIncludeDelimiter, bool bQuoteValue)
@@ -114,49 +120,39 @@ namespace BiblePay.BMS.DSQL
             return sOut;
         }
 
-        public static string gobject_serialize_internal(int nStartTime, int nEndTime, string sName, string sAddress, string sAmount, string sURL, string sExpenseType)
+        public static string gobject_serialize_internal(Proposal p)
         {
 
             // gobject prepare 0 1 EPOCH_TIME HEX
             string sType = "1"; //Proposal
             string sQ = "\"";
             string sJson = "[[" + sQ + "proposal" + sQ + ",{";
-            sJson += GJE("start_epoch", nStartTime.ToString(), true, false);
-            sJson += GJE("end_epoch", nEndTime.ToString(), true, false);
-            sJson += GJE("name", sName, true, true);
-            sJson += GJE("payment_address", sAddress, true, true);
-            sJson += GJE("payment_amount", sAmount, true, false);
+            sJson += GJE("start_epoch", p.nStartTime.ToString(), true, false);
+            sJson += GJE("end_epoch", p.nEndTime.ToString(), true, false);
+            sJson += GJE("name", p.Name, true, true);
+            sJson += GJE("payment_address", p.BBPAddress, true, true);
+            sJson += GJE("payment_amount", p.Amount.ToString(), true, false);
             sJson += GJE("type", sType, true, false);
-            sJson += GJE("expensetype", sExpenseType, true, true);
-            sJson += GJE("url", sURL, false, true);
+            sJson += GJE("expensetype", p.ExpenseType, true, true);
+            sJson += GJE("url", p.URL, false, true);
             sJson += "}]]";
             // make into hex
             string Hex = HexadecimalEncoding.StringToHex(sJson);
             return Hex;
         }
-        public static bool gobject_serialize(bool fTestNet, string sERC20Address, string sNickName,
-        string sName, string sAddress, string sAmount, string sURL, string sExpenseType)
+        public async static Task<bool> gobject_serialize(bool fTestNet, Proposal p)
         {
-            string sChain = fTestNet ? "test" : "main";
             try
             {
-                int unixStartTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
-                int unixEndTime = unixStartTimestamp + (60 * 60 * 24 * 7);
-                string sHex = gobject_serialize_internal(unixStartTimestamp, unixEndTime, sName, sAddress, sAmount, sURL, sExpenseType);
-                string sID = Guid.NewGuid().ToString();
-                string sql = "Insert Into proposal (id,ExpenseType,ERC20Address,NickName,URL,name,Address,amount,unixstarttime,"
-                    + "preparetxid,added,updated,hex,chain) values ('" + sID + "',@ExpenseType,@ERC20Address,@NickName,@URL,@Name,@Address,@Amount,'" + unixStartTimestamp.ToString()
-                    + "',null,now(),now(),'" + sHex + "','" + sChain + "')";
-                MySqlCommand m1 = new MySqlCommand(sql);
-                m1.Parameters.AddWithValue("@ExpenseType", sExpenseType);
-                m1.Parameters.AddWithValue("@ERC20Address", sERC20Address);
-                m1.Parameters.AddWithValue("@NickName", sNickName);
-                m1.Parameters.AddWithValue("@URL", sURL);
-                m1.Parameters.AddWithValue("@Name", sName);
-                m1.Parameters.AddWithValue("@Address", sAddress);
-                m1.Parameters.AddWithValue("@Amount", sAmount);
-                bool f1100 = BMSCommon.Database.ExecuteNonQuery(m1);
-                gobject_prepare(fTestNet, sID, unixStartTimestamp, sHex);
+                p.nStartTime = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+                p.nEndTime = p.nStartTime + (60 * 60 * 24 * 7);
+                p.Hex = gobject_serialize_internal(p);
+                //m1.Parameters.AddWithValue("@Name", sName);
+                //m1.Parameters.AddWithValue("@Address", sAddress);
+                //m1.Parameters.AddWithValue("@Amount", sAmount);
+                string sSerial = Newtonsoft.Json.JsonConvert.SerializeObject(p, Newtonsoft.Json.Formatting.Indented);
+                await StorjIO.UplinkStoreDatabaseData("proposal", p.id, sSerial, String.Empty);
+                await gobject_prepare(fTestNet, p);
                 return true;
             }
             catch (Exception ex)
@@ -166,52 +162,54 @@ namespace BiblePay.BMS.DSQL
             }
         }
 
-        public static void gobject_prepare(bool fTestNet, string sID, int StartTimeStamp, string sHex)
+        public async static Task<bool> gobject_prepare(bool fTestNet, Proposal p)
         {
             // gobject prepare
-            string sArgs = "0 1 " + StartTimeStamp.ToString() + " " + sHex;
+            string sArgs = "0 1 " + p.nStartTime.ToString() + " " + p.Hex;
             string sCmd1 = "gobject prepare " + sArgs;
             object[] oParams = new object[5];
             oParams[0] = "prepare";
             oParams[1] = "0";
             oParams[2] = "1";
-            oParams[3] = StartTimeStamp.ToString();
-            oParams[4] = sHex;
+            oParams[3] = p.nStartTime.ToString();
+            oParams[4] = p.Hex;
             NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
             dynamic oOut = n.SendCommand("gobject", oParams);
             string sPrepareTXID = oOut.Result.ToString();
-            string sql4 = "Update proposal Set PrepareTXID='" + sPrepareTXID + "',Updated=now() where id = '" + sID + "';";
-            MySqlCommand m1 = new MySqlCommand(sql4);
-            bool f12000 =             BMSCommon.Database.ExecuteNonQuery(m1);
-            bool f12001 = false;
-
+            p.PrepareTXID = sPrepareTXID;
+            p.Updated = DateTime.Now;
+            string sSerial = Newtonsoft.Json.JsonConvert.SerializeObject(p, Newtonsoft.Json.Formatting.Indented);
+            await StorjIO.UplinkStoreDatabaseData("proposal", p.id, sSerial, String.Empty);
+            return true;
         }
 
-        public static bool gobject_submit(bool fTestNet, string sID, int nProposalTimeStamp, string sHex, string sPrepareTXID)
+        public static async Task<bool> gobject_submit(bool fTestNet, Proposal p)
         {
             try
             {
-                if (sPrepareTXID == "")
+                if (p.PrepareTXID.IsNullOrEmpty())
                     return false;
                 // Submit the gobject to the network - gobject submit parenthash revision time datahex collateraltxid
-                string sArgs = "0 1 " + nProposalTimeStamp.ToString() + " " + sHex + " " + sPrepareTXID;
+                string sArgs = "0 1 " + p.nStartTime.ToString() + " " + p.Hex + " " + p.PrepareTXID;
                 string sCmd1 = "gobject submit " + sArgs;
                 object[] oParams = new object[6];
                 oParams[0] = "submit";
                 oParams[1] = "0";
                 oParams[2] = "1";
-                oParams[3] = nProposalTimeStamp.ToString();
-                oParams[4] = sHex;
-                oParams[5] = sPrepareTXID;
+                oParams[3] = p.nStartTime.ToString();
+                oParams[4] = p.Hex;
+                oParams[5] = p.PrepareTXID;
                 NBitcoin.RPC.RPCClient n = GetRPCClient(fTestNet);
                 dynamic oOut = n.SendCommand("gobject", oParams);
                 string sSubmitTXID = oOut.Result.ToString();
                 if (sSubmitTXID.Length > 20)
                 {
                     // Update the record allowing us to know this has been submitted
-                    string sql = "Update proposal set Submitted=now(),SubmitTXID='" + sSubmitTXID + "' where id = '" + sID + "'";
-                    MySqlCommand m1 = new MySqlCommand(sql);
-                    BMSCommon.Database.ExecuteNonQuery(m1);
+                    p.Submitted = DateTime.Now;
+                    p.SubmitTXID = sSubmitTXID;
+                    string sSerial = Newtonsoft.Json.JsonConvert.SerializeObject(p, Newtonsoft.Json.Formatting.Indented);
+                    await StorjIO.UplinkStoreDatabaseData("proposal", p.id, sSerial, String.Empty);
+                    //BMSCommon.Database.ExecuteNonQuery(m1);
                     return true;
                 }
                 return false;
@@ -222,19 +220,16 @@ namespace BiblePay.BMS.DSQL
             }
         }
 
-        public static void SubmitProposals(bool fTestNet)
+        public static async Task<bool> SubmitProposals(bool fTestNet)
         {
             string sChain = fTestNet ? "test" : "main";
-            string sql = "Select * from proposal where CHAIN='" + sChain + "' and submitted is null;";
-            MySqlCommand m1 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(m1);
-            for (int y = 0; y < dt.Rows.Count; y++)
+            List<Proposal> dt = await StorjIO.GetDatabaseObjects<Proposal>("proposal");
+            dt = dt.Where(s => s.Chain == sChain && s.SubmitTXID == null).ToList();
+            for (int y = 0; y < dt.Count; y++)
             {
-                bool fSubmitted = gobject_submit(fTestNet, dt.Rows[y]["id"].ToString(), (int)BMSCommon.Common.GetDouble(dt.Rows[y]["unixstarttime"].ToString()),
-                    dt.Rows[y]["hex"].ToString(), dt.Rows[y]["preparetxid"].ToString());
-                bool f11000 = false;
-
+                bool fSubmitted = await gobject_submit(fTestNet, dt[y]);
             }
+            return true;
         }
 
     }

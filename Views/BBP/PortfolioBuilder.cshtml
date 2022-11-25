@@ -11,6 +11,9 @@
 
     Portfolio Builder Annual ROI:   <span ToolTip="The estimated annual Return on your staked BiblePay.">@ViewBag.DWU</span> &nbsp;<font color="red"><small>@ViewBag.DWUNarrative</small></font>
     <br />
+    RandomX Miner Bonus ROI:     <span ToolTip="The estimated annual Return on your sanctuary.">@ViewBag.BonusROI</span>
+
+    <br />
     Sanctuary (Masternode) Gross Annual ROI:     <span ToolTip="The estimated annual Return on your sanctuary.">@ViewBag.SanctuaryGrossROI</span>
     <br />
     Turnkey Sanctuary Annual Net ROI:     <span ToolTip="The estimated annual Return on your turnkey sanctuary.">@ViewBag.TurnkeySanctuaryNetROI</span>
@@ -27,7 +30,9 @@
     <br />
     Masternode Count: <span ToolTip="The number of masternodes running on the network">@ViewBag.SanctuaryCount</span>
     <br />
-
+    Turnkey Count: <span TooTip="The number of turnkey sanctuaries">@ViewBag.TurnkeySanctuaryCount</span>
+    <br />
+    Turnkey Locked Balances: <span ToolTip="The total amount locked in turnkey sanctuaries">@ViewBag.TurnkeySanctuaryTotal</span>
     <br />
 
     <!-- Portfolio builder Add Section -->
@@ -47,9 +52,9 @@
         <br />
 
         <div data-toggle="tooltip" data-placement="left" title="Ensure your foreign amount ends in this pin (see the wiki below for more info).">
-        <span>Your Pin:</span>
-        <br />
-        <input id='txtPin' readonly class="form-control" value='' />
+            <span>Your Pin:</span>
+            <br />
+            <input id='txtPin' readonly class="form-control" value='' />
         </div>
 
         <br />

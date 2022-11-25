@@ -1,7 +1,7 @@
 ﻿using BMSCommon;
+using BMSCommon.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,21 +12,25 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static BiblePay.BMS.DSQL.UI;
+using static BMSCommon.BitcoinSyncModel;
+using static BMSCommon.CryptoUtils;
 using static BMSCommon.DataTableExtensions;
+using static BMSCommon.Model;
 
 namespace BiblePay.BMS.Controllers
 {
 	public partial class BBPController : Controller
 	{
 
-		public static string GetNFTDisplayList(HttpContext h, string sType)
+		public static async Task<string> GetNFTDisplayList(HttpContext h, string sType)
 		{
 			string html = "<div class='row js-list-filter' id='nftlist'>";
 			int nColNo = 0;
 			int nTotal = 0;
 			string sChain = IsTestNet(h) ? "test" : "main";
+			User u0 = await GetUser(h);
+			List<NFT> l = await NFT.GetListOfNFTs(sChain, u0.ERC20Address, sType);
 
-			List<NFT> l = BMSCommon.NFT.GetListOfNFTs(sChain, GetUser(h).ERC20Address, sType);
 			for (int i = 0; i < l.Count; i++)
 			{
 				NFT n = l[i];
@@ -88,30 +92,30 @@ namespace BiblePay.BMS.Controllers
 		}
 
 
-		public IActionResult NFTListOrphans()
+		public async Task<IActionResult> NFTListOrphans()
 		{
-			ViewBag.NFTList = GetNFTDisplayList(HttpContext,"orphan");
+			ViewBag.NFTList = await GetNFTDisplayList(HttpContext,"orphan");
 			return View();
 		}
 
-		public IActionResult MyNFTs()
+		public async Task<IActionResult> MyNFTs()
         {
-			ViewBag.NFTList = GetNFTDisplayList(HttpContext, "my");
+			ViewBag.NFTList = await GetNFTDisplayList(HttpContext, "my");
 			return View();
         }
 
-		public IActionResult NFTListGeneral()
-		{
-			ViewBag.NFTList = GetNFTDisplayList(HttpContext,"general");
-			return View();
-		}
+		public async Task<IActionResult> NFTListGeneral()
+        {
+            ViewBag.NFTList = await GetNFTDisplayList(HttpContext, "general");
+            return View();
+        }
 
-		public IActionResult NFTListChristian()
-		{
-			ViewBag.NFTList = GetNFTDisplayList(HttpContext, "christian");
-			return View();
-		}
-		public IActionResult NFTAdd()
+		public async Task<IActionResult> NFTListChristian()
+        {
+            ViewBag.NFTList = await GetNFTDisplayList(HttpContext, "christian");
+            return View();
+        }
+		public async Task<IActionResult> NFTAdd()
         {
 			List<DropDownItem> ddTypes = new List<DropDownItem>();
 			ddTypes.Add(new DropDownItem("General", "General (Digital Goods, MP3, PNG, GIF, JPEG, PDF, MP4, Social Media, Tweet, Post, URL"));
@@ -121,9 +125,9 @@ namespace BiblePay.BMS.Controllers
 			// In edit mode, we prepopulate the values.
 			string sID = Request.Query["id"].ToString() ?? "";
 			string sMode = Request.Query["mode"].ToString() ?? "";
-			if (sMode == "edit" && sID != "")
+			if (sMode == "edit" && sID != String.Empty)
 			{
-				NFT n = GetNFT(HttpContext, sID);
+				NFT n = await GetNFT(HttpContext, sID);
 				ViewBag.txtName = n.Name;
 				ViewBag.txtDescription = n.Description;
 				ViewBag.txtURL = n.AssetURL;
@@ -131,7 +135,7 @@ namespace BiblePay.BMS.Controllers
 
 				ViewBag.txtReserveAmount = n.ReserveAmount.ToString();
                 ViewBag.txtBuyItNowAmount = n.BuyItNowAmount.ToString();
-
+				ViewBag.txtid = sID;
 				ViewBag.ddNFTType = ListToHTMLSelect(ddTypes, n.Type);
 				//ViewBag.AssetURL = "/img/invisible.jpeg";
 				ViewBag.chkMarketable = n.Marketable.ToString();
@@ -181,10 +185,8 @@ namespace BiblePay.BMS.Controllers
 							}
 							// Mission Critical 1 
 
-							//string sURL = await BBPTestHarness.IPFS.UploadIPFS_Retired(sDestFN, "nft/"+sGuid);
 							string sURL = await BBPTestHarness.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, BMSCommon.Common.GetCDN());
 
-							
 							ServerToClient returnVal = new ServerToClient();
 							returnVal.returnbody = "";
 							returnVal.returntype = "uploadsuccess";
@@ -217,7 +219,7 @@ namespace BiblePay.BMS.Controllers
 
 
 
-		public static string btnSubmitNFT_Click(HttpContext h, string sFormData, string _msMode)
+		public static async Task<string> btnSubmitNFT_Click(HttpContext h, string sFormData, string _msMode)
 		{
 			try
 			{
@@ -225,24 +227,36 @@ namespace BiblePay.BMS.Controllers
 				NFT n = new NFT();
 				n.AssetURL = GetFormData(sFormData, "txtURL");
 				n.Name = GetFormData(sFormData, "txtName");
-				n.OwnerERC20Address = DSQL.UI.GetUser(h).ERC20Address;
+				User u0 = await GetUser(h);
+				n.OwnerERC20Address = u0.ERC20Address;
 				n.AssetBIO = GetFormData(sFormData, "txtBIOURL");
-
-				n.OwnerBBPAddress = DSQL.UI.GetUser(h).BBPAddress;
+				n.OwnerBBPAddress = u0.BBPAddress;
 				n.Action = _msMode;
 				n.Description = GetFormData(sFormData, "txtDescription");
 				n.Marketable = ToBoolInt(GetFormData(sFormData, "chkMarketable"));
 				n.Deleted = ToBoolInt(GetFormData(sFormData, "chkDelete"));
+
 				n.BuyItNowAmount = BMSCommon.Common.GetDouble(GetFormData(sFormData, "txtBuyItNowAmount"));
 				n.ReserveAmount = BMSCommon.Common.GetDouble(GetFormData(sFormData, "txtReserveAmount"));
 				n.Hash = n.GetHash();
-				n.Version = 2;
+				if (_msMode == "create")
+				{
+					n.id = n.Hash;
+				}
+                else
+                {
+					n.id = GetFormData(sFormData, "txtid");
+                }
+				n.Version = 3;
 				n.Chain = sChain;
-				string sError = "";
+				string sError = String.Empty;
 				n.Type = GetFormData(sFormData, "ddNFTType");
 				// todo: verify the dropdown selected value comes back along with the chkbox selected value: ddNFTType.SelectedValue;
 
-				if (n.Type == "" || n.Type == null)
+				if (n.id == null || n.id == String.Empty)
+					sError = "Invalid id.";
+
+				if (n.Type == String.Empty || n.Type == null)
 					sError += "NFT Type must be chosen. ";
 
 				if (n.Type == "Orphan" && (n.AssetBIO == null || n.AssetBIO.Length < 5))
@@ -251,7 +265,7 @@ namespace BiblePay.BMS.Controllers
 				if (_msMode == "create" && n.Deleted == 1)
 					sError += "A new NFT cannot be deleted.";
 
-				if (_msMode == "edit" && n.OwnerERC20Address != GetUser(h).ERC20Address)
+				if (_msMode == "edit" && n.OwnerERC20Address != u0.ERC20Address)
 					sError += "Sorry, you must own the NFT in order to edit it.";
 
 				if (n.Type.ToLower() == "orphan")
@@ -303,17 +317,21 @@ namespace BiblePay.BMS.Controllers
 				// Pay for this NFT charge first
 				string sToAddress = WebRPC.GetFDPubKey(IsTestNet(h));
 
-				BMSCommon.WebRPC.DACResult r0 = DSQL.UI.SendBBP(h, sToAddress, 250, "", "");
-				if (r0.TXID == "")
+				DACResult r0 = DSQL.UI.SendBBP(h, sToAddress, 250, String.Empty, String.Empty);
+				if (r0.TXID == String.Empty)
                 {
 					sError += "Sorry, your 250 BBP payment failed.";
                 }
 
-				string sNarr = (sError == "") ? "Successfully submitted this NFT on TXID " + r0.TXID + ". <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>"
+				string sNarr = (sError == String.Empty) ? "Successfully submitted this NFT on TXID " + r0.TXID + ". <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>"
 					+ "NOTE:  Please wait for one sidechain block to pass before you can view the NFT.  " : sError;
-				if (sError == "")
+				if (sError == String.Empty)
 				{
-					n.Save(IsTestNet(h));
+					bool f1 = await n.Save(IsTestNet(h));
+					if (!f1)
+                    {
+						throw new Exception("Unable to save.");
+                    }
 					sNarr += "<br><br>";
 					string s1 = DSQL.UI.MsgBoxJson(h, "Edit NFT", "Success", sNarr);
 					return s1;

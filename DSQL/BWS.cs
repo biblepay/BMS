@@ -1,41 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
-using BiblePay.BMS.Data;
+﻿using BiblePay.BMS.Extensions;
 using BiblePay.BMS.Models;
+using BMSCommon;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-//using Swashbuckle.AspNetCore.Swagger;
-using static BiblePay.BMS.Common;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using static BMSCommon.Common;
+using static BMSCommon.Model;
 
 namespace BiblePay.BMS
 {
-    
+
     public class BWS
     {
 
         public class ViewBagActionFilter : ActionFilterAttribute
         {
 
-            
             public override void OnResultExecuting(ResultExecutingContext context)
             {
                 // for razor pages
@@ -48,20 +42,17 @@ namespace BiblePay.BMS
                 if (context.Controller is Controller)
                 {
                     var controller = context.Controller as Controller;
-                    //controller.ViewData.Add("b", $"~/avatar/empty.png");
-                    
                     controller.ViewBag.Chain = DSQL.UI.GetChain(controller.HttpContext);
                     controller.ViewBag.ChainColor = DSQL.UI.GetChainColor(controller.HttpContext);
-                    controller.ViewBag.LoginStatus = DSQL.UI.GetLogInStatus(controller.HttpContext);
+                    controller.ViewBag.LoginStatus = DSQL.UI.GetLogInStatus(controller.HttpContext).Result;
                     controller.ViewBag.BioURL = DSQL.UI.GetBioURL(controller.HttpContext);
                     controller.ViewBag.Balance = DSQL.UI.GetAvatarBalance(controller.HttpContext, false);
                     controller.ViewBag.NotificationCountHR = DSQL.UI.GetNotificationCountHR(controller.HttpContext);
                     controller.ViewBag.NotificationCount = DSQL.UI.GetNotificationCount(controller.HttpContext);
                     controller.ViewBag.LoginAction = DSQL.UI.GetLogInAction(controller.HttpContext);
-
-                    BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(controller.HttpContext);
+                    BMSCommon.CryptoUtils.User u = controller.HttpContext.GetCurrentUser();
                     controller.ViewBag.NickName = u.NickName;
-                    controller.ViewBag.Notifications = DSQL.UI.GetNotifications(controller.HttpContext, DSQL.UI.GetUser(controller.HttpContext).ERC20Address);
+                    controller.ViewBag.Notifications = DSQL.UI.GetNotifications(controller.HttpContext, u.ERC20Address);
                     //also you have access to the httpcontext & route in controller.HttpContext & controller.RouteData
                 }
 
@@ -74,9 +65,7 @@ namespace BiblePay.BMS
 
         public BWS(IHostingEnvironment env)
         {
-            //string sContentRoot = BMSCommon.Common.GetFolder("wwwroot");
-
-            BMSCommon.Database.msContentRootPath = env.ContentRootPath;
+            Model.msContentRootPath = env.ContentRootPath;
 
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
@@ -88,8 +77,6 @@ namespace BiblePay.BMS
 
         public void ConfigureServices(IServiceCollection services)
         {
-
-
             //session info
             services.AddSession(options =>
             {
@@ -107,11 +94,12 @@ namespace BiblePay.BMS
                 options.CheckConsentNeeded = context => true;
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
-
-            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+            /*
+            services.AddDbContext<xApplicationDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
             services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddRoleManager<RoleManager<IdentityRole>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
+            */
 
             services.AddTransient<IEmailSender, EmailSender>();
 
@@ -122,10 +110,10 @@ namespace BiblePay.BMS
 
             //services.AddRazorPages();
             //services.AddAntiforgery(o => o.HeaderName = "XSRF-TOKEN");
-
             services.AddRazorPages().AddRazorRuntimeCompilation();
             services.AddRazorPages(); //1
-            services.AddServerSideBlazor();//2
+            //services.AddServerSideBlazor();
+
             
             services.ConfigureApplicationCookie(options =>
             {
@@ -133,11 +121,7 @@ namespace BiblePay.BMS
                 options.LogoutPath = "/Identity/Account/Logout";
                 options.AccessDeniedPath = "/Identity/Account/AccessDenied";
             });
-
-
             services.AddSingleton<IFileProvider>(new PhysicalFileProvider(Directory.GetCurrentDirectory()));
-
-
             services.AddMvc(options =>
             {
                 ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -189,12 +173,9 @@ namespace BiblePay.BMS
                 app.UseHsts();
             }
 
-
             app.UseStaticFiles();
             app.UseRouting();
-          
             app.UseCors("CorsPolicy");
-
             app.UseSession();
 
             /*
@@ -210,7 +191,7 @@ namespace BiblePay.BMS
                     "default",
                     "{controller=BMS}/{action=Status}");
                 endpoints.MapRazorPages();
-                endpoints.MapBlazorHub(); //3
+                //endpoints.MapBlazorHub(); //3  10-9-2022
             });
 
 
@@ -336,15 +317,6 @@ namespace BiblePay.BMS
         // Storage
 
 
-
-        private static long GetFileSizeFromRemoteURL(string sCDNURL, string sResource)
-        {
-            // This function only works on our nodes...
-            string sFull = sCDNURL + "/BMS/GetFileSize?name=" + sResource;
-            long nSz = (long)DSQL.Sync.GetShardSize(sFull);
-            return nSz;
-        }
-
         // BiblePay Decentralized Web Server
         public async Task Invoke(HttpContext context)
         {
@@ -354,7 +326,6 @@ namespace BiblePay.BMS
                 // string sNN1 = BiblePay.BMS.DSQL.Sync._nicknames[0].nickName;
                 // Normal flow.
                 string sourcepath = context.Request.Path;
-
                 if (sourcepath.Contains("/BMS/StaticVideoPlayer"))
                 {
                     string sSource = context.Request.Query["id"];
@@ -371,13 +342,14 @@ namespace BiblePay.BMS
                     try
                     {
                         string sKey = context.Request.Query["key"].ToString();
-                        string sNN = "";
-                        string sUID = BBPTestHarness.Service.ValidateKey(sKey, out sNN);
-                        if (sUID == "")
+                        string sNickName = String.Empty;
+                        string sUID = "0"; // BBPTestHarness.Service.ValidateKey(sKey, out sNN);
+                        if (sUID == "0")
                         {
                             throw new Exception("API Key invalid.  To obtain a key, go to unchained.biblepay.org | Wallet.");
                         }
-                        List<string> s = BMSCommon.DSQL.QueryIPFSFolderContents(BiblePay.BMS.DSQL.UI.IsTestNet(context),"", "", sKey);
+                        List<string> s = new List<string>();
+                        //BMSCommon.DSQL.QueryIPFSFolderContents(BiblePay.BMS.DSQL.UI.IsTestNet(context),"", "", sKey);
                         string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(s);
                         //mission critical: test the video display with await
                         await context.Response.WriteAsync(sJson3);
@@ -388,21 +360,14 @@ namespace BiblePay.BMS
                         await context.Response.WriteAsync("ERROR");
                     }
                 }
-                else if (sourcepath.Contains("/BMS/TestFile"))
-                {
-                    string sPath = "c:\\code\\testbed\\90.mp4";
-                    context.Response.ContentType = "video/mp4";
-                    await context.Response.SendFileAsync(sPath);
-                    return;
-                }
                 else if (sourcepath.Contains("/BMS/ValidateKey"))
                 {
                     try
                     {
                         string sKey = context.Request.Query["key"].ToString();
-                        string sNN = "";
-                        string sUID = BBPTestHarness.Service.ValidateKey(sKey, out sNN);
-                        if (sUID == "")
+                        string sNickName = String.Empty;
+                        string sUID = "0";// BBPTestHarness.Service.ValidateKey(sKey, out sNN);
+                        if (sUID == "0")
                         {
                             throw new Exception("API Key invalid.  To obtain a key, go to unchained.biblepay.org | Wallet.");
                         }
@@ -452,37 +417,41 @@ namespace BiblePay.BMS
 
                     if (fi == null)
                     {
-                        if (true)
-                        {
+                        // 11-6-2022
+                        double nConfigType = GetDouble(BMSCommon.Common.GetConfigurationKeyValue("usestorj"));
+                        if (nConfigType == 0)
+                        { 
+
                             for (int i = 0; i < BMSCommon.API.mNodes.Count; i++)
                             {
-                                BMSCommon.API.Node n = BMSCommon.API.mNodes[i];
+                                BMSNode n = BMSCommon.API.mNodes[i];
                                 if (!n.IsMine && n.FullyQualified)
                                 {
                                     string sURL = BMSCommon.Common.NormalizeURL(n.FullyQualifiedDomainName + "/" + sourcepath);
-                                    long iSz = GetFileSizeFromRemoteURL(n.FullyQualifiedDomainName, sourcepath);
-                                    if (iSz > 0)
-                                    {
-                                        Log("Redirecting to sanc " + n.FullyQualifiedDomainName + " for " + sourcepath);
-                                        context.Response.Redirect(sURL);
-                                        return;
-                                    }
+                                    //  long iSz = GetFileSizeFromRemoteURL(n.FullyQualifiedDomainName, sourcepath);
                                     /*
-                                    if (false)
-                                    {
-                                        // Reserved.  This is if we want to 'fill in the gaps' on the local node.  For now we let the Replicator do that, and we move to the next sanctuary.
-                                        string sTargetPath = ReqPathToFilePath(sourcepath);
-                                        PullDown(sNewURL, sTargetPath);
-                                        fi = GetFileInfo(sourcepath);
-                                    }
-                                    */
+
+                                 if (iSz > 0)
+                                 {
+                                     Log("Redirecting to sanc " + n.FullyQualifiedDomainName + " for " + sourcepath);
+                                     context.Response.Redirect(sURL);
+                                     return;
+                                 }
+                                 */
                                 }
                             }
+                        }
+                        else if (nConfigType == 1)
+                        {
+                            // Use storj instead
+                            string sSourceKey = sourcepath;
+                            string sTP = ReqPathToFilePath(sourcepath);
+                            bool fSucc = await BMSCommon.StorjIO.StorjDownload(sSourceKey, sTP);
+                            fi = GetFileInfo(sourcepath);
                         }
                         // If we reach here, this is our last resort.  This means every sanc is missing the file (or this is really a 404).
                         // Try to get the file from IPFS next:
                         string sNewURL = BMSCommon.Common.NormalizeURL("https://bbpipfs.s3.filebase.com/" + sourcepath);
-
                         Log("Redir to ipfs " + sourcepath);
                         context.Response.Redirect(sNewURL);
                         string sTargetPath = ReqPathToFilePath(sourcepath);
@@ -495,9 +464,7 @@ namespace BiblePay.BMS
                     else
                     {
                         // File actually exists locally:
-
                         await context.Response.SendFileAsync(fi.FullName);
-
                     }
                 }
                 else if (sourcepath == "/")

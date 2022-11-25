@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Web;
-//using static BiblePayCommon.Common;
-//using static BiblePayCommonNET.DataTableExtensions;
-//using static BiblePayCommon.DataTableExtensions;
 using System.Text;
 using MySql.Data.MySqlClient;
+using BMSCommon;
+using BiblePay.BMS.DSQL;
+using static BMSCommon.BitcoinSync;
+using System.Threading.Tasks;
+using static BMSCommon.Model;
 
 namespace BiblePay.BMS
 {
@@ -36,50 +38,40 @@ namespace BiblePay.BMS
             HTML += "</table>";
             return HTML;
         }
-        public static string GetCharityTableHTML(MySqlCommand c, int iMaxRows)
+        public static string GetCharityTableHTML(List<OrphanExpense3> c, List<SponsoredOrphan2> lSPO, int iMaxRows)
         {
             string css = "<style> html {    font-size: 4px;    color: black;    font-family: verdana }  .r1 { font-family: verdana; font-size: 4px; }</style>";
             string logo = "https://www.biblepay.org/wp-content/uploads/2018/04/Biblepay70x282_96px_color_trans_bkgnd.png";
             string sLogoInsert = "<img width=300 height=100 src='" + logo + "'>";
             string HTML = "<HTML>" + css + "<BODY><div><div style='margin-left:12px'><TABLE class=r1><TR><TD width=95%>" + sLogoInsert
                 + "<td width=5% align=right>Accountability</td><td>" + DateTime.Now.ToShortDateString() + "</td></tr>";
-
             HTML += "<TR><TD><td></tr>" + "<TR><TD><td></tr>" + "<TR><TD><td></tr>";
             HTML += "</table>";
-
             string header = "<TR><Th>Date<Th>Amount<th>Charity<th>Child Name<th>Child ID<th>Balance<Th width=30%>Notes</tr>";
             HTML += "<table width=100%>" + header + "<tr><td colspan=7 width=100%><hr></tr>";
             double nDR = 0;
             double nCR = 0;
             double nTotal = 0;
-            DataTable dt;
-            try
-            {
-                dt = BMSCommon.Database.GetDataTable(c);
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-            string sCharity = "";
             string sOldDate = "";
             double nBalance = 0;
             int iStart = 0;
-            if (dt.Rows.Count > iMaxRows && iMaxRows > 0)
+            for (int i = 0; i < c.Count; i++)
             {
-                iStart = dt.Rows.Count - iMaxRows;
-            }
-            for (int i = 0; i < dt.Rows.Count; i++)
-            {
-                double dAmt = BMSCommon.Common.GetDouble(dt.Rows[i]["Amount"]);
+                OrphanExpense3 oRow = c[i];
+                double dAmt = BMSCommon.Common.GetDouble(oRow.Amount);
                 string sType = dAmt >= 0 ? "DR" : "CR";
-                nTotal += BMSCommon.Common.GetDouble(dt.Rows[i]["Balance"]);
-                string dt1 = Convert.ToDateTime(dt.Rows[i]["Added"]).ToShortDateString();
-                sCharity = dt.Rows[i]["Charity"].ToString();
-                string row = "<tr><td align=right>" + dt1 + "<td align=right>" + DoFormat(BMSCommon.Common.GetDouble(dt.Rows[i]["Amount"])) + "<td align=right>" + dt.Rows[i]["Charity"].ToString()
-                    + "<td align=right>" + dt.Rows[i]["Name"] + "<td align=right>" + dt.Rows[i]["ChildID"] + "<td align=right>" + DoFormat(BMSCommon.Common.GetDouble(dt.Rows[i]["Balance"]))
-                    + "<td align=right><small>" + dt.Rows[i]["Notes"].ToString() + "</small></tr>";
+                nTotal += BMSCommon.Common.GetDouble(oRow.Balance);
+                string dt1 = Convert.ToDateTime(oRow.Added).ToShortDateString();
+                SponsoredOrphan2 mySPO = lSPO.Where(s => s.ChildID == oRow.ChildID).FirstOrDefault();
 
+                string sChildName = mySPO == null ? oRow.ChildID : mySPO.Name; 
+                string row = "<tr><td align=right>" + dt1 + "<td align=right>" 
+                    + DoFormat(oRow.Amount) 
+                    + "<td align=right>" + oRow.Charity
+                    + "<td align=right>" + sChildName
+                    + "<td align=right>" + oRow.ChildID 
+                    + "<td align=right>" + DoFormat(oRow.Balance)
+                    + "<td align=right><small>" + oRow.Notes + "</small></tr>";
                 // Add the totals
                 if (dAmt > 0)
                 {
@@ -91,36 +83,31 @@ namespace BiblePay.BMS
                 }
                 nBalance += dAmt;
 
-                if (sOldDate != dt1 && i > 1 && (i >= iStart || iMaxRows==0))
+                if (sOldDate != dt1 && i > 1 && (i >= iStart || iMaxRows == 0))
                 {
                     HTML += "<tr><td colspan=10><hr></td></tr>";
                 }
                 sOldDate = dt1;
 
-                if (i >= iStart || iMaxRows==0)
+                if (i >= iStart || iMaxRows == 0)
                 {
                     HTML += row;
                 }
             }
-            // sql = "update sponsoredOrphan set balance = (Select top 1 Balance from OrphanExpense where SponsoredOrphan.childid=orphanexpense.childid order by added desc)\r\n"
-            //    + "Select sum(Amount) balance from OrphanExpense where charity='" + sCharity + "' and childid in (select childid from SponsoredOrphan)";
-            //double nAmt = gData.GetScalarDouble(sql, "balance");
-
 
             HTML += "<tr><td>&nbsp;</td></tr>";
             HTML += "<tr><td>BALANCE:<td><td>" + DoFormat(nBalance) + "</tr>";
             HTML += "</body></html>";
             return HTML;
         }
-
-        public static string GetTableHTML(string sReportName, DataTable dt, string sCols, string sTotalCol, bool fShowCreditAndDebit = false)
+        public static string GetTableHTML(string sReportName, List<CharityReport> dt, bool fShowCreditAndDebit = false)
         {
+            //Added, Amount, Type, Charity or Notes
             StringBuilder HTML = new StringBuilder();
-
             try
             {
                 HTML.Append(GetTableBeginning(sReportName));
-
+                string sCols = "Type;Added;Amount;Notes";
                 string[] vCols = sCols.Split(new string[] { ";" }, StringSplitOptions.None);
                 string sHeader = "<tr>";
                 for (int i = 0; i < vCols.Length; i++)
@@ -128,40 +115,24 @@ namespace BiblePay.BMS
                     sHeader += "<th>" + vCols[i] + "</th>";
                 }
                 sHeader += "</tr>";
-
                 HTML.Append("<table width=100%>" + sHeader + "<tr><td colspan=5 width=100%><hr></tr>");
-
                 double nTotal = 0;
                 double nTotalDr = 0;
                 double nTotalCr = 0;
-
-                for (int i = 0; i < dt.Rows.Count; i++)
+                for (int i = 0; i < dt.Count; i++)
                 {
+                    CharityReport c1 = dt[i];
                     string sRow = "<tr>";
-
-                    for (int j = 0; j < vCols.Length; j++)
-                    {
-                        string sValueControl = dt.Rows[i][vCols[j]].ToString();
-                        if (vCols[j].ToLower() == "time")
-                        {
-                            sValueControl = BMSCommon.Common.FromUnixTimeStamp((int)BMSCommon.Common.GetDouble(dt.Rows[i]["time"])).ToShortDateString();
-                        }
-                        if (sValueControl.Length > 255)
-                            sValueControl = sValueControl.Substring(0, 254);
-                        
-                        sRow += "<td align=right>" + sValueControl + "</td>";
-                    }
+                    sRow += "<td align=right>" + dt[i].Type.ToString() + "</td>";
+                    sRow += "<td align=right>" + dt[i].Added.ToString() + "</td>";
+                    sRow += "<td align=right>" + dt[i].Amount.ToString() + "</td>";
+                    sRow += "<td align=right>" + dt[i].Notes.ToString() + "</td>";
                     sRow += "</tr>";
-                    string sType = dt.Rows[i]["Type"].ToString();
-
-                    double nAmt = BMSCommon.Common.GetDouble(dt.Rows[i][sTotalCol]);
-
-                    if (sType == "CR")
+                    double nAmt = c1.Amount;
+                    if (c1.Type == "CR")
                     {
                         nAmt = nAmt * -1;
                     }
-                    if (sTotalCol != "")
-                    {
                         nTotal += nAmt;
                         if (nAmt > 0)
                         {
@@ -171,7 +142,6 @@ namespace BiblePay.BMS
                         {
                             nTotalCr += nAmt;
                         }
-                    }
                     HTML.Append(sRow);
                 }
 
@@ -183,7 +153,7 @@ namespace BiblePay.BMS
                     HTML.Append("<tr><td>Total Revenue: <td><td>" + nTotalCr.ToString() + "</tr>");
                 }
 
-                if (!fShowCreditAndDebit && sTotalCol != "")
+                if (!fShowCreditAndDebit)
                 {
                     HTML.Append("<tr><td>TOTAL:<td><td>" + nTotal.ToString() + "</tr>");
                 }
@@ -197,6 +167,30 @@ namespace BiblePay.BMS
             }
 
             return HTML.ToString();
+        }
+
+
+        public async static Task<string> TurnkeyReport(bool fTestNet, string sERC)
+        {
+            List<TurnkeySanc> dt = await StorjIO.GetDatabaseObjects<TurnkeySanc>("turnkeysanctuaries");
+
+            dt = dt.Where(s => s.erc20address == sERC).ToList();
+            dt = dt.OrderBy(s => Convert.ToDateTime(s.Added)).ToList();
+
+            string sData = String.Empty;
+            for (int i = 0; i < dt.Count; i++)
+            {
+                string sBBPAddress = dt[i].BBPAddress;
+                string sERC1 = dt[i].erc20address;
+                string sSig = dt[i].Signature;
+                string sNonce = dt[i].Nonce.ToString();
+                double nBalance = BMSCommon.Common.GetDouble(dt[i].Balance.ToString());
+                BMSCommon.Encryption.KeyType k = UI.GetKeyPair2(fTestNet, sERC, sSig, sNonce);
+                string sRow = "BBPAddress: " + sBBPAddress + "/" + k.PrivKey.ToString() + ", ERC: " + sERC + ", Nonce: " + sNonce + ", Amount: " + nBalance.ToString();
+                sData += sRow + "<br>";
+            }
+            return sData;
+
         }
 
     }

@@ -1,14 +1,16 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using MySql.Data.MySqlClient;
+﻿using BMSCommon;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static BiblePay.BMS.DSQL.UI;
+using static BMSCommon.Model;
+using static BMSCommon.StorjIO;
 
 namespace BiblePay.BMS.Controllers
 {
@@ -50,7 +52,7 @@ namespace BiblePay.BMS.Controllers
         }
         protected string GetGospelContentFromFile(string sType)
         {
-            string sPath = System.IO.Path.Combine(BMSCommon.Database.msContentRootPath, "wwwroot/media/JesusChrist/" + sType + ".htm");
+            string sPath = System.IO.Path.Combine(Model.msContentRootPath, "wwwroot/media/JesusChrist/" + sType + ".htm");
 
             if (sType.ToLower().Contains("anr"))
             {
@@ -70,42 +72,44 @@ namespace BiblePay.BMS.Controllers
             return sData;
         }
 
-        protected string GetStudies(bool fTestNet)
+        protected async Task<string> GetStudies(bool fTestNet)
         {
-            string sTable = fTestNet ? "tArticles" : "Articles";
-            string sql = "Select * from " + sTable + " order by Name,Description;";
-            MySqlCommand cmd = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(cmd);
-            string html = "";
-            for (int i = 0; i < dt.Rows.Count; i++)
+            List<Articles> lA = await GetDatabaseObjects<Articles>("article");
+            lA = lA.OrderBy(s => s.Name).ThenBy(s => s.Description).ToList();
+
+            string html = String.Empty;
+            for (int i = 0; i < lA.Count; i++)
             {
-                string sArticle = dt.Rows[i]["Name"].ToString();
+                Articles a = lA[i];
+                string sArticle = a.Name;
                 bool fHidden = false;
                 if (sArticle == "ThreeDays" || sArticle == "NonChristianReligions")
                     fHidden = true;
                 if (!fHidden)
                 {
-                    string row = "<a href=gospel/viewer?type=" + sArticle + ">" + dt.Rows[i]["Description"].ToString() + "</a><br>";
+                    string row = "<a href=gospel/viewer?type=" + sArticle + ">" + a.Description + "</a><br>";
                     html += row;
                 }
             }
             return html;
         }
-        protected string GetOrphanCollage(bool fTestNet)
+        protected async Task<string> GetOrphanCollage(bool fTestNet)
         {
-            string sTable = fTestNet ? "tSponsoredOrphan2" : "SponsoredOrphan2";
-            string sql = "Select * from " + sTable + " where active=1 And Charity not in ('sai') and ChildId not in ('Genevieve Umba') order by Charity,Name;";
-            MySqlCommand m = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(m);
+            List<SponsoredOrphan2> lSPO = await GetDatabaseObjects<SponsoredOrphan2>("sponsoredorphan");
+            lSPO = lSPO.Where(s => s.Active == 1).ToList();
+            lSPO = lSPO.Where(s => s.ChildID != "Genevieve Umba").ToList();
+            lSPO = lSPO.Where(s => s.Charity.ToLower() != "sai").ToList();
+            lSPO = lSPO.OrderBy(s => s.Charity).ThenBy(s=>s.Name).ToList();
             string sHTML = "<table><tr>";
             int iTD = 0;
             string sErr = "";
-            for (int i = 0; i < dt.Rows.Count; i++)
+            for (int i = 0; i < lSPO.Count; i++)
             {
+                SponsoredOrphan2 spo = lSPO[i];
                 // Each Orphan should be a div with their picture in it
-                string sMyBIO = dt.Rows[i]["BioURL"].ToString();
-                string sName = dt.Rows[i]["ChildID"].ToString() + " - " + dt.Rows[i]["Charity"].ToString();
-                string sBioImg = dt.Rows[i]["BioPicture"].ToString();
+                string sMyBIO = spo.BioURL;
+                string sName = spo.ChildID + " - " + spo.Charity;
+                string sBioImg = spo.BioPicture;
                 if (sBioImg != "")
                 {
                     string sMyOrphan = "<td style='padding:7px;border:1px solid lightgrey' cellpadding=7 cellspacing=7><a href='" + sMyBIO + "'>" + sName
@@ -128,21 +132,23 @@ namespace BiblePay.BMS.Controllers
         }
 
 
-        protected string GetArticles(bool fTestNet,string type)
+        protected async Task<string> GetArticles(bool fTestNet,string type)
         {
-            string prefix = "";
-            string sPrefix = fTestNet ? "t" : "";
-            string table = type == "wiki" ? sPrefix+"Wiki" : sPrefix+"Illustrations";
-            string sql = "Select * from " + table + " order by Name,Description";
-            MySqlCommand cmd = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(cmd);
+             string prefix = "";
+            //           string sPrefix = fTestNet ? "t" : "";
+            dynamic l = await GetDatabaseObjects<dynamic>(type);
+
             string html = "";
-            for (int i = 0; i < dt.Rows.Count; i++)
+
+            for (int i = 0; i < l.Count; i++)
             {
-                string sArticle = dt.Rows[i]["Name"].ToString();
-                string sDesc = dt.Rows[i]["Description"].ToString();
+                //Illustrations myIlly = l[i];
+
+                string sArticle = l[i].Name;
+                string sDesc = l[i].Description;
                 string sNarr = sArticle + " - " + sDesc;
                 string sURL = "";
+                
                 if (type == "wiki")
                 {
                     sURL = sArticle;
@@ -151,7 +157,9 @@ namespace BiblePay.BMS.Controllers
                 }
                 else
                 {
-                    sURL = System.Web.HttpUtility.UrlEncode(dt.Rows[i]["Url"].ToString());
+                    string myURL = l[i].URL ?? String.Empty;
+
+                    sURL = System.Web.HttpUtility.UrlEncode(myURL);
                     prefix = "<h3>All credit for these Illustrations goes to <a href = 'https://www.freebibleimages.org/illustrations/'> Free Bible Images </ a> !</h3>"
                         + "<small><font>NOTE:  Choose then click \"VIEW SLIDESHOW\" for the presentation.<br/></small>"
                         + "</font></h3><br>&nbsp;<p><p>";
@@ -189,24 +197,61 @@ namespace BiblePay.BMS.Controllers
         }
 
 
-        protected async Task<IActionResult> ConvertHtmlToPDF(string HTML, string PDFFileName)
+        protected IActionResult ConvertHtmlToPDF(string HTML, string PDFFileName)
         {
-            byte[] b = await BBPTestHarness.IPFS.ConvertHtmlToBytes(HTML, PDFFileName);
+            byte[] b = BBPTestHarness.Common.ConvertHtmlToBytes(HTML, PDFFileName);
             string sGuid = Guid.NewGuid().ToString() + ".html";
             return File(b, "application/html", sGuid);
         }
         protected async Task<IActionResult> GenerateAccountingReport(int nYear)
         {
-            string sql = "SELECT * FROM (select _id,STR_TO_DATE(added,'%m/%d/%Y') as a1, DATE_FORMAT(STR_TO_DATE(added,'%m/%d/%Y'), '%b-%y') as Added,'DR' as Type,Amount,Charity, '' as Notes from Expense "
-                + " union all  select _id, STR_TO_DATE(added,'%m/%d/%Y') as a1, DATE_FORMAT(STR_TO_DATE(added,'%m/%d/%Y'), '%b-%y'), 'CR' as Type,Amount, Charity, Notes from Revenue ) b where year(b.a1)='"
-                + nYear.ToString() + "' order by a1 ";
-            MySqlCommand command3 = new MySqlCommand(sql);
-            DataTable dt = BMSCommon.Database.GetDataTable(command3);
-            string html = Report.GetTableHTML("Accounting Report", dt, "Added;Type;Amount;Notes", "Amount", true);
+            List<Expense> lExpenses = await GetDatabaseObjects<Expense>("expense");
+            List<Revenue> lRevenue = await GetDatabaseObjects<Revenue>("revenue");
+            if (nYear != 0)
+            {
+                lExpenses = lExpenses.Where(s => Convert.ToDateTime(s.Added).Year == nYear).ToList();
+                lRevenue = lRevenue.Where(s => Convert.ToDateTime(s.Added).Year == nYear).ToList();
+            }
+
+            List<CharityReport> l = new List<CharityReport>();
+            for (int i  = 0; i < lExpenses.Count; i++)
+            {
+                CharityReport cr = new CharityReport();
+                cr.Added = Convert.ToDateTime(lExpenses[i].Added);
+                cr.Type = "DR";
+                cr.Notes = lExpenses[i].Charity;
+                cr.Amount = lExpenses[i].Amount;
+                l.Add(cr);
+            }
+            for (int i = 0; i < lRevenue.Count; i++)
+            {
+                CharityReport cr = new CharityReport();
+                cr.Added = Convert.ToDateTime(lRevenue[i].Added);
+                cr.Type = "CR";
+                cr.Notes = lRevenue[i].Charity;
+                cr.Amount = lRevenue[i].Amount;
+                l.Add(cr);
+            }
+
+            /*          string sql = "SELECT * FROM (select _id,STR_TO_DATE(added,'%m/%d/%Y') as a1, DATE_FORMAT(STR_TO_DATE(added,'%m/%d/%Y'), '%b-%y') as Added," 
+                          +                "'DR' as Type,Amount,Charity, '' as Notes from Expense "
+                          + " union all  select _id, STR_TO_DATE(added,'%m/%d/%Y') as a1, DATE_FORMAT(STR_TO_DATE(added,'%m/%d/%Y'), '%b-%y'), "
+                          + "'CR' as Type,Amount, Charity, Notes from Revenue ) b where year(b.a1)='"
+                          + nYear.ToString() + "' order by a1 ";
+            */
+
+            var grouped = (from p in l
+                           group p by new { month = p.Added.Month, year = p.Added.Year } into d
+                           select new { dt = string.Format("{0}/{1}", d.Key.month, d.Key.year), count = d.Count() }).OrderBy(g => g.dt);
+            List<CharityReport> lNew = JsonSerializer.Deserialize<List<CharityReport>>(JsonSerializer.Serialize(grouped));
+            l = l.OrderBy(s => Convert.ToDateTime(s.Added)).ToList();
+            string html = Report.GetTableHTML("Accounting Report", l, true);
+
             string accName = "BiblePay Accounting Year " + nYear.ToString() + ".pdf";
-            return await ConvertHtmlToPDF(html,accName);
+            return ConvertHtmlToPDF(html,accName);
         }
 
+        /*
         public async Task<IActionResult> GenerateTotalReport()
         {
             string sql = "SELECT uuid(),round(sum(amount),2) Amount,'' Notes,added,Type, 'Various' Charity, max(Dt1) FROM ( "
@@ -214,28 +259,39 @@ namespace BiblePay.BMS.Controllers
                 + "    union all"
                 + " select _id, added as a1,  DATE_FORMAT(STR_TO_DATE(added,'%m/%d/%Y'), '%b-%y') as Added, 'CR' as Type, Amount, Charity, Notes, STR_TO_DATE(Added,'%m/%d/%Y') as dt1 from Revenue"
                 + "  ) b group by added, Type  order by max(dt1)";
-            MySqlCommand command3 = new MySqlCommand(sql);
+            Command command3 = new Command(sql);
             BMSCommon.Common.Log("1");
             DataTable dt = BMSCommon.Database.GetDataTable(command3);
             string html = Report.GetTableHTML("All Time", dt, "Amount;Added;Type;Charity", "Amount", true);
             string sName = "Totals.pdf";
             return await ConvertHtmlToPDF(html,sName);
         }
+        */
 
         public async Task<IActionResult> GenerateCharityReport(string sCharity)
         {
-            string sOE = DSQL.UI.IsTestNet(HttpContext) ? "tOrphanExpense3" : "OrphanExpense3";
-            string sSO2 = DSQL.UI.IsTestNet(HttpContext) ? "tSponsoredOrphan2" : "SponsoredOrphan2";
+            // pull in the OrphanExpense Object first
+            List<OrphanExpense3> l = await GetDatabaseObjects<OrphanExpense3>("orphanexpense");
+            List<OrphanExpense3> lFiltered = l.Where(s => s.Charity.ToLower() == sCharity.ToLower()).ToList();
+            lFiltered = lFiltered.OrderBy(s => Convert.ToDateTime(s.Added)).ToList();
+            List<SponsoredOrphan2> lSPO = await GetDatabaseObjects<SponsoredOrphan2>("sponsoredorphan");
 
+
+            // *** FILTER DOWN TO CHARITY NAME HERE **
+            // Sort by Added date desc;
+            //     string sOE = DSQL.UI.IsTestNet(HttpContext) ? "tOrphanExpense3" : "OrphanExpense3";
+            //   string sSO2 = DSQL.UI.IsTestNet(HttpContext) ? "tSponsoredOrphan2" : "SponsoredOrphan2";
+            /*
             string sql = "SELECT OrphanExpense._id,OrphanExpense.Amount,OrphanExpense.Notes,STR_TO_DATE(OrphanExpense.Added,'%m/%d/%Y') as ADDED,"
                 +"OrphanExpense.Charity,OrphanExpense.ChildID,OrphanExpense.Balance,SO2.Name "
                 + " from " + sOE + " as OrphanExpense "
                 +" INNER JOIN " + sSO2 + " as SO2 on SO2.childid=OrphanExpense.ChildID where SO2.charity = @charity order by ADDED";
-            MySqlCommand command3 = new MySqlCommand(sql);
+            Command command3 = new Command(sql);
             command3.Parameters.AddWithValue("@charity", sCharity);
-            string html = Report.GetCharityTableHTML(command3, 0);
+            */
+            string html = Report.GetCharityTableHTML(lFiltered, lSPO, 0);
             string accName = "Charity Report - " + sCharity + ".pdf";
-            return await ConvertHtmlToPDF(html,accName);
+            return ConvertHtmlToPDF(html,accName);
         }
         public IActionResult CoreGospel()
         {
@@ -247,15 +303,15 @@ namespace BiblePay.BMS.Controllers
             return View();
         }
 
-        public IActionResult Illustrations()
+        public async Task<IActionResult> Illustrations()
         {
-            ViewBag.Illustrations = GetArticles(IsTestNet(HttpContext),"Illustrations");
+            ViewBag.Illustrations = await GetArticles(IsTestNet(HttpContext),"illustration");
             return View();
         }
         
-        public IActionResult Collage()
+        public async Task<IActionResult> Collage()
         {
-            ViewBag.Collage = GetOrphanCollage(IsTestNet(HttpContext));
+            ViewBag.Collage = await GetOrphanCollage(IsTestNet(HttpContext));
             return View();
         }
 
@@ -272,7 +328,7 @@ namespace BiblePay.BMS.Controllers
             {
                 if (y == "total")
                 {
-                    return await GenerateTotalReport();
+                    return await GenerateAccountingReport(0);
 
                 }
                 else
@@ -287,15 +343,15 @@ namespace BiblePay.BMS.Controllers
             }
         }
 
-        public IActionResult WikiTheology()
+        public async Task<IActionResult> WikiTheology()
         {
-            ViewBag.Wiki = GetArticles(IsTestNet(HttpContext),"wiki");
+            ViewBag.Wiki = await GetArticles(IsTestNet(HttpContext),"wiki");
             return View();
         }
 
-        public IActionResult TheologicalStudy()
+        public async Task<IActionResult> TheologicalStudy()
         {
-            ViewBag.TheologicalStudy = GetStudies(IsTestNet(HttpContext));
+            ViewBag.TheologicalStudy = await GetStudies(IsTestNet(HttpContext));
             return View();
         }
         public IActionResult About()

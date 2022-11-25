@@ -15,23 +15,22 @@ namespace BiblePay.BMS.Models
         private static readonly string Empty = string.Empty;
         public static readonly string Void = "javascript:void(0);";
 
-        public static SmartNavigation Seed => BuildNavigation();
-        public static SmartNavigation Full => BuildNavigation(seedOnly: false);
+        //public static SmartNavigation Seed => BuildNavigation();
+        //public static SmartNavigation Full => BuildNavigation(seedOnly: false);
 
-        private static SmartNavigation BuildNavigation(bool seedOnly = true)
+        public static SmartNavigation BuildNavigation(string sERC20, bool seedOnly = true)
         {
             var jsonText = File.ReadAllText("nav.json");
             var navigation = NavigationBuilder.FromJson(jsonText);
-            var menu = FillProperties(navigation.Lists, seedOnly);
+            var menu = FillProperties(sERC20, navigation.Lists, seedOnly);
             return new SmartNavigation(menu);
         }
 
-        private static List<ListItem> FillProperties(IEnumerable<ListItem> items, bool seedOnly, ListItem parent = null)
+        private static List<ListItem> FillProperties(string sERC20, IEnumerable<ListItem> items, bool seedOnly, ListItem parent = null)
         {
             var result = new List<ListItem>();
             double nCoreBalance = BMSCommon.WebRPC.GetCachedCoreWalletBalance(false);
 
-            //bool fLogged = DSQL.UI.GetUser(HttpContext).LoggedIn;
         
             foreach (var item in items)
             {
@@ -47,7 +46,22 @@ namespace BiblePay.BMS.Models
                 {
                     if (item.Route != null)
                     {
-                        if (item.Route.ToLower().Contains("nft") || item.Route == "/bbp/proposaladd" || item.Route == "/bbp/proposallist" || item.Route == "/bbp/turnkeysanctuaries" || item.Route == "/bbp/portfoliobuilder" || item.Route == "/bbp/portfoliobuilderleaderboard" || item.Route == "/bbp/portfoliobuilderdonation")
+                        if (item.Route.ToLower().Contains("nft") || item.Route == "/bbp/proposaladd" || item.Route == "/bbp/proposallist" || item.Route == "/bbp/turnkeysanctuaries" || item.Route == "/bbp/portfoliobuilder" || item.Route == "/bbp/portfoliobuilderleaderboard")
+                        {
+                            fDisabled = true;
+                        }
+                    }
+                }
+                //Quant Security
+                //if (GetUser(HttpContext).ERC20Address
+                bool fQuant = sERC20 == "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5" || sERC20 == "12345";
+
+
+                if (!fQuant)
+                {
+                    if (item.Route != null)
+                    {
+                        if (item.Route.ToLower().Contains("quant"))
                         {
                             fDisabled = true;
                         }
@@ -58,7 +72,7 @@ namespace BiblePay.BMS.Models
                     ? $"nav.{item.Title.ToLower().Replace(Space, Underscore)}"
                     : $"{parent.I18n}_{item.Title.ToLower().Replace(Space, Underscore)}";
                 item.Type = parent == null ? item.Href == null ? ItemType.Category : ItemType.Single : item.Items.Any() ? ItemType.Parent : ItemType.Child;
-                item.Items = FillProperties(item.Items, seedOnly, item);
+                item.Items = FillProperties(sERC20, item.Items, seedOnly, item);
 
                 if (item.Href.IsVoid() && item.Items.Any())
                     item.Type = ItemType.Sibling;

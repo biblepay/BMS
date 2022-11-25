@@ -835,7 +835,7 @@ aside.page-sidebar ($nav-width, $nav-background)
   padding: 0.625em;
   overflow: hidden;
   background: #f0f0f0;
-  color: #666666;
+  color: #070707;
   font-size: 1em;
   font-weight: 300; }
   .swal2-validation-message::before {

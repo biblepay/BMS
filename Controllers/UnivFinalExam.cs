@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using static BMSCommon.Common;
 using static BiblePay.BMS.DSQL.SessionExtensions;
 using Microsoft.AspNetCore.Http;
+using BiblePay.BMS.Extensions;
 
 namespace BiblePay.BMS.Controllers
 {
@@ -154,7 +155,7 @@ namespace BiblePay.BMS.Controllers
 			    ViewBag.lblTitle = _exammemory.Course;
 				// Load initial values
 				string sMode = _exammemory.ExamMode == ExamMode.TRAIN ? "<font color=red>LEARNING MODE</font>" : "<font color=red>TESTING MODE</font>";
-				string sInfo = sMode + "<br><br>Welcome to your Final Exam, " + DSQL.UI.GetUser(HttpContext).NickName + "!";
+				string sInfo = sMode + "<br><br>Welcome to your Final Exam, " + HttpContext.GetCurrentUser().NickName + "!";
 				ViewBag.lblInfo = sInfo;
      			PopulateQuestion();
 	      		AfterPopulatingQuestion(this.HttpContext);

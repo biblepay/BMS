@@ -5,8 +5,10 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Identity;
-using BiblePay.BMS.Data;
 using BiblePay.BMS.Models;
+using System.Security.Principal;
+using static BMSCommon.CryptoUtils;
+using Microsoft.AspNetCore.Http;
 
 namespace BiblePay.BMS.Extensions
 {
@@ -22,6 +24,13 @@ namespace BiblePay.BMS.Extensions
 
             return claims?.Any() == true && claims.Intersect(roles ?? new string[] { }).Any();
         }
+
+        public static User GetCurrentUser(this HttpContext h)
+        {
+            User u0 = DSQL.UI.GetUser(h).Result;
+            return u0;
+        }
+
 
         [DebuggerStepThrough]
         public static IEnumerable<ListItem> AuthorizeFor(this IEnumerable<ListItem> source, ClaimsPrincipal identity)
@@ -39,8 +48,9 @@ namespace BiblePay.BMS.Extensions
         [DebuggerStepThrough]
         public static bool IsRelatedTo(this ListItem item, string pageName) => item?.Type == ItemType.Parent && item?.Href?.ToPage() == pageName?.ToLower();
 
+        /*
         [DebuggerStepThrough]
-        public static async Task<IdentityResult> UpdateAsync<T>(this ApplicationDbContext context, T model, string id) where T : class
+        public static async Task<IdentityResult> UpdateAsync<T>(this xApplicationDbContext context, T model, string id) where T : class
         {
             var entity = await context.FindAsync<T>(id);
 
@@ -57,7 +67,7 @@ namespace BiblePay.BMS.Extensions
         }
 
         [DebuggerStepThrough]
-        public static async Task<IdentityResult> DeleteAsync<T>(this ApplicationDbContext context, string id) where T : class
+        public static async Task<IdentityResult> DeleteAsync<T>(this xApplicationDbContext context, string id) where T : class
         {
             var entity = await context.FindAsync<T>(id);
 
@@ -72,5 +82,7 @@ namespace BiblePay.BMS.Extensions
 
             return IdentityResult.Success;
         }
+        */
+
     }
 }

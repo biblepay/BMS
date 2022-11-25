@@ -23,8 +23,6 @@ namespace BMSCommon
             return k1;
         }
 
-
-
         public static string GetBurnAddress(bool fTestNet)
         {
             // These are hardcoded in the biblepaycore wallet:
@@ -165,6 +163,17 @@ namespace BMSCommon
             return System.Convert.ToBase64String(myByteOut);
         }
 
+        public static string EncAES(string sData)
+        {
+            string sPrivKey = BMSCommon.Common.GetConfigurationKeyValue("foundationprivkey");
+            return EncryptAES256(sData, sPrivKey);
+
+        }
+        public static string DecAES(string sData)
+        {
+            string sPrivKey = BMSCommon.Common.GetConfigurationKeyValue("foundationprivkey");
+            return DecryptAES256(sData, sPrivKey);
+        }
         public static string DecryptAES256(string sData, string password)
         {
             if (sData == "")
@@ -178,7 +187,7 @@ namespace BMSCommon
             }
             catch (Exception)
             {
-                return "";
+                return String.Empty;
             }
         }
 

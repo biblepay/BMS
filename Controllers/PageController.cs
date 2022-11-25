@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using BiblePay.BMS.Extensions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using OptionsShared;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -52,9 +55,9 @@ namespace BiblePay.BMS.Controllers
         {
             BMSCommon.Encryption.KeyType k = DSQL.UI.GetKeyPair(HttpContext);
             ViewBag.BBPAddress = k.PubKey;
-            BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(HttpContext);
+            BMSCommon.CryptoUtils.User u = HttpContext.GetCurrentUser();
             ViewBag.NickName = u.NickName;
-            if (ViewBag.NickName == null || ViewBag.NickName == "")
+            if (ViewBag.NickName == null || ViewBag.NickName == String.Empty)
                 ViewBag.NickName = "Guest";
             bool fTestNet = DSQL.UI.IsTestNet(HttpContext);
             if (fTestNet)
@@ -69,11 +72,18 @@ namespace BiblePay.BMS.Controllers
             }
             ViewBag.SignRPC = GenerateSignCommand(DSQL.UI.IsTestNet(HttpContext), ViewBag.PortfolioBuilderAddress, u.ERC20Address, ViewBag.PBSignature);
 
-            ViewBag.EmailAddress = u.EmailAddress;
+            ViewBag.EmailAddress = BMSCommon.Encryption.DecAES(u.EmailAddress);
+
             ViewBag.BioURL = DSQL.UI.GetBioURL(HttpContext);
             ViewBag.Balance = DSQL.UI.GetAvatarBalance(HttpContext,false);
             ViewBag.ERC20Address = u.ERC20Address;
-
+            string sql = "Select NetLiquidationValue from Users where id=@id;";
+            SqlCommand s = new SqlCommand(sql);
+            s.Parameters.AddWithValue("@id", u.ERC20Address);
+            if (u.ERC20Address != null)
+            {
+                ViewBag.NetLiq = SQLDatabase.GetScalarDouble(s, "NetLiquidationValue");
+            }
             return View();
         }
 
@@ -100,14 +110,13 @@ namespace BiblePay.BMS.Controllers
                             }
                             // Change the avatar (check the extension too)
                             // mission critical #2
-                            //string sURL = await BBPTestHarness.IPFS.PFS_Retired(sDestFN, sGuid);
                             string sURL = await BBPTestHarness.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, BMSCommon.Common.GetCDN());
 
-                            BMSCommon.CryptoUtils.User u = DSQL.UI.GetUser(HttpContext);
+                            BMSCommon.CryptoUtils.User u = HttpContext.GetCurrentUser();
                             u.BioURL = sURL;
                             u.Updated = System.DateTime.Now.ToString();
                             DSQL.UI.SetUser(u, HttpContext);
-                            bool f = BMSCommon.CryptoUtils.PersistUser(DSQL.UI.IsTestNet(HttpContext),u);
+                            bool f = await BMSCommon.CryptoUtils.PersistUser(DSQL.UI.IsTestNet(HttpContext),u);
                             break;
                         }
                         else

@@ -5,17 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using static BMSCommon.BitcoinSyncModel;
 using static BMSCommon.Common;
+using static BMSCommon.Model;
 
 namespace BMSCommon
 {
-
-    public class SupplyType
-    {
-        public double CirculatingSupply = 0;
-        public double TotalSupply = 0;
-        public double TotalBurned = 0;
-    }
 
     public static class WebRPC
     {
@@ -79,45 +74,7 @@ namespace BMSCommon
             }
         }
 
-
-        public static MessageSigner _MessageSignerTest =  new MessageSigner();
-        public static MessageSigner _MessageSignerMain = new MessageSigner();
-        public struct MessageSigner
-        {
-            public string SigningPublicKey;
-            public string Signature;
-            public string SignMessage;
-        };
-
-        public static string RPCInsertUTXODataIntoChain(bool fTestNet, string sMessageKey, string sUTXOData)
-        {
-            try
-            {
-                // <MK>GSC</MK> = Daily GSC contract
-                MessageSigner m = fTestNet ? _MessageSignerTest : _MessageSignerMain;
-                if (m.Signature == null || m.Signature == "")
-                {
-                    Common.Log("The node must have at least 1MM bbp to sign messages.");
-                    return "";
-                }
-                string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
-                string sError = "";
-                double nAmount = 101;
-                string sTXID = BMSCommon.WebRPC.PushChainData2(fTestNet, sMessageKey, sUTXOData);
-                //string sTXID = WebRPC..  BMSCommon.WebRPC.PushChainData2(fTestNet, sMessageKey, sUTXOData);
-                if (sTXID == "")
-                {
-                    throw new Exception("Unabled to add to memory pool.");
-                }
-                return sTXID;
-            }
-            catch (Exception)
-            {
-                BMSCommon.Common.Log("An error occured in the daily utxo report. ");
-                return "";
-            }
-        }
-
+        
 
         public static bool VerifySignature(bool fTestNet, string BBPAddress, string sMessage, string sSig)
         {
@@ -144,15 +101,6 @@ namespace BMSCommon
             }
         }
 
-        public struct SimpleUTXO
-        {
-            public double nAmount;
-            public string TXID;
-            public int nOrdinal;
-            public int nHeight;
-            public string Address;
-            public string Ticker;
-        };
 
         public static List<SimpleUTXO> GetBBPUTXOs2(bool fTestNet, string sAddress)
         {
@@ -245,8 +193,7 @@ namespace BMSCommon
 
         public static string GetRawTransactionXML(string sTxid, bool fTestNet)
         {
-            string XML = "";
-
+            string XML = String.Empty;
             try
             {
                 NBitcoin.RPC.RPCClient n = BMSCommon.WebRPC.GetRPCClient(fTestNet);
@@ -262,16 +209,16 @@ namespace BMSCommon
                 height = height1 > 0 ? height1 : locktime;
                 for (int y = 0; y < oOut.Result["vout"].Count; y++)
                 {
-                    string sPtr = "";
+                    string sPtr = String.Empty;
                     try
                     {
                         sPtr = (oOut.Result["vout"][y] ?? "").ToString();
                     }
-                    catch (Exception ey)
+                    catch (Exception)
                     {
                     }
 
-                    if (sPtr != "")
+                    if (sPtr != String.Empty)
                     {
                         string sAmount = oOut.Result["vout"][y]["value"].ToString();
                         string sData = oOut.Result["vout"][y]["txoutmessage"];
@@ -293,7 +240,7 @@ namespace BMSCommon
             catch (Exception ex)
             {
                 Log("GetRawTransaction2: for " + sTxid + " " + ex.Message);
-                return "";
+                return String.Empty;
             }
         }
 
@@ -365,7 +312,7 @@ namespace BMSCommon
             {
                 Log("GS " + ex.Message);
             }
-            sRecipient = "";
+            sRecipient = String.Empty;
             nSubsidy = 0;
         }
 
@@ -389,8 +336,7 @@ namespace BMSCommon
             return s;
         }
 
-
-        public static string PackageMessage(bool fTestNet, string sType, string sData)
+        public static string PackageBBPChainDataMessage(bool fTestNet, string sType, string sData)
         {
             // <MK>GSC</MK> = Daily GSC contract
             MessageSigner m = fTestNet ? _MessageSignerTest : _MessageSignerMain;
@@ -406,7 +352,7 @@ namespace BMSCommon
             try
             {
                 object[] oParams = new object[2];
-                string sPackaged = PackageMessage(fTestNet, sType, sData);
+                string sPackaged = PackageBBPChainDataMessage(fTestNet, sType, sData);
                 if (sPackaged.Length > 2000 && false)
                 {
                     oParams = new object[3];
@@ -427,13 +373,13 @@ namespace BMSCommon
             catch (Exception ex)
             {
                 Log("PCD " + ex.Message);
-                return "";
+                return String.Empty;
             }
         }
 
-        public static CryptoUtils.Block GetBlock(bool fTestNet, int nHeight)
+        public static BitcoinSyncBlock GetBlock(bool fTestNet, int nHeight)
         {
-            CryptoUtils.Block b = new CryptoUtils.Block();
+            BitcoinSyncBlock b = new BitcoinSyncBlock();
 
             try
             {
@@ -454,7 +400,7 @@ namespace BMSCommon
                     if (nHeight > 0)
                     {
                         string XML = GetRawTransactionXML(sTXID, fTestNet);
-                        CryptoUtils.Transaction t = new CryptoUtils.Transaction();
+                        BitcoinSyncTransaction t = new BitcoinSyncTransaction();
                         string Extracted = BMSCommon.Common.ExtractXML(XML, "<MV>", "</MV>");
                         string sSigMessage = BMSCommon.Common.ExtractXML(XML, "<BOMSG>", "</BOMSG>");
                         string sSig = BMSCommon.Common.ExtractXML(XML, "<BOSIG>", "</BOSIG>");
@@ -482,20 +428,6 @@ namespace BMSCommon
             }
             return b;
         }
-
-
-        public struct BalanceUTXO
-        {
-            public string Address;
-            public NBitcoin.Money Amount;
-            public NBitcoin.uint256 TXID;
-            public NBitcoin.uint256 SpentToTXID;
-            public int index;
-            public int Height;
-            public int SpentToIndex;
-            public NBitcoin.Money SpentToNewChangeAmount;
-            public bool Chosen;
-        };
 
 
         public static double QueryAddressBalanceNewMethod(bool fTestNet, string sAddress)
@@ -565,16 +497,11 @@ namespace BMSCommon
             {
                 Log("GBFS " + ex.Message);
             }
-            return "";
+            return String.Empty;
         }
 
-        public struct Payment
-        {
-            public string bbpaddress;
-            public double amount;
-        }
 
-        public static string SendMany(bool fTestNet, List<Payment> p, string sFromAccount, string sComment)
+        public static string SendMany(bool fTestNet, List<ChainPayment> p, string sFromAccount, string sComment)
         {
             string sPack = "";
             for (int i = 0; i < p.Count; i++)
@@ -601,28 +528,7 @@ namespace BMSCommon
             {
                 string test = ex.Message;
                 Log(" Error while transmitting : " + ex.Message);
-                return "";
-            }
-        }
-        public static bool GetNextContract(bool fTestNet, out double nHeight)
-        {
-            try
-            {
-                nHeight = 0;
-                object[] oParams = new object[1];
-                oParams[0] = "nextcontract";
-                NBitcoin.RPC.RPCClient n = WebRPC.GetRPCClient(fTestNet);
-                dynamic oOut = n.SendCommand("exec", oParams);
-                nHeight = GetDouble(oOut.Result["nextdailysuperblock"].ToString());
-                string sNextContract = oOut.Result["nextcontract"].ToString();
-                string sHash = ExtractXML(sNextContract, "<hash>", "</hash>");
-                bool fExists = sHash.Length == 64;
-                return fExists;
-            }
-            catch (Exception ex)
-            {
-                nHeight = 0;
-                return false;
+                return String.Empty;
             }
         }
 
@@ -630,8 +536,8 @@ namespace BMSCommon
         {
             try
             {
-                if (address == null || address == "")
-                    return "";
+                if (String.IsNullOrEmpty(address))
+                    return String.Empty;
                 NBitcoin.RPC.RPCClient n = GetRPCClient(fTestNet);
                 NBitcoin.BitcoinAddress[] a = new NBitcoin.BitcoinAddress[1];
                 a[0] = NBitcoin.BitcoinAddress.Create(address, fTestNet ? NBitcoin.Network.TestNet : NBitcoin.Network.Main);
@@ -641,16 +547,10 @@ namespace BMSCommon
             }
             catch (Exception ex)
             {
-                return "";
+                return String.Empty;
             }
         }
 
-        public class DACResult
-        {
-            public string TXID = "";
-            public bool Result;
-            public string Error;
-        }
 
         public static DACResult SendRawTx(bool fTestNet, string hex)
         {
@@ -695,10 +595,10 @@ namespace BMSCommon
         public static NBitcoin.RPC.RPCClient GetRPCClient(bool fTestNet)
         {
             NBitcoin.RPC.RPCClient n = null;
-            string sUser = "";
-            string sPass = "";
-            string sHost = "";
-            string sTheUser = "";
+            string sUser = String.Empty;
+            string sPass = String.Empty;
+            string sHost = String.Empty;
+            string sTheUser = String.Empty;
             try
             {
                 NBitcoin.RPC.RPCCredentialString r = new NBitcoin.RPC.RPCCredentialString();

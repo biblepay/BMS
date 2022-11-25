@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.Http;
 using System.Data;
 using MySql.Data.MySqlClient;
 using static BiblePay.BMS.DSQL.UI;
+using BMSCommon;
+using System.Threading.Tasks;
+using static BMSCommon.Model;
 
 namespace BiblePay.BMS.Controllers
 {
@@ -16,9 +19,9 @@ namespace BiblePay.BMS.Controllers
 	{
 		private TestingMemory _testingmemory = new TestingMemory();
 
-		public IActionResult MemorizeScriptures()
+		public async Task<IActionResult> MemorizeScriptures()
 		{
-			Page_Load();
+			await Page_Load();
 			return View();
 		}
 
@@ -40,7 +43,7 @@ namespace BiblePay.BMS.Controllers
 			public double nTestingScore;
 		};
 
-		protected void Page_Load()
+		protected async Task<bool> Page_Load()
 		{
 			if (HttpContext.Session.ObjectExists("testingmemory"))
 			{ 
@@ -51,17 +54,13 @@ namespace BiblePay.BMS.Controllers
 				_testingmemory.TestMode = TestingMode.TRAIN;
 				HttpContext.Session.SetObject("testingmemory", _testingmemory);
 			}
-			UpdateDisplay();
+			await UpdateDisplay();
+			return true;
 		}
 
-		void PopulateNewVerse(bool fTestNet)
+		async Task<bool> PopulateNewVerse(bool fTestNet)
 		{
-			string sTable = fTestNet ? "tVerseMemorizer" : "VerseMemorizer";
-			string sql = "Select * from " + sTable + " where 1=1";
-			MySqlCommand m1 = new MySqlCommand(sql);
-			DataTable dt = BMSCommon.Database.GetDataTable(m1);
-			if (dt.Rows.Count < 1)
-					return;
+			List<VerseMemorizer> dt = await StorjIO.GetDatabaseObjects<VerseMemorizer>("versememorizer");
 			Random r = new Random();
 			int iChapter = 0;
 			string sBook = "";
@@ -69,17 +68,17 @@ namespace BiblePay.BMS.Controllers
 			string sTotalVerses = "";
 			for (int y = 0; y < 9; y++)
 			{
-				int iRow = (int)r.Next(0, dt.Rows.Count);
- 	 		    iVerseStart = (int)BMSCommon.Common.GetDouble(dt.Rows[iRow]["VerseFrom"]);
-				iVerseEnd = (int)BMSCommon.Common.GetDouble(dt.Rows[iRow]["VerseTo"]);
+				int iRow = (int)r.Next(0, dt.Count);
+ 	 		    iVerseStart = dt[iRow].VerseFrom;
+				iVerseEnd = dt[iRow].VerseTo;
 				if (iVerseEnd < iVerseStart)
 						iVerseEnd = iVerseStart;
-				sBook = dt.Rows[iRow]["BookFrom"].ToString();
-				iChapter = (int)BMSCommon.Common.GetDouble(dt.Rows[iRow]["ChapterFrom"]);
-				sTotalVerses = "";
+				sBook = dt[iRow].BookFrom;
+				iChapter = dt[iRow].ChapterFrom;
+				sTotalVerses = String.Empty;
 				for (int j = iVerseStart; j <= iVerseEnd && j >= iVerseStart; j++)
 				{
-					string sPrefix = _testingmemory.TestMode == TestingMode.TESTING ? "" : j.ToString() + ".  ";
+					string sPrefix = _testingmemory.TestMode == TestingMode.TESTING ? String.Empty : j.ToString() + ".  ";
 					string sVerse = sPrefix + BibleRef._bible.GetVerse(sBook, iChapter, j);
 					sTotalVerses += sVerse + "\r\n";
 				}
@@ -87,18 +86,18 @@ namespace BiblePay.BMS.Controllers
 						break;
 			}
 			if (iVerseStart == 0)
-					return;
+				return false;
 			clear();
 			ViewBag.txtChapter = iChapter.ToString();
 			ViewBag.txtVerse = iVerseStart.ToString();
 			string sLocalBook = BibleRef._bible.GetBookByName(sBook);
-			if (sLocalBook == "")
+			if (sLocalBook == String.Empty)
 				sLocalBook = sBook;
 
 			_testingmemory.sCorrectBook = sLocalBook;
 			_testingmemory.nCorrectVerse = iVerseStart;
 			_testingmemory.nCorrectChapter = iChapter;
-			string sTest = "";
+			string sTest = String.Empty;
 			List<string> l = BibleRef._bible.GetBookList();
 
 			for (int i = 0; i < l.Count; i++)
@@ -116,26 +115,25 @@ namespace BiblePay.BMS.Controllers
 			if (_testingmemory.TestMode == TestingMode.TESTING)
 			{
 				// In test mode we need to clear the fields
-				ViewBag.txtChapter = "";
-				ViewBag.txtVerse = "";
-				ViewBag.ddBookSelectedValue = "";
+				ViewBag.txtChapter = String.Empty;
+				ViewBag.txtVerse = String.Empty;
+				ViewBag.ddBookSelectedValue = String.Empty;
 			}
 
 			// Populate the dropdown values with the books
 			List<string> lBooks = BibleRef._bible.GetBookList();
 			List<DropDownItem> ddBook = new List<DropDownItem>();
-			ddBook.Add(new DropDownItem("", ""));
+			ddBook.Add(new DropDownItem(String.Empty, String.Empty));
 			for (int i = 0; i < lBooks.Count; i++)
 			{
 				ddBook.Add(new DropDownItem(lBooks[i].ToUpper(), lBooks[i].ToUpper()));
 			}
 			ViewBag.ddBook = ListToHTMLSelect(ddBook, sLocalBook);
 			// end of dropdown values
-
 			string sCaption = _testingmemory.TestMode == TestingMode.TRAIN ? "Switch to TEST Mode" : "Switch to TRAIN Mode";
 			ViewBag.btnSwitchToTestCaption = sCaption;
-
 			HttpContext.Session.SetObject("testingmemory", _testingmemory);
+			return true;
 		}
 
 		public static double WordComparer(string Verse, string UserEntry)
@@ -187,21 +185,23 @@ namespace BiblePay.BMS.Controllers
 			return sSummary;
 		}
 
-		void UpdateDisplay()
+		async Task<bool> UpdateDisplay()
 		{
-				string sMode = _testingmemory.TestMode == TestingMode.TRAIN ? "<font color=red>TRAINING MODE</font>" : "<font color=red>TESTING MODE</font>";
-				string sInfo = sMode + "<br><br>Welcome to the Scripture Memorizer, " + DSQL.UI.GetUser(HttpContext).NickName + "!";
-				ViewBag.lblInfo = sInfo;
-				// Find the first verse to do the initial population.
-				PopulateNewVerse(IsTestNet(HttpContext));
+			string sMode = _testingmemory.TestMode == TestingMode.TRAIN ? "<font color=red>TRAINING MODE</font>" : "<font color=red>TESTING MODE</font>";
+            CryptoUtils.User u0 = await GetUser(HttpContext);
+			string sInfo = sMode + "<br><br>Welcome to the Scripture Memorizer, " + u0.NickName + "!";
+			ViewBag.lblInfo = sInfo;
+			// Find the first verse to do the initial population.
+			await PopulateNewVerse(IsTestNet(HttpContext));
+			return true;
 		}
 
 		void clear()
 		{
-			ViewBag.txtChapter = "";
-  		    ViewBag.txtVerse = "";
-			ViewBag.txtScripture = "";
-			ViewBag.txtPractice = "";
+			ViewBag.txtChapter = String.Empty;
+  		    ViewBag.txtVerse = String.Empty;
+			ViewBag.txtScripture = String.Empty;
+			ViewBag.txtPractice = String.Empty;
 		}
 
 		public static void btnNextScripture_Click(HttpContext h, string sFormData)
@@ -251,7 +251,6 @@ namespace BiblePay.BMS.Controllers
 		public static void Score(HttpContext h, string sFormData)
 		{
 			TestingMemory _testingmemory = h.Session.GetObject<TestingMemory>("testingmemory");
-
 			if (_testingmemory.TestMode == TestingMode.TESTING)
 			{
 				string sTxtScripture = DSQL.UI.GetFormData(sFormData, "txtScripture");
@@ -263,9 +262,9 @@ namespace BiblePay.BMS.Controllers
 			// Score the current Testing session
 			if (_testingmemory.TestMode == TestingMode.TRAIN)
 			{
-					_testingmemory.nTestingQuestionsTaken++;
-					double nTestPct = Grade(h, sFormData);
-					_testingmemory.nTestingScore += nTestPct;
+				_testingmemory.nTestingQuestionsTaken++;
+				double nTestPct = Grade(h, sFormData);
+				_testingmemory.nTestingScore += nTestPct;
 			}
 			h.Session.SetObject("testingmemory", _testingmemory);
 		}

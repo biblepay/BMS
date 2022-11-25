@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using BiblePay.BMS.Models;
+using static BMSCommon.CryptoUtils;
+using BiblePay.BMS.Extensions;
 
 namespace BiblePay.BMS.ViewComponents
 {
@@ -11,8 +13,10 @@ namespace BiblePay.BMS.ViewComponents
     {
         public IViewComponentResult Invoke()
         {
-            var items = NavigationModel.Full;
+            User uGlobal = HttpContext.GetCurrentUser();
 
+            var items = NavigationModel.BuildNavigation(uGlobal.ERC20Address, false);
+            
             return View(items);
         }
     }

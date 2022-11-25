@@ -1,8 +1,10 @@
 ﻿using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Net;
+using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -20,6 +22,72 @@ namespace BMSCommon
         }
 
 
+        public static string NormalizeFilePath(string sPath)
+        {
+            if (IsWindows())
+            {
+                sPath = sPath.Replace("/", "\\");
+                sPath = sPath.Replace("\\\\", "\\");
+                return sPath;
+            }
+            else
+            {
+                sPath = sPath.Replace("\\", "/");
+                sPath = sPath.Replace("//", "/");
+                return sPath;
+            }
+        }
+        public static string ToNonNull(object o)
+        {
+            if (o == null)
+                return String.Empty;
+
+            string o1 = o.ToNonNullString();
+            return o1;
+        }
+
+        public static string GetPublicKeyFromPrivateKey(string sPrivKey, bool fTestNet)
+        {
+            string sPubKey = NBitcoin.Crypto.BBPTransaction.GetPubKeyFromPrivKey(fTestNet, sPrivKey);
+            return sPubKey;
+        }
+
+
+        public static bool SendMail2(bool fTestNet, System.Net.Mail.MailMessage bbp_message)
+        {
+            bool r1 = false;
+            try
+            {
+                string sID = BMSCommon.Encryption.GetSha256HashI(bbp_message.Subject);
+                System.Net.Mail.SmtpClient client = new System.Net.Mail.SmtpClient();
+                client.UseDefaultCredentials = false;
+                client.Credentials = new System.Net.NetworkCredential("1", "2"); // Do not change these values, change the config values.
+                client.Port = 587;
+                client.EnableSsl = true;
+                client.Host = "smtp.mailgun.org";
+                client.DeliveryMethod = SmtpDeliveryMethod.Network;
+                client.UseDefaultCredentials = false;
+                string sMC1 = GetConfigurationKeyValue("mailgun");
+                
+                client.Credentials = new NetworkCredential("postmaster@mail.biblepay.org", sMC1);
+                bbp_message.From = new MailAddress("postmaster@mail.biblepay.org", "Team BiblePay");
+                try
+                {
+                    client.Send(bbp_message);
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    System.Threading.Thread.Sleep(10000);
+                    Console.WriteLine("Error in Send email: {0}", e.Message);
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
         public static List<string> GetTSFileParams(string sPath)
         {
@@ -40,22 +108,6 @@ namespace BMSCommon
             return t;
         }
 
-        public static string xByteArrayToHexString(byte[] arrInput)
-        {
-            StringBuilder sOutput = new StringBuilder(arrInput.Length);
-            for (int i = 0; i < arrInput.Length; i++)
-            {
-                sOutput.Append(arrInput[i].ToString("X2"));
-            }
-            return sOutput.ToString().ToLower();
-        }
-
-        public static string xGetSha256String(string sData)
-        {
-            byte[] arrData = System.Text.Encoding.UTF8.GetBytes(sData);
-            var hash = System.Security.Cryptography.SHA256.Create().ComputeHash(arrData);
-            return ByteArrayToHexString(hash);
-        }
 
         public static string GetShaOfBytes(byte[] bytes)
         {
@@ -72,7 +124,7 @@ namespace BMSCommon
             }
             catch (Exception)
             {
-                return "";
+                return String.Empty;
             }
         }
 
@@ -101,7 +153,6 @@ namespace BMSCommon
         {
             bool fUnix = Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX;
             string sPath = fUnix ? "/" : "c:\\";
-            //string sHomePath = ? Environment.GetEnvironmentVariable("HOME")                      : Environment.ExpandEnvironmentVariables("%APPDATA%");
             return sPath;
         }
         public static string GetPathDelimiter()
@@ -272,7 +323,6 @@ namespace BMSCommon
         }
 
 
-
         public static int GetHexVal(char hex)
         {
             try
@@ -341,6 +391,15 @@ namespace BMSCommon
             }
             return sOut;
         }
+
+        public static string FileNameFromFullURL(string sData)
+        {
+            string sDelimiter = "/";
+            string[] vData = sData.Split(sDelimiter);
+            return vData[vData.Length - 1];
+        }
+
+
         public static string ChopLastOctetFromPath(string sData)
         {
             string sDelimiter = IsWindows() ? "\\" : "/";
@@ -360,22 +419,6 @@ namespace BMSCommon
             bool fUnix = Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX;
             return !fUnix;
         }
-        public static string NormalizeFilePath(string sPath)
-        {
-            if (IsWindows())
-            {
-                sPath = sPath.Replace("/", "\\");
-                sPath = sPath.Replace("\\\\", "\\");
-                return sPath;
-            }
-            else
-            {
-                sPath = sPath.Replace("\\", "/");
-                sPath = sPath.Replace("//", "/");
-                return sPath;
-            }
-        }
-
 
         public static string ByteArrayToHexString(byte[] arrInput)
         {
@@ -450,7 +493,6 @@ namespace BMSCommon
             for (int j = 0; j < filePaths.Length; j++)
             {
                 FileInfo fi = new FileInfo(filePaths[j]);
-                //string sObjName = sFileName + "/" + fi.Name;
                 sHLS += fi.Name + ",";
             }
             return sHLS;
@@ -496,8 +538,6 @@ namespace BMSCommon
             Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
             return unixTimestamp;
         }
-
-
 
     }
 }

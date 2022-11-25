@@ -1,14 +1,61 @@
 ﻿using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
+using System.Threading.Tasks;
+using static BMSCommon.Model;
 
 namespace BMSCommon
 {
     public static class Database
     {
-        public static string msContentRootPath = null;
+
+        public static string GetKeyValue(string sKey, int nMaxSeconds)
+        {
+            double age = 0;
+            if (sKey == null)
+                return String.Empty;
+            string sql = "Select updated,Value from sys where systemkey=@skey;";
+            MySqlCommand cmd1 = new MySqlCommand(sql);
+            cmd1.Parameters.AddWithValue("@skey", sKey);
+            DataTable dt = Database.GetDataTable2(cmd1);
+            if (dt.Rows.Count < 1)
+            {
+                return String.Empty;
+            }
+            string sValue = dt.Rows[0]["Value"].ToString();
+            string s1 = dt.Rows[0]["Updated"].ToString();
+            TimeSpan vTime = DateTime.Now - Convert.ToDateTime(s1);
+            age = (int)vTime.TotalSeconds;
+            if (age > nMaxSeconds)
+                sValue = "";
+            return sValue;
+        }
+
+        public static bool SetKeyValue(string sKey, string sValue)
+        {
+            string sql = "Delete from sys where systemkey=@skey;\r\nInsert into sys (id,systemkey,Updated,Value) values (uuid(),@skey,now(),@svalue);";
+            MySqlCommand cmd1 = new MySqlCommand(sql);
+            cmd1.Parameters.AddWithValue("@skey", sKey);
+            cmd1.Parameters.AddWithValue("@svalue", sValue);
+            bool f = Database.ExecuteNonQuery2(cmd1);
+            return f;
+        }
+
+        public static double GetKeyDouble(string sKey, int nMaxSeconds)
+        {
+            double nValue = BMSCommon.Common.GetDouble(GetKeyValue(sKey, nMaxSeconds));
+            return nValue;
+        }
+
+        public static bool SetKeyDouble(string sKey, double nValue)
+        {
+            bool f = SetKeyValue(sKey, nValue.ToString());
+            return f;
+        }
+
 
         public static string GetDatabaseName()
         {
@@ -25,13 +72,10 @@ namespace BMSCommon
             string sDbHost = Common.GetConfigurationKeyValue("dbhost");
             if (sDbHost == "")
                 sDbHost = "localhost";
-            
+
             string connStr = "server=" + sDbHost + ";user=" + sUser + ";database=" + sDB + ";port=3306;Allow User Variables=True;Connect Timeout=30;password=" + sPass + ";";
             return connStr;
         }
-
-        
-
 
 
         public static bool DatabaseExists(string sName)
@@ -39,7 +83,7 @@ namespace BMSCommon
             string sql = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = @sname;";
             MySqlCommand cmd1 = new MySqlCommand(sql);
             cmd1.Parameters.AddWithValue("@sname", sName);
-            DataTable dt = GetDataTable(cmd1);
+            DataTable dt = GetDataTable2(cmd1);
             if (dt.Rows.Count == 0)
                 return false;
             return true;
@@ -51,7 +95,7 @@ namespace BMSCommon
             MySqlCommand cmd1 = new MySqlCommand(sql);
             cmd1.Parameters.AddWithValue("@yourdb", sDBName);
             cmd1.Parameters.AddWithValue("@sname", sName);
-            DataTable dt = GetDataTable(cmd1);
+            DataTable dt = GetDataTable2(cmd1);
             if (dt.Rows.Count == 0)
                 return false;
             return true;
@@ -62,7 +106,7 @@ namespace BMSCommon
             string sFullObjName = sDBName + "." + SPName;
             string sql = "SELECT * FROM information_schema.routines WHERE ROUTINE_SCHEMA='" + sDBName + "' and ROUTINE_NAME = '" + SPName + "';";
             MySqlCommand cmd1 = new MySqlCommand(sql);
-            DataTable dt = GetDataTable( cmd1 );
+            DataTable dt = GetDataTable2( cmd1 );
             if (dt.Rows.Count == 0)
                 return false;
             return true;
@@ -84,7 +128,7 @@ namespace BMSCommon
             return rdr;
         }
 
-        public static DataTable GetDataTable(MySqlCommand cmd)
+        public static DataTable GetDataTable2(MySqlCommand cmd)
         {
             bool fTestNet = false;
             MySqlConnection conn = new MySqlConnection(PCS(fTestNet, ""));
@@ -94,8 +138,6 @@ namespace BMSCommon
                 cmd.Connection = conn;
                 conn.Open();
                 dt.Load(cmd.ExecuteReader());
-                
-
                 conn.Close();
                 return dt;
             }
@@ -109,7 +151,7 @@ namespace BMSCommon
 
         public static List<string> GetDataList(MySqlCommand cmd, string sColName)
         {
-            DataTable dt = BMSCommon.Database.GetDataTable(cmd);
+            DataTable dt = BMSCommon.Database.GetDataTable2(cmd);
             List<string> l = new List<string>();
             for (int i = 0; i < dt.Rows.Count; i++)
             {
@@ -121,7 +163,7 @@ namespace BMSCommon
 
         public static double GetScalarDouble(MySqlCommand cmd, string sField)
         {
-            DataTable dt = GetDataTable(cmd);
+            DataTable dt = GetDataTable2(cmd);
             if (dt.Rows.Count < 1)
                 return 0;
             double n = Common.GetDouble(dt.Rows[0][sField]);
@@ -130,7 +172,7 @@ namespace BMSCommon
 
         public static double GetScalarAge(MySqlCommand cmd, object vCol, bool bLog = true)
         {
-            DataTable dt1 = GetDataTable(cmd);
+            DataTable dt1 = GetDataTable2(cmd);
             try
             {
                 if (dt1.Rows.Count > 0)
@@ -164,7 +206,7 @@ namespace BMSCommon
 
         public static string GetScalarString(MySqlCommand cmd, string sField)
         {
-            DataTable dt = GetDataTable(cmd);
+            DataTable dt = GetDataTable2(cmd);
             if (dt.Rows.Count < 1)
                 return String.Empty;
 
@@ -191,9 +233,7 @@ namespace BMSCommon
         }
 
         // Notes:  If we have a string date column, mysql function to convert back to date for sorting: order by by STR_TO_DATE(Added,'%m/%d/%Y %h:%i:%s') desc;
-
-
-        public static bool ExecuteNonQuery(MySqlCommand cmd1)
+        public static bool ExecuteNonQuery2(MySqlCommand cmd1)
         {
             MySqlConnection conn = new MySqlConnection(PCS(false, ""));
             try
@@ -219,146 +259,60 @@ namespace BMSCommon
                 return false;
             }
         }
-    }
 
 
 
-    public static class DataTableExtensions
+    public async static Task<SystemKey> GetDatabaseConfigurationKeyValue(string sName)
     {
-
-        /// <summary>
-        ///     A DateTime extension method that elapsed the given datetime.
-        public static TimeSpan Elapsed(this DateTime datetime)
+        string sData = await StorjIO.UplinkGetDatabaseData("systemkey", sName);
+        SystemKey k = JsonConvert.DeserializeObject<SystemKey>(sData);
+        if (k == null)
         {
-            return DateTime.Now - datetime;
+            return new SystemKey();
         }
+        return k;
+    }
 
-        public static DataTable FilterDataTable(this DataTable table, string sql)
+    public async static Task<bool> SetDatabaseConfigurationKeyValue(SystemKey k)
+    {
+        k.Added = DateTime.Now;
+        k.nUnixTimeAdded = Common.UnixTimestamp();
+        string o1 = JsonConvert.SerializeObject(k);
+        return await StorjIO.UplinkStoreDatabaseData("systemkey", k.Key, o1, String.Empty);
+    }
+
+    public async static Task<bool> LatchNew(bool fTestNet, string sLatchName, int nSeconds)
+    {
+        string sKeyPrefix = fTestNet ? "testnet" : "main";
+        string sKey = sKeyPrefix + sLatchName;
+        SystemKey k = await GetDatabaseConfigurationKeyValue(sKey);
+        int nElapsed = Common.UnixTimestamp() - k.nUnixTimeAdded;
+        if (nElapsed < nSeconds)
         {
-            try
-            {
-                DataRow[] dr1 = table.Select(sql);
-                DataTable dtNew = new DataTable();
-                if (dr1.Length > 0)
-                {
-                    dtNew = table.Clone();
-
-                    foreach (DataRow temp in dr1)
-                    {
-                        dtNew.ImportRow(temp);
-                    }
-                }
-                return dtNew;
-            }
-            catch (Exception ex)
-            {
-                DataTable dt1 = new DataTable();
-                return dt1;
-            }
+            return false;
         }
+        // Reset the latch
+        k.Value = "1";
+        k.Key = sKey;
+        await SetDatabaseConfigurationKeyValue(k);
+        return true;
+    }
 
-        public static DataTable SortDataTable(this DataTable table, string sql)
-        {
-            try
-            {
-                table.DefaultView.Sort = sql;
-                table.DefaultView.ApplyDefaultSort = true;
-                return table;
-            }
-            catch (Exception ex)
-            {
-                return table;
-            }
-
-        }
-
-        public static DataTable FilterAndSort(this DataTable table, string sFilter, string sSort)
-        {
-            try
-            {
-                DataRow[] dr1 = table.Select(sFilter, sSort);
-                DataTable dtNew = new DataTable();
-                if (dr1.Length > 0)
-                {
-                    dtNew = table.Clone();
-
-                    foreach (DataRow temp in dr1)
-                    {
-                        dtNew.ImportRow(temp);
-                    }
-                }
-                return dtNew;
-            }
-            catch (Exception)
-            {
-                DataTable dt1 = new DataTable();
-                return dt1;
-            }
-        }
-
-
-        public static string GetColValue(this DataTable table, string colName)
-        {
-            if (table.Rows.Count < 1)
-                return String.Empty;
-            if (!table.Columns.Contains(colName))
-                return String.Empty;
-            return table.Rows[0][colName].ToString();
-        }
-
-        public static double GetColDouble(this DataTable table, string colName)
-        {
-            return BMSCommon.Common.GetDouble(table.Rows[0][colName].ToString());
-        }
-
-        public static int GetColInt(this DataTable table, string colName)
-        {
-            return (int)BMSCommon.Common.GetDouble(table.Rows[0][colName].ToString());
-        }
-
-        public static string GetColValue(this DataTable table, int iRow, string colName)
-        {
-            if (!table.Columns.Contains(colName))
-            {
-                return "";
-            }
-            return table.Rows[iRow][colName].ToString();
-        }
-
-        public static double GetColDouble(this DataRowView dr, string colName)
-        {
-            if (dr == null)
-                return 0;
-
-
-            double nOut = BMSCommon.Common.GetDouble(dr[colName].ToString());
-            return nOut;
-        }
-
-
-        public static double GetColDouble(this DataTable table, int iRow, string colName)
-        {
-            if (table.Rows.Count == 0)
-                return 0;
-
-            double nOut = BMSCommon.Common.GetDouble(table.Rows[iRow][colName].ToString());
-            return nOut;
-        }
-        public static DateTime GetColDateTime(this DataTable table, int iRow, string sColName)
-        {
-            DateTime dt = new DateTime();
-
-            if (table.Rows.Count == 0)
-                return dt;
-
-            double nOut = BMSCommon.Common.GetDouble(table.Rows[iRow][sColName].ToString());
-            dt = BMSCommon.Common.FromUnixTimeStamp((int)nOut);
-            return dt;
-        }
-
+    public static bool LatchOld(bool fTestNet, string sName, int nSeconds)
+    {
+        // This is a database backed latch.  If the seconds have not expired, return false.
+        // Once the seconds expire, return true and set the latch.
+        // Note that a different latch exists for testnet and mainnet.
+        string sKey = fTestNet.ToString() + sName;
+        double nKV = Database.GetKeyDouble(sKey, nSeconds);
+        if (nKV == 1)
+            return false;
+        Database.SetKeyDouble(sKey, 1);
+        return true;
     }
 
 
+    }
 
 
 }

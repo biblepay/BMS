@@ -44,26 +44,29 @@ namespace BiblePay.BMS
             CreateHostBuilder(args,sBindURL,null).Build().Run();
         }
 
-        public static void Init(string sURL)
+        public static async Task<bool> Init(string sURL)
         {
             // Primary Entry point for BMS:
             // BWS will spawn one thread per BMS instance dedicated to servicing BIPFS replication
             System.Threading.Thread t = new System.Threading.Thread(new System.Threading.ParameterizedThreadStart(BiblePay.BMS.DSQL.Sync.Syncer));
             t.Start(sURL);
-            System.Threading.Thread s = new System.Threading.Thread(BBPTestHarness.Raid.MasterRaidReplicator);
-            s.Start();
             try
             {
-                BBPTestHarness.IPFS.BroadcastNode(BMSCommon.API.GetCDN(), true);
-            }catch(Exception ex)
+                await BBPTestHarness.IPFS.BroadcastNode(BMSCommon.API.GetCDN(), true);
+            }
+            catch(Exception ex)
             {
                 BMSCommon.WebRPC.LogRPCError("BN::" + ex.Message);
                 BMSCommon.Common.Log("BN::" + ex.Message);
             }
-            System.Threading.Thread m = new System.Threading.Thread(BMSCommon.Miner.Mine);
+            System.Threading.Thread m = new System.Threading.Thread(BMSCommon.BitcoinSync2.BCSync);
             m.Start();
+            // The billing thread
+            System.Threading.Thread q = new System.Threading.Thread(DSQL.QuantBilling.Looper);
+            q.Start();
             // The pool
             DSQL.PoolBase.NewPool();
+            return true;
         }
         public void ConfigureServices(IServiceCollection services)
         {

@@ -1,38 +1,27 @@
 ﻿using BMSCommon;
-using Microsoft.AspNetCore.Http;
+using BMSCommon.Models;
 using Microsoft.AspNetCore.Mvc;
-using MySql.Data.MySqlClient;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static BiblePay.BMS.DSQL.UI;
-using static BMSCommon.DataTableExtensions;
 
 namespace BiblePay.BMS.Controllers
 {
-	public partial class BBPController : Controller
+    public partial class BBPController : Controller
 	{
 
-		public string GetVideo()
+		public async Task<string> GetVideo()
         {
 			string sID = Request.Query["id"];
-			List<Video> lVideo = Video.Get(IsTestNet(HttpContext), sID);
+			List<Video> lVideo = await Video.Get(IsTestNet(HttpContext), sID);
 			if (lVideo.Count > 0)
 			{
-				string data = GetTemplate("WatchVideo.htm");
-				data = data.Replace("@poster", lVideo[0].Cover);
-				data = data.Replace("@m3u8", "/video/" + lVideo[0].Source + "/1.m3u8");
+				ViewBag.VideoPoster = lVideo[0].Cover;
+				ViewBag.VideoFileName = "/video/" + lVideo[0].Source + "/1.m3u8";
 				// Tack on the comments for this video.
-				string comments = GetTimelinePostDiv(HttpContext, sID);
-				data = data.Replace("@comments", comments);
-
-				return data;
+				ViewBag.VideoComments  = GetTimelinePostDiv(HttpContext, sID);
+				return String.Empty;
 			}
             else
             {
@@ -42,16 +31,15 @@ namespace BiblePay.BMS.Controllers
 
 		}
 
-		public IActionResult WatchVideo()
+		public async Task<IActionResult> WatchVideo()
 		{
-			ViewBag.WatchSancVideo = GetVideo();
+			ViewBag.WatchSancVideo = await GetVideo();
 			return View();
 		}
 
-
-		public string GetVideoList()
+		public async Task<string> GetVideoList()
         {
-			List<Video> lVideo = Video.Get(IsTestNet(HttpContext),"");
+			List<Video> lVideo = await Video.Get(IsTestNet(HttpContext),"");
 			int nPag = (int)BMSCommon.Common.GetDouble(Request.Query["pag"]);
 			string html = "<div class='row js-list-filter' id='nftlist'>";
 			int nTotal = 0;
@@ -85,9 +73,9 @@ namespace BiblePay.BMS.Controllers
 			return html;
 		}
 
-		public IActionResult VideoList()
+		public async Task<IActionResult> VideoList()
         {
-            ViewBag.VideoList = GetVideoList();
+            ViewBag.VideoList = await GetVideoList();
             return View();
         }
     }

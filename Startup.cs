@@ -10,7 +10,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using BiblePay.BMS.Data;
 using BiblePay.BMS.Models;
 
 namespace BiblePay.BMS
@@ -40,10 +39,12 @@ namespace BiblePay.BMS
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
-            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+            /*
+            services.AddDbContext<xApplicationDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
             services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddRoleManager<RoleManager<IdentityRole>>()
-                .AddEntityFrameworkStores<ApplicationDbContext>();
+                .AddEntityFrameworkStores<xApplicationDbContext>();
+            */
 
             services.AddTransient<IEmailSender, EmailSender>();
 

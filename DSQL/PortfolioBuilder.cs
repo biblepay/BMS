@@ -11,6 +11,8 @@ using static BMSCommon.Pricing;
 using static BMSCommon.PortfolioBuilder;
 using BMSCommon;
 using System.Net.Mail;
+using static BMSCommon.BitcoinSyncModel;
+using static BMSCommon.Model;
 
 namespace BiblePay.BMS.DSQL
 {
@@ -69,36 +71,43 @@ namespace BiblePay.BMS.DSQL
             {
                 sRow += "<th width=7%>Symbol";
             }
-            sRow += "<th>Total BBP<th width=5%><small>Ttl Foreign</small><th>USD Value BBP<th width=5%><small>USD Value Foreign</small><th>Assessed USD<th>Coverage<th>Earnings<th>Strength</tr>";
+            sRow += "<th>Total BBP<th width=5%><small>Ttl Foreign</small><th>USD Value BBP<th width=5%><small>USD Value Foreign</small><th>Assessed USD<th>RX Performance<th>RX Magnitude<th>Coverage<th>Earnings<th>Strength</tr>";
             html += sRow;
             Dictionary<string, PortfolioParticipant> u = await BBPTestHarness.BlockChairTestHarness.GenerateUTXOReport(fTestNet);
+
+
+
+            double nRXMagnitude = 0;
+            // Calculate the total magnitude of RX miners
+            foreach (KeyValuePair<string, PortfolioParticipant> pp in u)
+            {
+                if (pp.Value.RXRewards > 100)
+                {
+                    nRXMagnitude += pp.Value.Strength;
+                }
+            }
+            double nRXMultiplier = 1 / (nRXMagnitude + .01);
 
             foreach (KeyValuePair<string, PortfolioParticipant> pp in u)
             {
                 double nEarnings = nSuperblockLimit * pp.Value.Strength;
                 if (pp.Value.Strength > -1)
                 {
-                    string sBioURL = DSQL.UI.GetAvatarPicture(fTestNet, pp.Value.UserID);
-
-                    //User u1 = GetCachedUser(fTestNet, pp.Value.UserID);
-                    //string sAvatar = "<span class='profile-image-md rounded-circle d-block' style=\"background-image:url('" + u1.BioURL + "'); "
-                    //   +"background-size: cover;\"></span> " + pp.Value.NickName;
-
+                    string sBioURL = await DSQL.UI.GetAvatarPicture(fTestNet, pp.Value.UserID);
                     string sAvatar = sBioURL + pp.Value.NickName;
-
                     sRow = "<tr><td><font style='font-size:7px;'>" + pp.Value.RewardAddress
                         + "</font>" + "<td>" + sAvatar;
-
                     if (sMode.ToLower() != "summary")
                     {
                         sRow += "<td>";
                     }
-
                     sRow += "<td>" + Math.Round(pp.Value.AmountBBP, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountForeign, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountUSDBBP, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountUSDForeign, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.AmountUSD, 2).ToString()
+                        + "<td>" + Math.Round(pp.Value.RXRewards, 2).ToString()
+                        + "<td>" + Math.Round(pp.Value.BonusMagnitude, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.Coverage * 100, 2).ToString() + "%"
                         + "<td>" + Math.Round(nEarnings, 2).ToString()
                         + "<td>" + Math.Round(pp.Value.Strength * 100, 2).ToString() + "%</tr>";
@@ -115,7 +124,7 @@ namespace BiblePay.BMS.DSQL
                                     + sTD + Math.Round(pp.Value.lPortfolios[i].AmountForeign, 2).ToString()
                                     + sTD + Math.Round(pp.Value.lPortfolios[i].AmountUSDBBP, 2).ToString()
                                     + sTD + Math.Round(pp.Value.lPortfolios[i].AmountUSDForeign, 2).ToString()
-                                    + sTD + sTD + sTD + sTD;
+                                    + sTD + sTD + sTD + sTD + sTD + sTD;
                                 html += sRow;
                             }
                         }
@@ -134,7 +143,7 @@ namespace BiblePay.BMS.DSQL
             {
                 string sBurnAddress = BMSCommon.Encryption.GetBurnAddress(fTestNet);
                 string sTXID = "";
-                WebRPC.DACResult r0 = DSQL.UI.SendBBPOldMethod(fTestNet, sMessageKey, sBurnAddress, 5, sUTXOReport);
+                DACResult r0 = DSQL.UI.SendBBPOldMethod(fTestNet, sMessageKey, sBurnAddress, 5, sUTXOReport);
                 sTXID = r0.TXID;
                 if (sTXID == "")
                 {
@@ -150,22 +159,19 @@ namespace BiblePay.BMS.DSQL
         }
 
 
-
-
-
         public static async Task<bool> DailyUTXOExport(bool fTestNet, bool fPrimary)
         {
             if (!fPrimary)
                 return false;
 
 
-            bool fCacheLatch = Latch(fTestNet, "cachelatch", 60 * 60);
+            bool fCacheLatch = BMSCommon.Database.LatchOld(fTestNet, "cachelatch", 60 * 60);
             if (fCacheLatch)
             {
                 await BBPTestHarness.BlockChairTestHarness.GenerateUTXOReport(fTestNet);
             }
 
-            bool fLatch = Latch(fTestNet, "utxoexport", 60 * 30);
+            bool fLatch = BMSCommon.Database.LatchOld(fTestNet, "utxoexport", 60 * 30);
             if (!fLatch)
                 return false;
 
@@ -173,7 +179,7 @@ namespace BiblePay.BMS.DSQL
 
             try
             {
-                bool fExists = WebRPC.GetNextContract(fTestNet, out nNextHeight);
+                bool fExists = BMSCommon.Retired.UTXORPC.GetNextContract(fTestNet, out nNextHeight);
                 if (fExists || nNextHeight == 0)
                 {
                     return false;
@@ -193,7 +199,7 @@ namespace BiblePay.BMS.DSQL
                 u.added = DateTime.Now.ToString();
                 u.nHeight = (int)nNextHeight;
                 u.data = sData;
-                BMSCommon.CryptoUtils.Transaction t = new BMSCommon.CryptoUtils.Transaction();
+                BitcoinSyncTransaction t = new BitcoinSyncTransaction();
                 t.Time = BMSCommon.Common.UnixTimestamp();
                 t.Data = Newtonsoft.Json.JsonConvert.SerializeObject(u);
 
@@ -223,7 +229,7 @@ namespace BiblePay.BMS.DSQL
                     m.Subject = sSubject;
                     m.Body = "Error, " + ex.Message.ToString() + "\r\n for height " + nNextHeight.ToString();
                     m.IsBodyHtml = false;
-                    BBPTestHarness.IPFS.SendMail(false, m);
+                    BBPTestHarness.Common.SendMail(false, m);
                 }
                 return false;
             }
@@ -234,7 +240,9 @@ namespace BiblePay.BMS.DSQL
         public async static Task<string> ExecutePortfolioBuilderExport(bool fTestNet, int nNextHeight)
         {
             Dictionary<string, PortfolioBuilder.PortfolioParticipant> u = await BBPTestHarness.BlockChairTestHarness.GenerateUTXOReport(fTestNet);
-            string sSummary = "<data><ver>2.1</ver>";
+            string sSummary = "<data><ver>3.0</ver>";
+
+
             foreach (KeyValuePair<string, PortfolioBuilder.PortfolioParticipant> pp in u)
             {
                 {

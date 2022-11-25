@@ -11,16 +11,10 @@ function DoCallback(action, o) {
         dataType: "json",
         contentType: "application/json; charset=utf-8",
         success: function (data, resObject) {
-            //console.log(data);
-            // This object contains the return value
             if (data != null && data.length > 1)
             {
                 console.log('data[] ' + data);
-                //console.warn(jqxhr.responseText)
-
                 var obj = JSON.parse(data);
-                //console.log(obj.returnbody);
-                //console.log(obj.field2);
                 if (obj.returntype == "modal") {
                     var implant = document.getElementById("implant");
 
@@ -43,6 +37,36 @@ function DoCallback(action, o) {
         {
             //alert("Error while inserting data");
             console.log('Error while inserting data');
+        }
+    });
+    return true;
+}
+
+
+function DoPostback(URL, EventName, o) {
+    var CTS = new Object();
+    CTS.BBPAddress = "";
+    CTS.ExtraData = JSON.stringify(o);
+    CTS.FormData = MemorizeForm();
+    CTS.Action = EventName;
+    $.ajax({
+        type: "POST",
+        url: URL,
+        data: JSON.stringify(CTS),
+        dataType: "json",
+        contentType: "application/json",
+        success: function (response)
+        {
+           console.log(response);
+
+            if (response.type == 'javascript') {
+                //alert(response.result);
+                eval(response.body);
+            }
+        },
+        error: function () {
+            //alert("Error while inserting data");
+            alert('Error while posting data to the server.');
         }
     });
     return true;
@@ -81,17 +105,19 @@ function ElementsToHTML(sType) {
     for (var i = 0; i < elements.length; i++) {
         var id = elements[i].id;
         var value = elements[i].value;
+        var parentid = elements[i].getAttribute('data-parentid');
+
         if (elements[i].type == 'radio' || elements[i].type == 'checkbox') {
             if (!elements[i].checked)
                 value = "";
         }
 
-        var row = "<col>" + id + "<col>" + value + "<row>\r\n";
+        var row = parentid + "<col>" + id + "<col>" + value + "<row>";
         html += row;
     }
     var o1 = document.getElementById('divPaste');
     if (o1) {
-        var row = "<col>divPaste<col>" + o1.innerHTML + "<row>\r\n";
+        var row = "<col>divPaste<col>" + o1.innerHTML + "<row>";
         html += row;
     }
     return html;

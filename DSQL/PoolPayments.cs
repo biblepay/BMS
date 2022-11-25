@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using static BMSCommon.BitcoinSyncModel;
 using static BMSCommon.Common;
 
 namespace BiblePay.BMS.DSQL
@@ -32,7 +33,7 @@ namespace BiblePay.BMS.DSQL
             }
             try
             {
-                BMSCommon.Pricing.StoreQuotes(0);
+                BMSCommon.Pricing.StorePriceQuotes(0);
                 x.RecordDifficultyHistory();
                 x.ClearBans();
             }
@@ -51,14 +52,14 @@ namespace BiblePay.BMS.DSQL
                 MySqlCommand command = new MySqlCommand(sql);
 
                 command.Parameters.AddWithValue("@batchid", batchid);
-                BMSCommon.Database.ExecuteNonQuery(command);
+                BMSCommon.Database.ExecuteNonQuery2(command);
                 sql = "Select bbpaddress, sum(Reward) reward from " + sTable + " WHERE txid = @batchid and paid is null group by bbpaddress;";
 
                 command = new MySqlCommand(sql);
                 command.Parameters.AddWithValue("@batchid", batchid);
 
-                DataTable dt = BMSCommon.Database.GetDataTable(command);
-                List<BMSCommon.WebRPC.Payment> Payments = new List<BMSCommon.WebRPC.Payment>();
+                DataTable dt = BMSCommon.Database.GetDataTable2(command);
+                List<ChainPayment> Payments = new List<ChainPayment>();
                 double nTotal = 0;
 
                 for (int i = 0; i < dt.Rows.Count; i++)
@@ -69,7 +70,7 @@ namespace BiblePay.BMS.DSQL
                     if (bValid && nReward > .01)
                     {
                         nTotal += nReward;
-                        BMSCommon.WebRPC.Payment p = new BMSCommon.WebRPC.Payment();
+                        ChainPayment p = new ChainPayment();
                         p.bbpaddress = address;
                         p.amount = nReward;
                         Payments.Add(p);
@@ -77,7 +78,7 @@ namespace BiblePay.BMS.DSQL
                 }
 
                 string poolAccount = GetConfigurationKeyValue("PoolPayAccount");
-                if (poolAccount == "")
+                if (poolAccount == String.Empty)
                 {
                     Log("Distress:  Unable to pay workers because pool account is not set.  Set [PoolPayAccount=poolname] in bms.conf.  Where poolname is the name of the address book entry receiving the rewards. ");
                 }
@@ -92,7 +93,7 @@ namespace BiblePay.BMS.DSQL
                         command = new MySqlCommand(sql);
                         command.Parameters.AddWithValue("@batchid", batchid);
                         command.Parameters.AddWithValue("@txid", txid);
-                        BMSCommon.Database.ExecuteNonQuery(command);
+                        BMSCommon.Database.ExecuteNonQuery2(command);
                         return true;
                     }
                 }
