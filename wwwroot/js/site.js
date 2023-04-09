@@ -15,7 +15,7 @@
                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
             responsive: true,
             serverSide: true,
-            altEditor: true,
+            altEditor: true, 
             pageLength: 10,
             select: { style: "single" },
             buttons: [

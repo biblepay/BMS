@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using BiblePay.BMS.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BiblePay.BMS
 {
@@ -28,6 +30,25 @@ namespace BiblePay.BMS
         {
             services.Configure<SmartSettings>(Configuration.GetSection(SmartSettings.SectionName));
 
+
+            // JWT bearer token authentication:
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateAudience = true,
+                    ValidAudience = "domain.com",
+                    ValidateIssuer = true,
+                    ValidIssuer = "domain.com",
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("MYSECRETKEYLONGERTHAN16CHARACTERS"))
+                };
+            });
+
+
+
+
             // Note: This line is for demonstration purposes only, I would not recommend using this as a shorthand approach for accessing settings
             // While having to type '.Value' everywhere is driving me nuts (>_<), using this method means reloaded appSettings.json from disk will not work
             services.AddSingleton(s => s.GetRequiredService<IOptions<SmartSettings>>().Value);
@@ -40,7 +61,7 @@ namespace BiblePay.BMS
             });
 
             /*
-            services.AddDbContext<xApplicationDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+            services.AddDbContext<xApplicationDbContext>(options => options.UseS(Configuration.GetConnectionString("DefaultConnection")));
             services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddRoleManager<RoleManager<IdentityRole>>()
                 .AddEntityFrameworkStores<xApplicationDbContext>();
@@ -93,7 +114,11 @@ namespace BiblePay.BMS
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
-            
+            app.Use((context, next) =>
+            {
+                context.Request.EnableBuffering();
+                return next();
+            });
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(

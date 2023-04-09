@@ -15,9 +15,6 @@ namespace BiblePay.BMS.Models
         private static readonly string Empty = string.Empty;
         public static readonly string Void = "javascript:void(0);";
 
-        //public static SmartNavigation Seed => BuildNavigation();
-        //public static SmartNavigation Full => BuildNavigation(seedOnly: false);
-
         public static SmartNavigation BuildNavigation(string sERC20, bool seedOnly = true)
         {
             var jsonText = File.ReadAllText("nav.json");
@@ -29,9 +26,6 @@ namespace BiblePay.BMS.Models
         private static List<ListItem> FillProperties(string sERC20, IEnumerable<ListItem> items, bool seedOnly, ListItem parent = null)
         {
             var result = new List<ListItem>();
-            double nCoreBalance = BMSCommon.WebRPC.GetCachedCoreWalletBalance(false);
-
-        
             foreach (var item in items)
             {
                 item.Text ??= item.Title;
@@ -42,21 +36,21 @@ namespace BiblePay.BMS.Models
                 var route = Path.GetFileNameWithoutExtension(sanitizedHref ?? Empty)?.Split(Underscore) ?? Array.Empty<string>();
                 bool fDisabled = false;
                 item.Route = route.Length > 1 ? $"/{route.First()}/{string.Join(Empty, route.Skip(1))}" : item.Href;
-                if (nCoreBalance < 1000000)
+                if (false)
                 {
                     if (item.Route != null)
                     {
-                        if (item.Route.ToLower().Contains("nft") || item.Route == "/bbp/proposaladd" || item.Route == "/bbp/proposallist" || item.Route == "/bbp/turnkeysanctuaries" || item.Route == "/bbp/portfoliobuilder" || item.Route == "/bbp/portfoliobuilderleaderboard")
+                        if (item.Route.ToLower().Contains("nft") || item.Route == "/proposal/proposaladd" 
+                            || item.Route == "/proposal/proposallist" || item.Route == "/turnkeysanc/turnkeysanctuaries" 
+                            || item.Route == "/portfoliobuilder/portfoliobuilder" || item.Route == "/portfoliobuilder/portfoliobuilderleaderboard")
                         {
                             fDisabled = true;
                         }
                     }
                 }
+
                 //Quant Security
-                //if (GetUser(HttpContext).ERC20Address
-                bool fQuant = sERC20 == "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5" || sERC20 == "12345";
-
-
+                bool fQuant = sERC20 == "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5" || sERC20 == "0xb847ef0e5a428e2f81b7ac52524bda9ee416870c";
                 if (!fQuant)
                 {
                     if (item.Route != null)
@@ -67,7 +61,6 @@ namespace BiblePay.BMS.Models
                         }
                     }
                 }
-
                 item.I18n = parent == null
                     ? $"nav.{item.Title.ToLower().Replace(Space, Underscore)}"
                     : $"{parent.I18n}_{item.Title.ToLower().Replace(Space, Underscore)}";

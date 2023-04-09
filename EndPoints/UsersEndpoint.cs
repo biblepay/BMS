@@ -14,10 +14,11 @@ namespace BiblePay.BMS.EndPoints
     [Route("api/users")]
     public class UsersEndpoint : ControllerBase
     {
-        //private readonly ApplicationDbContext _context;
+#pragma warning disable 0649
         private readonly UserManager<IdentityUser> _manager;
-        private readonly SmartSettings _settings;
-      
+#pragma warning restore 0649
+        //private readonly SmartSettings _settings;
+
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<IdentityUser>>> Get()
@@ -35,10 +36,10 @@ namespace BiblePay.BMS.EndPoints
 
         [HttpDelete]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> Delete([FromForm]IdentityUser model)
+        public IActionResult Delete([FromForm]IdentityUser model)
         {
            
-                return NoContent();
+           return NoContent();
             
         }
     }

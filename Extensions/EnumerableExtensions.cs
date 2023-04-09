@@ -23,7 +23,6 @@ namespace BiblePay.BMS.Extensions
         {
             var options = new JsonSerializerOptions
             {
-                IgnoreNullValues = true,
                 WriteIndented = indented,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };

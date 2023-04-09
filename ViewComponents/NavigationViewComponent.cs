@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using BiblePay.BMS.Models;
-using static BMSCommon.CryptoUtils;
 using BiblePay.BMS.Extensions;
+using BBPAPI.Model;
 
 namespace BiblePay.BMS.ViewComponents
 {

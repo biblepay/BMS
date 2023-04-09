@@ -7,8 +7,9 @@ using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Identity;
 using BiblePay.BMS.Models;
 using System.Security.Principal;
-using static BMSCommon.CryptoUtils;
 using Microsoft.AspNetCore.Http;
+using static BiblePay.BMS.DSQL.SessionHelper;
+using BBPAPI.Model;
 
 namespace BiblePay.BMS.Extensions
 {
@@ -27,11 +28,18 @@ namespace BiblePay.BMS.Extensions
 
         public static User GetCurrentUser(this HttpContext h)
         {
-            User u0 = DSQL.UI.GetUser(h).Result;
+            User u0 = GetUser(h);
             return u0;
         }
 
+        public static void EraseUserCache(this HttpContext h)
+        {
+            string sKey = IsTestNet(h) ? "tUser" : "User";
+           
+            h.Session.Set(sKey, new byte[0]);
 
+            User.EraseUserCache();
+        }
         [DebuggerStepThrough]
         public static IEnumerable<ListItem> AuthorizeFor(this IEnumerable<ListItem> source, ClaimsPrincipal identity)
             => source.Where(x => x.Roles.IsNullOrEmpty() || (x.Roles.HasItems() && identity.HasRole(x.Roles))).ToSafeList();

@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
+﻿using BBPAPI;
+using BBPAPI.Model;
+using BiblePay.BMS.DSQL;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
+using static BMSCommon.Common;
 
 namespace BiblePay.BMS
 {
@@ -32,42 +31,32 @@ namespace BiblePay.BMS
 
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-
-            string sBindURL = BMSCommon.Common.GetConfigurationKeyValue("bindurl");
-            if (sBindURL == "")
-                sBindURL = "https://localhost:" + Common.DEFAULT_PORT.ToString();
+            // TODO: When running this as a regular User, ensure we bind to the right port.
+            // MISSION CRITICAL
+            string sBindURL = GetConfigKeyValue("bindurl");
+            if (sBindURL == string.Empty)
+            {
+                sBindURL = "https://localhost:" + GlobalSettings.DEFAULT_PORT.ToString();
+            }
             sBindURL += ";http://0.0.0.0:8080";
-
-            Init(sBindURL);
+            await BBPAPI.ServiceInit.Init();
             CreateHostBuilder(args,sBindURL,null).Build().Run();
+            
         }
 
         public static async Task<bool> Init(string sURL)
         {
             // Primary Entry point for BMS:
-            // BWS will spawn one thread per BMS instance dedicated to servicing BIPFS replication
-            System.Threading.Thread t = new System.Threading.Thread(new System.Threading.ParameterizedThreadStart(BiblePay.BMS.DSQL.Sync.Syncer));
-            t.Start(sURL);
-            try
-            {
-                await BBPTestHarness.IPFS.BroadcastNode(BMSCommon.API.GetCDN(), true);
-            }
-            catch(Exception ex)
-            {
-                BMSCommon.WebRPC.LogRPCError("BN::" + ex.Message);
-                BMSCommon.Common.Log("BN::" + ex.Message);
-            }
-            System.Threading.Thread m = new System.Threading.Thread(BMSCommon.BitcoinSync2.BCSync);
-            m.Start();
-            // The billing thread
-            System.Threading.Thread q = new System.Threading.Thread(DSQL.QuantBilling.Looper);
-            q.Start();
-            // The pool
-            DSQL.PoolBase.NewPool();
+            // Set the user, start the loop thread, and initialize the charge
+            await BBPAPI.ServiceInit.Init();
             return true;
         }
+
+
+
+
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IFileProvider>(

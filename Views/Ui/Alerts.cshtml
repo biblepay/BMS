@@ -437,10 +437,6 @@
                             </div>
                         </div>
 
-
-
-
-
                         <div class="alert alert-danger alert-dismissible fade show">
                             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                                 <span aria-hidden="true"><i class="@(Settings.Theme.IconPrefix) fa-times"></i></span>
@@ -477,11 +473,9 @@
         //LoadData();
         $("#btnSave").click(function ()
         {
-            //alert("");
             var std = new Object();
-            std.Name = "r choo";
-            std.Address = "1008 irwin";
-
+            std.Name = "N";
+            std.Address = "A";
             $.ajax({
                 type: "POST",
                 url: '@Url.Action("PushAction1")',

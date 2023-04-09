@@ -34,9 +34,9 @@
         <br />
             <textarea cols=140 rows=6>@Html.Raw(ViewBag.txtAnswer)</textarea>
         <br />
-        <button onclick="DoCallback('Univ_Back');">Back</button>
-        <button onclick="DoCallback('Univ_Next');">Next</button>
-        <button onclick="DoCallback('Univ_Switch');">@ViewBag.btnSwitch</button>
-        <button onclick="DoCallback('Univ_Grade');">Grade</button>
+        <button onclick="DoCallback('Univ_Back','','univfinalexam/processdocallback');">Back</button>
+        <button onclick="DoCallback('Univ_Next','','univfinalexam/processdocallback');">Next</button>
+        <button onclick="DoCallback('Univ_Switch','','univfinalexam/processdocallback');">@ViewBag.btnSwitch</button>
+        <button onclick="DoCallback('Univ_Grade','','univfinalexam/processdocallback');">Grade</button>
 </div>
 @section ScriptsBlock {}

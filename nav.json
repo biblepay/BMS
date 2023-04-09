@@ -59,17 +59,11 @@
           "roles": []
         },
         {
-          "title": "Turnkey Sanctuaries",
-          "href": "bbp_turnkeysanctuaries.html",
-          "roles": []
-        },
-        {
           "title": "Atomic Swap",
           "showOnSeed": false,
           "href": "bbp_atomicswap.html",
           "roles": []
         }
-
       ]
     },
     {
@@ -174,7 +168,6 @@
           "href": "bbp_wells.html",
           "roles": []
         }
-
 
 
       ]
