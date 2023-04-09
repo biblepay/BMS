@@ -15,8 +15,8 @@ function createSimpleSwitcher(items, activeItem, activeItemChangedCallback) {
         });
 
         function onItemClicked(item) {
-            if (item === activeItem) {
-                //return;
+            if (item === activeItem) { 
+                //return; 
             }
 
             intervalElements.forEach(function (element, index) {

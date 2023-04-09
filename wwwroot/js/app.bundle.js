@@ -571,16 +571,17 @@ var initApp = (function(app) {
 
 			return false;
 
-		}).keyup( $.debounce( myapp_config.filterDelay, function (e) {
+		});
+		//.keyup($.debounce(myapp_config.filterDelay, function (e) {
 
 			/* fire the above change event after every letter is typed with a delay of 250ms */
-			$(this).change();
+			//$(this).change();
 
 			/*if(e.keyCode == 13) {
 				console.log( $(list).find(".filter-show:not(.filter-hide) > a") );
 			}*/
 
-		}));
+	//	}));
 	};
 
 	/**
@@ -1321,7 +1322,7 @@ var initApp = (function(app) {
 		if( typeof($.fn.popover) !== 'undefined' && $('[data-toggle="popover"]').length ){
 
 			/* BS4 sanatize */
-			var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList
+	//		var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList
 
 			/* init popover */
 			/* data-sanitize="false" was not working so had to add this globally */
