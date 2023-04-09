@@ -1,0 +1,72 @@
+@{ ViewData["Title"] = "Profile";
+    ViewData["PageName"] = "phone_addphonenumber";
+    ViewData["Heading"] = "<i class='subheader-icon fal fa-shield-alt'></i>  Add Phone Number";
+    ViewData["PageDescription"] = "10% to orphan charity";
+    ViewData["Category1"] = "Phone";
+    Layout = null; }
+
+
+<head>
+    <script src="~/lib/bbp/bbpstandard.js"></script>
+
+</head>
+
+
+
+<div class="xlegacy xcard" style="xwidth:50%;">
+    <div id="implant">Implant Area</div>
+
+    <form id="dummyForm">
+        Country:
+        <select id='ddCountry' class="form-control" style="background-color:lime;" onchange="">
+            <option>United States</option>
+        </select>
+        <br />
+
+        State:
+        <select id='ddState' class="form-control" onchange="DoCallback('phone_changestate', null, '../../phone/processdocallback');">
+            @Html.Raw(ViewBag.ddState);
+        </select>
+
+        <br />
+
+        Region:
+        <select id='ddRegion' class="form-control" onchange="DoCallback('phone_changeregion', null, '../../phone/processdocallback');">
+            @Html.Raw(ViewBag.ddRegion);
+        </select>
+
+        <br />
+
+        Phone Number:
+        <select id='ddPhoneNum' class="form-control">
+            @Html.Raw(ViewBag.ddPhoneNum);
+        </select>
+        <input id="txtPhoneID" type="hidden" />
+        <br />
+
+        <button class="btn btn-info xshadow-0 ml-auto btn-default" id='btnAddPhone'
+                onclick="DoCallback('phone_addnumber', null, '../../phone/processdocallback'); return false;">
+            Add Phone Number
+        </button>
+
+    </form>
+
+
+</div>
+
+
+
+    @section ScriptsBlock {
+        <script>
+
+            window.onload =
+            {
+
+            };
+
+
+        </script>
+
+
+
+    }

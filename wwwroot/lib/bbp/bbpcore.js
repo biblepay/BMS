@@ -22,7 +22,7 @@
             erc20address = getCookie('erc20address');
             console.log('addr ' + erc20address + ' .sig. ' + erc20sig);
             if (erc20sig != null && erc20address != null) {
-                DoCallback('Profile_Authenticate', null);
+                DoCallback('Profile_Authenticate', null, 'profile/processdocallback');
             }
         }
 
@@ -44,7 +44,7 @@ async function finishedAuthenticating(err, result) {
         console.log('[v3] SIGNED BBP AUTH PACKET : ' + erc20address + "," + JSON.stringify(result.result));
         setCookie('erc20address', erc20address, 30);
         setCookie('erc20signature', result.result, 30);
-        DoCallback('Profile_Authenticate_Full', null);
+        DoCallback('Profile_Authenticate_Full', null, 'profile/processdocallback');
 
         return result.result;
     } catch (e) {

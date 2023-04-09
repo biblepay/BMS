@@ -1,12 +1,19 @@
-function DoCallback(action, o) {
+function DoCallback(action, o, destURL) {
     var CTS = new Object();
     CTS.BBPAddress = "";
     CTS.ExtraData = JSON.stringify(o);
     CTS.FormData = MemorizeForm();
     CTS.Action = action;
+    var postURL = 'intel/processdocallback';
+    if (destURL != null && destURL != '') {
+        postURL = destURL;
+    }
+    console.log('1 ' + postURL);
+    console.log('2 ' + destURL);
+    console.log(CTS);
     $.ajax({
         type: "POST",
-        url: 'intel/processdocallback',
+        url: postURL,
         data: JSON.stringify(CTS),
         dataType: "json",
         contentType: "application/json; charset=utf-8",
@@ -33,9 +40,9 @@ function DoCallback(action, o) {
                 }
             }
         },
-        error: function ()
+        error: function (e)
         {
-            //alert("Error while inserting data");
+            console.log(e);
             console.log('Error while inserting data');
         }
     });
@@ -58,14 +65,11 @@ function DoPostback(URL, EventName, o) {
         success: function (response)
         {
            console.log(response);
-
-            if (response.type == 'javascript') {
-                //alert(response.result);
+           if (response.type == 'javascript') {
                 eval(response.body);
             }
         },
         error: function () {
-            //alert("Error while inserting data");
             alert('Error while posting data to the server.');
         }
     });
@@ -111,9 +115,10 @@ function ElementsToHTML(sType) {
             if (!elements[i].checked)
                 value = "";
         }
-
-        var row = parentid + "<col>" + id + "<col>" + value + "<row>";
-        html += row;
+        if (id && value) {
+            var row = parentid + "<col>" + id + "<col>" + value + "<row>";
+            html += row;
+        }
     }
     var o1 = document.getElementById('divPaste');
     if (o1) {
@@ -127,20 +132,22 @@ function MemorizeForm() {
     var html = ElementsToHTML("input");
     var ta = ElementsToHTML("textarea");
     var td = ElementsToHTML("select");
+    console.log(html);
+    console.log(ta);
+    console.log(td);
+
     var h = html + ta + td;
     return h;
 }
 
 function openModal(id) {
-    //document.getElementById("backdrop").style.display = "block";
     document.getElementById(id).style.display = "block";
     document.getElementById(id).classList.add("show");
 }
 
 function closeModal(id) {
-    //document.getElementById("backdrop").style.display = "none"
-    document.getElementById(id).style.display = "none"
-    document.getElementById(id).classList.remove("show")
+    $('#' + id).hide();
+    $('#' + id).modal('hide');
 }
 
 function removeAllChildNodes(parent) {
@@ -153,9 +160,7 @@ function removeAllChildNodes(parent) {
 // Infinite scrolling paginator; start at record 29
 var iGallery = 29;
 function MakeMoreVisible() {
-    //alert(iGallery);
     for (var i = iGallery; i < iGallery + 30; i++) {
-        // $('#gtd' + i.toString()).css('visibility', 'visible');
         $('#gtd' + i.toString()).toggleClass('galleryinvisible');
     }
     iGallery += 30;
@@ -169,6 +174,8 @@ function getParameterByName(name, url = window.location.href) {
     if (!results[2]) return '';
     return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
+
+
 
 
 // Scroll event listener

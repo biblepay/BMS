@@ -1,6 +1,8 @@
-﻿using BiblePay.BMS.Extensions;
+﻿using BBPAPI.Model;
+using BiblePay.BMS.Extensions;
 using BiblePay.BMS.Models;
 using BMSCommon;
+using BMSCommon.Model;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -18,18 +20,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using static BiblePay.BMS.DSQL.Chat;
+using static BiblePay.BMS.DSQL.SessionHelper;
+using static BiblePay.BMS.DSQL.UI;
 using static BMSCommon.Common;
-using static BMSCommon.Model;
 
 namespace BiblePay.BMS
 {
-
     public class BWS
     {
-
         public class ViewBagActionFilter : ActionFilterAttribute
         {
-
             public override void OnResultExecuting(ResultExecutingContext context)
             {
                 // for razor pages
@@ -42,30 +43,29 @@ namespace BiblePay.BMS
                 if (context.Controller is Controller)
                 {
                     var controller = context.Controller as Controller;
-                    controller.ViewBag.Chain = DSQL.UI.GetChain(controller.HttpContext);
-                    controller.ViewBag.ChainColor = DSQL.UI.GetChainColor(controller.HttpContext);
-                    controller.ViewBag.LoginStatus = DSQL.UI.GetLogInStatus(controller.HttpContext).Result;
-                    controller.ViewBag.BioURL = DSQL.UI.GetBioURL(controller.HttpContext);
-                    controller.ViewBag.Balance = DSQL.UI.GetAvatarBalance(controller.HttpContext, false);
-                    controller.ViewBag.NotificationCountHR = DSQL.UI.GetNotificationCountHR(controller.HttpContext);
-                    controller.ViewBag.NotificationCount = DSQL.UI.GetNotificationCount(controller.HttpContext);
-                    controller.ViewBag.LoginAction = DSQL.UI.GetLogInAction(controller.HttpContext);
-                    BMSCommon.CryptoUtils.User u = controller.HttpContext.GetCurrentUser();
-                    controller.ViewBag.NickName = u.NickName;
-                    controller.ViewBag.Notifications = DSQL.UI.GetNotifications(controller.HttpContext, u.ERC20Address);
-                    //also you have access to the httpcontext & route in controller.HttpContext & controller.RouteData
+                    controller.ViewBag.Chain = GetChain(controller.HttpContext);
+                    controller.ViewBag.ChainColor = GetChainColor(controller.HttpContext);
+                    controller.ViewBag.LoginStatus = GetLogInStatus(controller.HttpContext);
+                    controller.ViewBag.BioURL = GetBioURL(controller.HttpContext);
+                    controller.ViewBag.Balance = GetAvatarBalance(controller.HttpContext, false);
+                    controller.ViewBag.NotificationCountHR = GetNotificationCountHR(controller.HttpContext);
+                    controller.ViewBag.NotificationCount = GetNotificationCount(controller.HttpContext);
+                    controller.ViewBag.LoginAction = GetLogInAction(controller.HttpContext);
+                    controller.ViewBag.NickName = GetNickName(controller.HttpContext);
+                    User u = controller.HttpContext.GetCurrentUser();
+                    controller.ViewBag.Notifications = GetNotifications0(controller.HttpContext, u.ERC20Address);
+                    // You have access to the httpcontext & route in controller.HttpContext & controller.RouteData
                 }
-
                 base.OnResultExecuting(context);
             }
         }
 
-
         public IConfigurationRoot Configuration { get; }
 
+        [Obsolete]
         public BWS(IHostingEnvironment env)
         {
-            Model.msContentRootPath = env.ContentRootPath;
+            Global.msContentRootPath = env.ContentRootPath;
 
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
@@ -80,40 +80,32 @@ namespace BiblePay.BMS
             //session info
             services.AddSession(options =>
             {
-                options.IdleTimeout = TimeSpan.FromMinutes(60*8);//We set Time here 
+                // Set a short timeout for easy testing.
+                options.IdleTimeout = TimeSpan.FromMinutes(60*8);
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.HttpOnly = true;
+                // Make the session cookie essential
                 options.Cookie.IsEssential = true;
             });
             // end of session area
             services.Configure<SmartSettings>(Configuration.GetSection(SmartSettings.SectionName));
             services.AddSingleton(s => s.GetRequiredService<IOptions<SmartSettings>>().Value);
-
             services.Configure<CookiePolicyOptions>(options =>
             {
                 // This lambda determines whether user consent for non-essential cookies is needed for a given 
                 options.CheckConsentNeeded = context => true;
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
-            /*
-            services.AddDbContext<xApplicationDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
-            services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
-                .AddRoleManager<RoleManager<IdentityRole>>()
-                .AddEntityFrameworkStores<ApplicationDbContext>();
-            */
 
             services.AddTransient<IEmailSender, EmailSender>();
 
-            //services.AddControllersWithViews();
             services.AddControllersWithViews(options => {
                 options.Filters.Add<BiblePay.BMS.BWS.ViewBagActionFilter>();
             });
-
-            //services.AddRazorPages();
-            //services.AddAntiforgery(o => o.HeaderName = "XSRF-TOKEN");
+            
             services.AddRazorPages().AddRazorRuntimeCompilation();
-            services.AddRazorPages(); //1
-            //services.AddServerSideBlazor();
-
+            services.AddRazorPages(); 
             
             services.ConfigureApplicationCookie(options =>
             {
@@ -127,18 +119,17 @@ namespace BiblePay.BMS
                 ServiceProvider serviceProvider = services.BuildServiceProvider();
             });
 
-
             services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
             {
-                builder.WithOrigins(new string[] { "https://dec.app", "https://hitch.social", "https://www.hitch.social",
-                    "https://social.biblepay.org", "http://social.biblepay.org", "https://localhost:8443", "https://*", "http://localhost", "https://localhost" })
-                       .AllowAnyMethod()
-                       .AllowAnyHeader();
+                builder.WithOrigins(new string[] { 
+                    "https://social.biblepay.org", 
+                    "https://localhost:8443", "https://*", "http://localhost", "https://localhost" })
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
             }));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-
         object GetFirst(dynamic oCollection)
         {
             foreach (object o in oCollection)
@@ -159,8 +150,6 @@ namespace BiblePay.BMS
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-
-            //SmartWeb changes:
             if (env.IsDevelopment())
             {
                 //app.UseDeveloperExceptionPage();
@@ -169,7 +158,6 @@ namespace BiblePay.BMS
             else
             {
                 app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
 
@@ -178,22 +166,13 @@ namespace BiblePay.BMS
             app.UseCors("CorsPolicy");
             app.UseSession();
 
-            /*
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
-            */
-
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(
                     "default",
                     "{controller=BMS}/{action=Status}");
                 endpoints.MapRazorPages();
-                //endpoints.MapBlazorHub(); //3  10-9-2022
             });
-
 
             app.UseHalfordFileProvider();
             try
@@ -202,7 +181,7 @@ namespace BiblePay.BMS
                 string address = GetFirst(serverAddressesFeature.Addresses).ToString();
                 int iPort = GetPort(address);
 
-                string sWWWRoot = BMSCommon.Common.GetFolder("video");
+                string sWWWRoot = GetFolder("video");
                 app.UseStaticFiles(new StaticFileOptions
                 {
                     FileProvider = new PhysicalFileProvider(sWWWRoot),
@@ -210,10 +189,9 @@ namespace BiblePay.BMS
                 });
                 app.UseStaticFiles(new StaticFileOptions
                 {
-                    FileProvider = new PhysicalFileProvider(BMSCommon.Common.GetFolder("sql")),
+                    FileProvider = new PhysicalFileProvider(GetFolder("sql")),
                     RequestPath = "/sql"
                 });
-
 
                 // End of Biblepay MVC
             }
@@ -249,23 +227,6 @@ namespace BiblePay.BMS
                 return Data;
             string sOut = Data.Substring(iLeadingChars - 1, Data.Length - iLeadingChars + 1);
             return sOut;
-        }
-
-        public static bool PullDown(string sURL, string sTempFile)
-        {
-            // This is used in our CDN if file is missing on all sancs, we pull it from IPFS.
-            MyWebClient wc = new MyWebClient();
-            try
-            {
-                Log("Pulling down " + sURL);
-                wc.DownloadFile(sURL, sTempFile);
-                return true;
-            }
-            catch (Exception)
-            {
-                Log("Unable to pull down " + sURL);
-                return false;
-            }
         }
 
         public static string ReqPathToFilePath(string ContextRequestPath)
@@ -314,8 +275,6 @@ namespace BiblePay.BMS
                 return fi;
             }
         }
-        // Storage
-
 
         // BiblePay Decentralized Web Server
         public async Task Invoke(HttpContext context)
@@ -323,15 +282,13 @@ namespace BiblePay.BMS
             try
             {
                 // Reserved: When we resolve CDN nickname to URI:
-                // string sNN1 = BiblePay.BMS.DSQL.Sync._nicknames[0].nickName;
-                // Normal flow.
                 string sourcepath = context.Request.Path;
                 if (sourcepath.Contains("/BMS/StaticVideoPlayer"))
                 {
                     string sSource = context.Request.Query["id"];
                     string sPage = "https://globalcdn.biblepay.org:8443/video/staticplayer/bbp/staticplayer.htm";
-                    string html = BMSCommon.Common.ExecuteMVCCommand(sPage);
-                    string sBindURL = BMSCommon.Common.GetConfigurationKeyValue("bindurl");
+                    string html = ExecuteMVCCommand(sPage);
+                    string sBindURL = String.Empty;
                     string sURL = sBindURL + "/video/" + sSource + "/1.m3u8";
                     html = html.Replace("{thesource}", sURL);
                     await context.Response.WriteAsync(html);
@@ -349,9 +306,7 @@ namespace BiblePay.BMS
                             throw new Exception("API Key invalid.  To obtain a key, go to unchained.biblepay.org | Wallet.");
                         }
                         List<string> s = new List<string>();
-                        //BMSCommon.DSQL.QueryIPFSFolderContents(BiblePay.BMS.DSQL.UI.IsTestNet(context),"", "", sKey);
                         string sJson3 = Newtonsoft.Json.JsonConvert.SerializeObject(s);
-                        //mission critical: test the video display with await
                         await context.Response.WriteAsync(sJson3);
                     }
                     catch (Exception ex)
@@ -389,7 +344,7 @@ namespace BiblePay.BMS
 
                     DirectoryInfo d = new DirectoryInfo(sFolder);
                     DirectoryInfo[] dis = d.GetDirectories();
-                    string sBindURL = BMSCommon.Common.GetConfigurationKeyValue("bindurl");
+                    string sBindURL = "";//("bindurl");
                     string sHTML = "<html><h3>Sanctuary Videos</h3><br><br>";
                     foreach (DirectoryInfo di in dis)
                     {
@@ -410,56 +365,31 @@ namespace BiblePay.BMS
                     await context.Response.WriteAsync(sHTML);
                     return;
                 }
-                else if (sourcepath.Contains("/video") || sourcepath.Contains("/upload") || sourcepath.Contains("/wwwroot") || sourcepath.Contains("/shard") || sourcepath.Contains("/database") || sourcepath.Contains("/broadcast"))
+                else if (sourcepath.Contains("/video") || sourcepath.Contains("/upload/") || sourcepath.Contains("/wwwroot") || sourcepath.Contains("/shard") || sourcepath.Contains("/database") || sourcepath.Contains("/broadcast"))
                 {
                     // Case 1: A web resource
                     FileInfo fi = GetFileInfo(sourcepath);
 
                     if (fi == null)
                     {
-                        // 11-6-2022
-                        double nConfigType = GetDouble(BMSCommon.Common.GetConfigurationKeyValue("usestorj"));
-                        if (nConfigType == 0)
-                        { 
-
-                            for (int i = 0; i < BMSCommon.API.mNodes.Count; i++)
-                            {
-                                BMSNode n = BMSCommon.API.mNodes[i];
-                                if (!n.IsMine && n.FullyQualified)
-                                {
-                                    string sURL = BMSCommon.Common.NormalizeURL(n.FullyQualifiedDomainName + "/" + sourcepath);
-                                    //  long iSz = GetFileSizeFromRemoteURL(n.FullyQualifiedDomainName, sourcepath);
-                                    /*
-
-                                 if (iSz > 0)
-                                 {
-                                     Log("Redirecting to sanc " + n.FullyQualifiedDomainName + " for " + sourcepath);
-                                     context.Response.Redirect(sURL);
-                                     return;
-                                 }
-                                 */
-                                }
-                            }
-                        }
-                        else if (nConfigType == 1)
+                        double nConfigType = 1;
+                        if (nConfigType == 1)
                         {
                             // Use storj instead
-                            string sSourceKey = sourcepath;
+                            sourcepath = System.Web.HttpUtility.UrlDecode(sourcepath);
+                            string sSourceKey = "BB2BwSbDCqCqNsfc7FgWFJn4sRgnUt4tsM" + sourcepath;
                             string sTP = ReqPathToFilePath(sourcepath);
-                            bool fSucc = await BMSCommon.StorjIO.StorjDownload(sSourceKey, sTP);
+                            bool fSucc = await BBPAPI.StorjIO.StorjDownloadLg(sSourceKey, sTP);
+                            Log("Finished pulling " + fSucc.ToString() + " " + sourcepath);
                             fi = GetFileInfo(sourcepath);
                         }
-                        // If we reach here, this is our last resort.  This means every sanc is missing the file (or this is really a 404).
-                        // Try to get the file from IPFS next:
-                        string sNewURL = BMSCommon.Common.NormalizeURL("https://bbpipfs.s3.filebase.com/" + sourcepath);
-                        Log("Redir to ipfs " + sourcepath);
-                        context.Response.Redirect(sNewURL);
+                        
+                        if (fi != null)
+                        {
+                            await context.Response.SendFileAsync(fi.FullName);
+                        }
                         string sTargetPath = ReqPathToFilePath(sourcepath);
-                        PullDown(sNewURL, sTargetPath);
                         return;
-                        // If not, send them a 404:
-                        // We dont actually hit this line, because if the file doesnt exist, the last leg will return 404.. Leaving this in for historical reasons.
-                        // context.Response.StatusCode = 404;
                     }
                     else
                     {
@@ -494,7 +424,7 @@ namespace BiblePay.BMS
             catch (Exception ex)
             {
                 // cancelled task?
-                BMSCommon.Common.Log("BWS::WebServer::" + ex.Message);
+                Log("BWS::WebServer::" + ex.Message);
             }
         }
     }
