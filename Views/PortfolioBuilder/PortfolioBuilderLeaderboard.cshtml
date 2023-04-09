@@ -1,0 +1,25 @@
+﻿@{ ViewData["Title"] = "Portfolio Builder - Leaderboard";
+    ViewData["PageName"] = "bbp_portfoliobuilderleaderboard";
+    ViewData["Heading"] = "<i class='fal fa-chart-bar'></i> &nbsp;Portfolio Builder - Leaderboard - " + ViewBag.PortfolioBuilderMode;
+    ViewData["Category1"] = "BBP";
+    ViewData["PageDescription"] = "Self Directed Crypto Retirement Accounts"; }
+@section HeadBlock {
+    <script src="~/lib/bbp/bbpcore.js"></script>
+
+    
+}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+
+
+    <button class="btn-default" onclick="DoCallback('PortfolioBuilder_ToggleMode','','portfoliobuilder/processdocallback');">Toggle View</button>
+
+
+    
+    @Html.Raw(ViewBag.PortfolioBuilderLeaderboard)
+
+    <br>
+    <span><small><font color="red">Alert:  <a href='https://wiki.biblepay.org/Signed_Stake'>Stakes must be signed</a> </font></span></small>
+
+
+</div>
+@section ScriptsBlock {}

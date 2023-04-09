@@ -50,9 +50,9 @@
 
     <br />
 
-    <button id="btnNext" onclick="DoCallback('MemorizeScriptures_Next');">Next Scripture</button>
-    <button id="btnSwitch" onclick="DoCallback('MemorizeScriptures_Switch');">Switch Mode</button>
-    <button id="btnGrade" onclick="DoCallback('MemorizeScriptures_Grade');">Grade</button>
+    <button id="btnNext" onclick="DoCallback('MemorizeScriptures_Next','','memorizescriptures/processdocallback');">Next Scripture</button>
+    <button id="btnSwitch" onclick="DoCallback('MemorizeScriptures_Switch','','memorizescriptures/processdocallback');">Switch Mode</button>
+    <button id="btnGrade" onclick="DoCallback('MemorizeScriptures_Grade','','memorizescriptures/processdocallback');">Grade</button>
 
     <br />
     @Html.Raw(@ViewBag.lblInfo);

@@ -1,0 +1,50 @@
+﻿@{ ViewData["Title"] = "Pool - Getting Started";
+    ViewData["PageName"] = "pool_poolgettingstarted";
+    ViewData["Heading"] = "<i class='fal fa-tachometer'></i> &nbsp;Getting Started as a RandomX Miner";
+    ViewData["Category1"] = "BBP";
+    ViewData["PageDescription"] = "RandomX Mining with Orphan Charity"; }
+@section HeadBlock {
+}
+<div class="fs-lg fw-300 p-5 bg-white border-faded rounded mb-g">
+    
+    
+    <div>
+        <h3>1.     Download the XMRig Miner</h3>
+        <p>
+
+        </p>
+        <p>Download the miner from <a href="https://github.com/xmrig/xmrig/releases">here.</a>
+        </p>
+        <p></p>
+        <p></p>
+        <h3>2.     Configure the miner with your mining configuration:</h3>
+        <p>
+
+            <table>
+                <tr><td>Username:<td>Your Monero Wallet Address                </tr>
+                <tr><td>Password:<td>Your BiblePay Wallet Address</tr>
+                <tr><td>Algorithm:<td>RandomX</tr>
+                <tr><td>URL:<td>     @Html.Raw(ViewBag.PoolDNS) </tr>
+                <tr><td>&nbsp;</td></tr>
+                <tr><td>Command line to mine on windows:<br><td>
+    <tr><td><td>
+                <pre>xmrig -o @Html.Raw(ViewBag.PoolDNS) -p your_bbp_address -u your_monero_address.your_worker_name --threads your_thread_count</pre>
+    </td>
+    </tr>
+            <tr><td>Note:<td>your_worker_name is optional, but if provided it adds your cpu information per worker to xmrig.                    </tr>
+            <tr><td></td><td>Monitor your workers and Monero earnings in the <a target="_blank" href="gospel/viewer?type=xmrinquiry">XMR Inquiry Page</a></td></tr>
+            <tr><td>&nbsp;</td></tr>
+            <tr><td></td>
+      <td align="left">(Optional) - Sample Windows batch file with failover pools (replace the parameters on the first 3 lines with your info) - the idea is to repeat the -o, -u, -p for each pool:<br />
+    <tr><td><td>
+    <pre>set worker=miner00
+set xmr=YourXMRAddress
+set bbp=YourBBPAddress
+START xmrig.exe -o @Html.Raw(ViewBag.PoolDNS) -u %xmr%.%worker% -p %bbp% -o bbp.hanalani.org:3001 -u %xmr%.%worker% -p %bbp%
+      </pre>
+      </td></tr>
+      </table>
+      </p>
+   </div>
+</div>
+@section ScriptsBlock {}

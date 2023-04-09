@@ -1,0 +1,11 @@
+<div>
+
+    <h5>Enter the City</h5>
+
+        <br />
+        City:          @Html.Raw(ViewBag.txtCity)
+
+        <input id='txtCity' name="txtCity" style='width:450px;' class="form-control" value='@ViewBag.txtCity' />
+
+        <button type="button" onclick="DoCallback('PopulateSection2','','Test/PostSection2');">Submit</button>
+</div>

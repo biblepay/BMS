@@ -14,10 +14,14 @@
       "items": [
         {
           "title": "Profile",
-          "href": "page_profile.html",
+          "href": "profile_profile.html",
+          "roles": []
+        },
+        {
+          "title": "Wallet",
+          "href": "profile_wallet.html",
           "roles": []
         }
-
       ]
     },
 
@@ -46,12 +50,12 @@
       "items": [
         {
           "title": "Portfolio Builder",
-          "href": "bbp_portfoliobuilder.html",
+          "href": "portfoliobuilder_portfoliobuilder.html",
           "roles": []
         },
         {
           "title": "PB Leaderboard",
-          "href": "bbp_portfoliobuilderleaderboard.html",
+          "href": "portfoliobuilder_portfoliobuilderleaderboard.html",
           "roles": []
         },
         {
@@ -77,12 +81,12 @@
       "items": [
         {
           "title": "Add Proposal",
-          "href": "bbp_proposaladd.html",
+          "href": "proposal_proposaladd.html",
           "roles": []
         },
         {
           "title": "List Proposals",
-          "href": "bbp_proposallist.html",
+          "href": "proposal_proposallist.html",
           "roles": []
         }
 
@@ -98,33 +102,30 @@
       "items": [
         {
           "title": "Add new NFT",
-          "href": "bbp_nftadd.html",
+          "href": "nft_nftadd.html",
           "roles": []
         },
 
         {
           "title": "Christian NFTs",
-          "href": "bbp_nftlistchristian.html",
+          "href": "nft_nftlistchristian.html",
           "roles": []
         },
         {
           "title": "General NFTs",
-          "href": "bbp_nftlistgeneral.html",
+          "href": "nft_nftlistgeneral.html",
           "roles": []
         },
         {
           "title": "Orphan NFTs",
-          "href": "bbp_nftlistorphans.html",
+          "href": "nft_nftlistorphans.html",
           "roles": []
         },
         {
           "title": "My NFTs",
-          "href": "bbp_mynfts.html",
+          "href": "nft_mynfts.html",
           "roles": []
         }
-
-
-
 
 
       ]
@@ -170,7 +171,7 @@
         },
         {
           "title": "Water Wells for Children",
-          "href": "gospel_wells.html",
+          "href": "bbp_wells.html",
           "roles": []
         }
 
@@ -190,17 +191,17 @@
       "items": [
         {
           "title": "Pool Metrics",
-          "href": "bbp_poolabout.html",
+          "href": "pool_poolabout.html",
           "roles": []
         },
         {
           "title": "Leaderboard",
-          "href": "bbp_poolleaderboard.html",
+          "href": "pool_poolleaderboard.html",
           "roles": []
         },
         {
           "title": "Getting Started",
-          "href": "bbp_poolgettingstarted.html",
+          "href": "pool_poolgettingstarted.html",
           "roles": []
         },
         {
@@ -210,7 +211,7 @@
         },
         {
           "title": "Block History",
-          "href": "bbp_blockhistory.html",
+          "href": "pool_blockhistory.html",
           "roles": []
         }
       ]
@@ -227,7 +228,7 @@
       "items": [
         {
           "title": "Chat",
-          "href": "bbp_chat.html",
+          "href": "chat_chat.html",
           "roles": []
         },
         {
@@ -295,11 +296,6 @@
 
 
 
-
-
-
-
-
     {
       "title": "In Development",
       "roles": [
@@ -337,17 +333,20 @@
           "title": "Transaction History",
           "href": "quant_transactionhistory.html",
           "roles": []
+        },
+        {
+          "title": "Ticket List",
+          "href": "ticket_ticketlist.html",
+          "roles": []
+        },
+        {
+          "title": "Ticket Add",
+          "href": "ticket_ticketadd.html",
+          "roles": []
         }
-
-
-   
    
       ]
     }
-
-
-
-
 
 
   ]

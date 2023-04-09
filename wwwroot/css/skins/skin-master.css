@@ -637,8 +637,9 @@ body:not(.mod-skin-light):not(.mod-skin-dark) #skin-default:before {
     .mod-skin-dark:not(.mod-skin-light) .form-control[readonly], .mod-skin-dark:not(.mod-skin-light) .form-control:disabled,
     .mod-skin-dark:not(.mod-skin-light) .custom-file-label[readonly],
     .mod-skin-dark:not(.mod-skin-light) .custom-file-label:disabled {
-      background-color: #3f4246;
-      border-color: rgba(132, 132, 132, 0.35); }
+        xbackground-color: #3f4246;
+        border-color: rgba(132, 132, 132, 0.35);
+    }
   .mod-skin-dark:not(.mod-skin-light) .input-group:not(.has-length) .input-group-text {
     color: #838386;
     background-color: #37393e;
@@ -1086,7 +1087,7 @@ body:not(.mod-skin-light):not(.mod-skin-dark) #skin-default:before {
     background: #383b40; }
   .mod-skin-dark:not(.mod-skin-light) .select2-container--disabled .select2-selection.select2-selection--single,
   .mod-skin-dark:not(.mod-skin-light) .select2-container--disabled .select2-selection.select2-selection--multiple {
-    background-color: #3f4246;
+    xbackground-color: #3f4246;
     border-color: rgba(132, 132, 132, 0.35); }
 
 @media (min-width: 992px) {
