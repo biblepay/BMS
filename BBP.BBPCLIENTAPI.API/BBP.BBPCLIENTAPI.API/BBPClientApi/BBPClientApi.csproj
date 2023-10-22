@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <AssemblyName>BBPAPI</AssemblyName>
+    <RootNamespace>BBPAPI</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <WarningsAsErrors>NU1605</WarningsAsErrors>
+    <NoWarn>1701;1702;NU1701;</NoWarn>
+    <OutputPath>B:\BiblePay\BiblePayBMS\BMS\bin\Debug\netcoreapp3.1\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Database\Governance.cs" />
+    <Compile Remove="Retired\BlockChairTestHarness.cs" />
+    <Compile Remove="Retired\POSE.cs" />
+    <Compile Remove="Retired\ProcessThreading.cs" />
+    <Compile Remove="Retired\Raid.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" Version="3.7.8.7" />
+    <PackageReference Include="GoogleAuthenticator" Version="3.0.0" />
+    <PackageReference Include="ICSharpCode.SharpZipLib.dll" Version="0.85.4.369" />
+    <PackageReference Include="Nethereum.Signer.EIP712" Version="4.4.1" />
+    <PackageReference Include="Npgsql" Version="7.0.2" />
+    <PackageReference Include="PRO-Systems.SouthXchange.API" Version="1.0.19" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
+	  <PackageReference Include="uplink.NET" Version="2.9.3135">
+	  </PackageReference>
+	  <PackageReference Include="uplink.NET.Linux" Version="2.9.3135">
+	  </PackageReference>
+	  <PackageReference Include="uplink.NET.Mac" Version="2.9.3135" />
+	  <PackageReference Include="uplink.NET.Win" Version="2.9.3135">
+	  </PackageReference>
+    <PackageReference Include="Voximplant.API" Version="1.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Database\" />
+    <Folder Include="Retired\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BMSCommon\BMSCommon\BMSCommon.csproj" />
+    <ProjectReference Include="..\..\..\NBitcoin-master\NBitcoin\NBitcoin.csproj" />
+  </ItemGroup>
+
+</Project>

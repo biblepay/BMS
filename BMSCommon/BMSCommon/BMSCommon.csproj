@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+	  <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Retired\**" />
+    <EmbeddedResource Remove="Retired\**" />
+    <None Remove="Retired\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Database.cs" />
+    <Compile Remove="DNSResolver.cs" />
+    <Compile Remove="DNSServer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FFMpegCore" Version="4.8.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\NBitcoin-master\NBitcoin\NBitcoin.csproj" />
+  </ItemGroup>
+
+</Project>

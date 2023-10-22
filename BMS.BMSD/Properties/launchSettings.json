@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "BiblePay.BMS.BMSD": {
+      "commandName": "Project"
+    },
+    "BiblePay.BMS.BMSD Test": {
+      "commandName": "Project",
+      "commandLineArgs": "-testnet"
+    },
+    "BiblePay.BMS.BMSD Test with RPC": {
+      "commandName": "Project",
+      "commandLineArgs": "-testnet -server -rpcpassword=password -rpcuser=user"
+    },
+    "BiblePay.BMS.BMSD Test Keepalive 60s": {
+      "commandName": "Project",
+      "commandLineArgs": "-testnet -keepalive=60"
+    }
+  }
+}
