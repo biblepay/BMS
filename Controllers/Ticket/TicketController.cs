@@ -14,20 +14,27 @@ using BiblePay.BMS.Extensions;
 using System.Linq;
 using BBPAPI.Model;
 using BBPAPI;
+using Microsoft.AspNetCore.Http;
+using System.IO;
+using System.Net.Mime;
+using NBitcoin.Secp256k1;
+using Syncfusion.EJ2.Inputs;
+using BMSCommon;
 
 namespace BiblePay.BMS.Controllers
 {
     public class TicketController : Controller
     {
-        private static int GetMaxTicketNumber()
+        
+        private static int GetMaxTicketNumber(User u)
         {
-            List<Ticket> lTickets = BBPAPI.DB.GetDatabaseObjectsAsAdmin<Ticket>("ticket");
+            List<Ticket> lTickets = BBPAPI.Interface.Repository.GetDatabaseObjects<Ticket>("ticket");
             int r = lTickets.Max(a => a.TicketNumber);
             return r;
         }
-        private static List<Ticket> GetTicketList(string sUser, string sID)
+        private static List<Ticket> GetTicketList(User u,string sUser, string sID)
         {
-            List<Ticket> lTickets = BBPAPI.DB.GetDatabaseObjectsAsAdmin<Ticket>("ticket");
+            List<Ticket> lTickets = BBPAPI.Interface.Repository.GetDatabaseObjects<Ticket>("ticket");
             if (sID == String.Empty)
             {
                 lTickets = lTickets.Where(s => s.AssignedTo == sUser && s.Version > 1).ToList();
@@ -43,12 +50,12 @@ namespace BiblePay.BMS.Controllers
             }
             return lTickets;
         }
-        public static string GetTicketListReport(string sUser, string sID)
+        public static string GetTicketListReport(User u,string sUser, string sID)
         {
       
             string html = "<table class=saved>";
             html +=  "<tr><th>Ticket #<th>Name<th>Assigned To<th>Updated</tr>";
-            List<Ticket> lTickets = GetTicketList(sUser, sID);
+            List<Ticket> lTickets = GetTicketList(u,sUser, sID);
             foreach (Ticket t in lTickets)
             {
                 string sAnchor = "<a href='ticket/ticketview?id=" + t.id + "'>" + t.TicketNumber + "</a>";
@@ -62,11 +69,11 @@ namespace BiblePay.BMS.Controllers
             return html;
         }
 
-        public static string GetTicketHistory(string sParentID)
+        public static string GetTicketHistory(User u,string sParentID)
         {
             string html = "<table class=saved width=100%>";
             html += "<tr><th>Assigned To<th>Updated<th>Disposition</tr>";
-            List<TicketHistory> lTH = DB.GetDatabaseObjectsAsAdmin<TicketHistory>("tickethistory");
+            List<TicketHistory> lTH = BBPAPI.Interface.Repository.GetDatabaseObjects<TicketHistory>("tickethistory","added desc");
                 lTH = lTH.Where(s => s.ParentID == sParentID && s.AssignedTo != null).ToList();
             foreach (TicketHistory th in lTH)
             {
@@ -79,6 +86,72 @@ namespace BiblePay.BMS.Controllers
             }
             html += "</table>";
             return html;
+        }
+
+        public class CustomResult : IActionResult
+        {
+            private readonly string _errorMessage;
+            private readonly int _statusCode;
+            private readonly string _postedFileName;
+            public CustomResult(string errorMessage, int statusCode, string sPostedFileName)
+            {
+                _errorMessage = errorMessage;
+                _statusCode = statusCode;
+                _postedFileName = sPostedFileName;
+            }
+
+            public async Task ExecuteResultAsync(ActionContext context)
+            {
+                var objectResult = new ObjectResult(_errorMessage)
+                {
+                    StatusCode = _statusCode
+                };
+
+
+                context.HttpContext.Response.Headers.Add("name", _postedFileName);
+                context.HttpContext.Response.ContentType = "application/json; charset=utf-8";
+                string sURL = "https://forum.biblepay.org/180180.png";
+                context.HttpContext.Response.Headers.Add("url", sURL);
+
+                await objectResult.ExecuteResultAsync(context);
+            }
+        }
+
+
+        [AcceptVerbs("Post")]
+        public async Task<IActionResult> SaveMyFiles(List<IFormFile> UploadFiles)
+        {
+            try
+            {
+                var httpPostedFile = UploadFiles[0];
+                if (httpPostedFile != null)
+                {
+                    string sReferrer = Request.Headers["REFERER"].ToStr() + "<eof>";
+                    string sID = Common.ExtractXML(sReferrer, "id=", "<eof>");
+                    string sSavePath = "upload/tickets/" + sID + "/" + httpPostedFile.FileName;
+                    string sGuid = Guid.NewGuid().ToString() + Path.GetExtension(httpPostedFile.FileName);
+                    string sTempPath = Path.GetTempPath();
+                    sSavePath = "upload/tickets/" + sID + "/" + sGuid;
+                    string sFullTempFileName = Path.Combine(sTempPath, sGuid);
+                    using (var stream = new FileStream(sFullTempFileName, System.IO.FileMode.Create))
+                    {
+                        await httpPostedFile.CopyToAsync(stream);
+                    }
+                    Pin p = new Pin();
+                    p = BBPAPI.Utilities.PinLogic.StoreFile(HttpContext.GetCurrentUser(), sFullTempFileName, sSavePath, "TICKET");
+                    Response.Headers.Add("name", sGuid);
+                    return Ok("File uploaded");
+                }
+                else
+                {
+                    return Ok(404);
+                }
+            }
+            catch (Exception e)
+            {
+                return Ok(204);
+            }
+            return Ok(204);
         }
 
 
@@ -98,7 +171,7 @@ namespace BiblePay.BMS.Controllers
                 t.Disposition = GetFormData(o.FormData, "ddDisposition");
                 t.Description = GetFormData(o.FormData, "txtDescription");
                 t.Title = GetFormData(o.FormData, "txtName");
-                t.TicketNumber = GetMaxTicketNumber() + 1;
+                t.TicketNumber = GetMaxTicketNumber(HttpContext.GetCurrentUser()) + 1;
                 t.ERC20Address = HttpContext.GetCurrentUser().ERC20Address;
                 t.id = Guid.NewGuid().ToString();
                 t.Version = 2;
@@ -116,13 +189,13 @@ namespace BiblePay.BMS.Controllers
                     return Json(MsgBoxJson(HttpContext, "Ticket Error", "Ticket Error", sErr));
                 }
 
-                bool f20 = DB.StoreDataAsAdmin<Ticket>("options.ticket", t, t.id);
+                bool f20 = BBPAPI.Interface.Repository.StoreData<Ticket>("options.ticket", t, t.id);
                 return this.ReturnURL("ticket/ticketlist");
             }
             else if (o.Action == "ticket_edit")
             {
                 string sID = GetFormData(o.FormData, "txtID");
-                List<Ticket> tList = GetTicketList(String.Empty, sID);
+                List<Ticket> tList = GetTicketList(HttpContext.GetCurrentUser(),String.Empty, sID);
                 if (tList.Count > 0)
                 {
                     Ticket t = tList[0];
@@ -138,7 +211,7 @@ namespace BiblePay.BMS.Controllers
                         return Json(MsgBoxJson(HttpContext, "Error", "Error", "Assigned to must be populated."));
 
                     }
-                    bool f19 = DB.StoreDataAsAdmin<Ticket>("options.ticket", t, t.id);
+                    bool f19 = BBPAPI.Interface.Repository.StoreData<Ticket>("options.ticket", t, t.id);
                     TicketHistory th = new TicketHistory();
                     th.ParentID = t.id;
                     th.id = Guid.NewGuid().ToString();
@@ -147,7 +220,7 @@ namespace BiblePay.BMS.Controllers
                     th.Disposition = GetFormData(o.FormData, "ddDisposition");
                     th.Updated = DateTime.Now;
                     th.Notes = GetFormData(o.FormData, "txtNotes");
-                    bool f22 = DB.StoreDataAsAdmin<TicketHistory>("options.tickethistory", th, th.id);
+                    bool f22 = BBPAPI.Interface.Repository.StoreData<TicketHistory>("options.tickethistory", th, th.id);
                 }
                 return this.ReturnURL("ticket/ticketlist");
             }
@@ -158,19 +231,22 @@ namespace BiblePay.BMS.Controllers
             }
         }
 
-
-        public async Task<IActionResult> TicketView()
+        
+        public IActionResult TicketView()
         {
-
             ViewBag.TicketID = Request.Query["id"].ToString() ?? String.Empty;
-            List<Ticket> l = await GetTicketList(String.Empty, ViewBag.TicketID);
+            List<Ticket> l = GetTicketList(HttpContext.GetCurrentUser(),String.Empty, ViewBag.TicketID);
             if (l.Count == 0)
             {
                 return this.ReturnURL("ticket/ticketlist");
             }
             TicketModel model = GetModel(l[0]);
             ViewBag.Ticket = l[0];
-            ViewBag.TicketHistory = await GetTicketHistory(ViewBag.TicketID);
+            ViewBag.TicketHistory = GetTicketHistory(HttpContext.GetCurrentUser(),ViewBag.TicketID);
+            string sTicketID = ViewBag.TicketID;
+            HttpContext.Session.SetString("TicketID", sTicketID);
+            
+
             return View(model);
         }
 
@@ -188,7 +264,7 @@ namespace BiblePay.BMS.Controllers
 
             // Assign To
             List<SelectListItem> li = new List<SelectListItem>();
-            List<User> l = DB.GetDatabaseObjectsAsAdmin<User>("user");
+            List<User> l = BBPAPI.Interface.Repository.GetDatabaseObjects<User>("user");
             foreach (User u in l)
             {
                 if (!String.IsNullOrEmpty(u.NickName))
@@ -214,7 +290,7 @@ namespace BiblePay.BMS.Controllers
 
         public IActionResult TicketList()
         {
-            ViewBag.TicketList = GetTicketListReport(HttpContext.GetCurrentUser().ERC20Address,String.Empty);
+            ViewBag.TicketList = GetTicketListReport(HttpContext.GetCurrentUser(),HttpContext.GetCurrentUser().ERC20Address,String.Empty);
             return View();
         }
 

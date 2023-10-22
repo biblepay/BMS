@@ -17,23 +17,23 @@ namespace BiblePay.BMS.Controllers
         {
             return View();
         }
-        public IActionResult Badges() => View();
-        public IActionResult Breadcrumbs() => View();
-        public IActionResult ButtonGroup() => View();
-        public IActionResult Buttons() => View();
-        public IActionResult Cards() => View();
-        public IActionResult Carousel() => View();
-        public IActionResult Collapse() => View();
-        public IActionResult Dropdowns() {
-            return View();
-        }
-        public IActionResult ListFilter() => View();
+        //public IActionResult Badges() => View();
+        //public IActionResult Breadcrumbs() => View();
+        //public IActionResult ButtonGroup() => View();
+        //public IActionResult Buttons() => View();
+        //public IActionResult Cards() => View();
+        //public IActionResult Carousel() => View();
+        //public IActionResult Collapse() => View();
+        //public IActionResult Dropdowns() {
+        //    return View();
+        //}
+        //public IActionResult ListFilter() => View();
         public IActionResult Modal() => View();
         public IActionResult Navbars() => View();
         public IActionResult Pagination() => View();
-        public IActionResult Panels() => View();
-        public IActionResult ProgressBars() => View();
-        public IActionResult Tooltips() => View();
-        public IActionResult TooltipsPopovers() => View();
+        //public IActionResult Panels() => View();
+        //public IActionResult ProgressBars() => View();
+        //public IActionResult Tooltips() => View();
+        //public IActionResult TooltipsPopovers() => View();
     }
 }

@@ -1,3 +1,5 @@
+@using static BiblePay.BMS.DSQL.HtmlHelperExtensions;
+
 @{ ViewData["Title"] = "Modal";
     ViewData["PageName"] = "ui_modal";
     ViewData["Heading"] = "<i class='subheader-icon fal fa-window'></i>  Modal";
@@ -41,6 +43,11 @@
             <div class="panel-container show">
                 <div class="panel-content">
                     <div class="panel-tag">
+
+
+                        non bold  @Html.Bold("This text will be in bold-face!")
+
+
                         Below is a static modal example (meaning its position and display have been overridden). Included are the modal header, modal body (required for padding), and modal footer (optional). We ask that you include modal headers with dismiss actions whenever possible, or provide another explicit dismiss action.
                     </div>
                     <h5 class="frame-heading">
@@ -96,6 +103,11 @@
                             </div>
                         </div>
                     </div>
+
+
+
+
+
                     <div class="modal fade" id="default-example-modal-sm" tabindex="-1" role="dialog" aria-hidden="true">
                         <div class="modal-dialog modal-sm" role="document">
                             <div class="modal-content">
@@ -106,8 +118,8 @@
                                     </button>
                                 </div>
                                 <div class="modal-body">
-                                    ...
-                                </div>
+...
+</div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                                     <button type="button" class="btn btn-primary">Save changes</button>
@@ -115,6 +127,12 @@
                             </div>
                         </div>
                     </div>
+
+
+
+
+
+
                     <h5 class="frame-heading">
                         Centered
                     </h5>
@@ -781,7 +799,7 @@
 
             $.ajax({
                 type: "POST",
-                url: '@Url.Action("PushAction1")',
+                url: 'PushAction1',
                 data: '{std: ' + JSON.stringify(std) + '}',
                 dataType: "json",
                 contentType: "application/json; charset=utf-8",

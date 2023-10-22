@@ -2,9 +2,16 @@
 
         window.onload = async function ()
         {
+            /*
             var erc20sig = getCookie('erc20signature');
             var erc20address = getCookie('erc20address');
+            var fUseMetamask = !(window.location.href.indexOf("localhost") > -1);
+            console.log('use metamask ' + fUseMetamask);
+            if (!fUseMetamask) {
+                return;
+            }
 
+            // Continue to use metamask here:
             if (erc20sig == null || erc20address == null || erc20sig == '' || erc20address == '') {
                 if (typeof window.ethereum !== 'undefined') {
                     console.log('MetaMask is installed.');
@@ -24,6 +31,8 @@
             if (erc20sig != null && erc20address != null) {
                 DoCallback('Profile_Authenticate', null, 'profile/processdocallback');
             }
+            */
+
         }
 
 

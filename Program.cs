@@ -1,133 +1,70 @@
-﻿using BBPAPI;
-using BBPAPI.Model;
-using BiblePay.BMS.DSQL;
+﻿using BMSCommon;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.IO;
+using Syncfusion.Licensing;
 using System.Threading.Tasks;
 using static BMSCommon.Common;
 
 namespace BiblePay.BMS
 {
 
-    public class MyWebClient : System.Net.WebClient
-    {
-        private int DEFAULT_TIMEOUT = 30000;
-        public void SetTimeout(int iTimeout)
-        {
-            DEFAULT_TIMEOUT = iTimeout * 1000;
-        }
-        protected override System.Net.WebRequest GetWebRequest(Uri uri)
-        {
-            System.Net.WebRequest w = base.GetWebRequest(uri);
-            w.Timeout = DEFAULT_TIMEOUT;
-            return w;
-        }
-    }
 
-    public class Program
+	public class Program
     {
-        public static async Task Main(string[] args)
-        {
-            // TODO: When running this as a regular User, ensure we bind to the right port.
-            // MISSION CRITICAL
-            string sBindURL = GetConfigKeyValue("bindurl");
-            if (sBindURL == string.Empty)
-            {
-                sBindURL = "https://localhost:" + GlobalSettings.DEFAULT_PORT.ToString();
-            }
-            sBindURL += ";http://0.0.0.0:8080";
-            await BBPAPI.ServiceInit.Init();
-            CreateHostBuilder(args,sBindURL,null).Build().Run();
-            
-        }
 
-        public static async Task<bool> Init(string sURL)
+        public static async Task<bool> LocalInit()
         {
             // Primary Entry point for BMS:
             // Set the user, start the loop thread, and initialize the charge
             await BBPAPI.ServiceInit.Init();
+            // This area is still in development....
+            if (1 == 0)
+            {
+                /*
+                    System.Threading.Thread tPushServer = new System.Threading.Thread(DSQL.PushServer.InitializePushServer);
+                    tPushServer.Start();
+                    System.Threading.Thread tPushClient = new System.Threading.Thread(DSQL.PushServer.InitializePushClient);
+                    tPushClient.Start();
+                */
+            }
             return true;
         }
 
 
 
-
-        public void ConfigureServices(IServiceCollection services)
+        public static async Task Main(string[] args)
         {
-            services.AddSingleton<IFileProvider>(
-                 new PhysicalFileProvider(Directory.GetCurrentDirectory()));
-            services.AddMvc(options =>
+            // BIND TO THE RIGHT PORT - Public Web host binds to HTTPS
+            // User binds to HTTP
+            // Sancs bind to HTTPS
+            // Primary Entry Point for background thread (looper)
+            BBPAPI.Service.RegisterProControls(SyncfusionLicenseProvider.RegisterLicense);
+            string sPath = GetFolder("") + "bms.conf";
+            Common.Log("BOOTING UP USING PATH " + sPath + " for conf");
+            string sBindURL = GetConfigKeyValue("bindurl");
+            /*
+            if (sBindURL == string.Empty && false)
             {
-                ServiceProvider serviceProvider = services.BuildServiceProvider();
-            });
+                sBindURL = "https://localhost:" + GlobalSettings.DEFAULT_HTTPS_PORT.ToString();
+            }
+            */
+            if (System.Diagnostics.Debugger.IsAttached)
+            {
+                sBindURL = "https://localhost:" + BiblePay.BMS.GlobalSettings.DEFAULT_HTTPS_PORT.ToString();
+            }
 
-            services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
-            {
-                builder.WithOrigins(new string[] { "https://dec.app", "https://hitch.social", "https://www.hitch.social",
-                    "https://social.biblepay.org", "http://social.biblepay.org", "https://*", "http://localhost", "https://localhost" })
-                       .AllowAnyMethod()
-                       .AllowAnyHeader();
-            }));
+
+            sBindURL += ";http://0.0.0.0:" + BiblePay.BMS.GlobalSettings.DEFAULT_HTTP_PORT.ToString();
+
+            await BBPAPI.ServiceInit.Init();
+            await LocalInit();
+
+            StartupConfig.CreateHostBuilder(args, sBindURL, null).Build().Run();
 
         }
 
 
 
-        public static IHostBuilder CreateHostBuilder(string[] args, string sBindURL, IEnumerable<ServiceDescriptor> services) =>
-            Host.CreateDefaultBuilder(args)
-            
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    /*
-                    webBuilder.UseKestrel(kestrelOptions =>
-                    {
-                        kestrelOptions.Limits.MaxRequestHeadersTotalSize = 51000000;
-                        //kestrelOptions.Limits.MaxRequestBufferSize = 51000000;
-                        kestrelOptions.Limits.RequestHeadersTimeout = new TimeSpan(180000);
-                        kestrelOptions.Limits.MaxRequestBodySize = long.MaxValue;
-
-                        //kestrelOptions.ConfigureHttpsDefaults(httpsOptions.ServerCertificate = FluffySpoon.X509.GetSSL();
-                        kestrelOptions.ConfigureHttpsDefaults(httpsOptions =>
-                        {
-                            httpsOptions.ServerCertificate = X509.GetSSL();
-                        });
-                    });.ConfigureKestrel
-                    */
-                    //.Build();
-                    
-
-                    webBuilder.UseKestrel(serverOptions =>
-                    {
-                        serverOptions.Limits.MaxRequestHeadersTotalSize = 51000000;
-                        serverOptions.Limits.MaxRequestBufferSize = 51000000;
-                        serverOptions.Limits.RequestHeadersTimeout = new TimeSpan(180000);
-                        serverOptions.Limits.MaxRequestBodySize = long.MaxValue;
-
-                        //kestrelOptions.ConfigureHttpsDefaults(httpsOptions.ServerCertificate = FluffySpoon.X509.GetSSL();
-                        serverOptions.ConfigureHttpsDefaults(httpsOptions =>
-                        {
-                            httpsOptions.ServerCertificate = FluffySpoon.X509.GetSSL();
-                        });
-
-                    })
-                    .ConfigureServices(collection =>
-                    {
-                        if (services == null)
-                        {
-                            return;
-                        }
-
-                    })
-                    .UseIISIntegration().UseKestrel()
-                    .UseUrls(sBindURL)
-                    .UseStartup<BWS>();
-
-
-                });
     }
 }

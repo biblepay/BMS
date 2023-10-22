@@ -1,17 +1,12 @@
-﻿using BBPAPI.Model;
-using BiblePay.BMS.Extensions;
-using BMSCommon;
-using BMSShared;
-using Google.Authenticator;
+﻿using BiblePay.BMS.Extensions;
+using BMSCommon.Model;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Threading.Tasks;
-using static BiblePay.BMS.DSQL.UIWallet;
 using static BMSCommon.Common;
 
 namespace BiblePay.BMS.DSQL
 {
-    public static class SessionHelper
+	public static class SessionHelper
     {
         public static double GetSessionDouble(HttpContext h, string sKey)
         {
@@ -37,12 +32,6 @@ namespace BiblePay.BMS.DSQL
             return s1;
         }
 
-        public static string GetPBMode(HttpContext s)
-        {
-            string s1 = s.Session.GetString("PortfolioBuilderLeaderboardMode");
-            if (s1 == null) return "Summary";
-            return s1;
-        }
         public static bool IsTestNet(HttpContext s)
         {
             string sChain = GetChain(s);
@@ -55,58 +44,50 @@ namespace BiblePay.BMS.DSQL
                 return "background-color:LIME;";
             return "";
         }
-        // When we move away from ERC-20 we can delete this one
-        public static User GetUser(HttpContext s)
+
+
+		// When we move away from ERC-20 we can continue to optimize this function:
+		public static User GetUser(HttpContext s)
         {
             string sKey = IsTestNet(s) ? "tUser" : "User";
-            User u = s.Session.GetObject<User>(sKey);
-            if (u == null)
-                u = new User();
+            User u = s.Session.GetObject<User>(sKey) ?? new User();
 
-            if (String.IsNullOrEmpty(u.ERC20Address))
+            // If a session object exists; use it instead
+            if (u.LoggedIn)
             {
-                string e = String.Empty;
-                s.Request.Cookies.TryGetValue("erc20address", out e);
-                u.ERC20Address = e;
+                return u;
             }
-
-            if (!u.LoggedIn && !String.IsNullOrEmpty(u.ERC20Address))
+			else if (!u.LoggedIn && !String.IsNullOrEmpty(u.BBPAddress))
             {
-                u = User.GetCachedUser(IsTestNet(s), u.ERC20Address);
+                u = BBPAPI.Model.UserFunctions.GetCachedUser(IsTestNet(s), u.BBPAddress);
                 if (u==null)
                 {
-                    return u;
-                }    
-                s.Session.SetObject(sKey, u);
-                if (String.IsNullOrEmpty(u.ERC20Address))
-                {
-                    string f = String.Empty;
-                    s.Request.Cookies.TryGetValue("erc20address", out f);
-                    u.ERC20Address = f;
+                    return new User();
                 }
-            }
-
-            Encryption.KeyType k = DSQL.UIWallet.GetKeyPair(s);
-            u.BBPAddress = k.PubKey;
-            if (u.ERC20Address != null && u.ERC20Address.Length > 20)
-            {
                 u.LoggedIn = true;
-            }
+				s.Session.SetObject(sKey, u);
+				return u;
+			}
             else
             {
-                u.LoggedIn = false;
-            }
+				// We have no idea who they are.  If they are desktop
+				if (!BBPAPI.Service.IsPrimary())
+				{
+					// desktop user
+					u = BBPAPI.Globals._DBUser2;
+                    u.LoggedIn = true;
+					s.Session.SetObject(sKey, u);
+					return u;
+				}
+			}
             return u;
-        }
-
-
-
+		}
+       
         public static User GetUserMFA(HttpContext s, string sNickName, string sMFACode)
         {
             string sKey = IsTestNet(s) ? "tUser" : "User";
             User u = s.Session.GetObject<User>(sKey);
-            if (u == null)
-                u = new User();
+            u ??= new User();
 
             if (u.LoggedIn)
             {
@@ -114,10 +95,8 @@ namespace BiblePay.BMS.DSQL
             }
             if (!u.LoggedIn)
             {
-                u = User.GetUserByNickName(IsTestNet(s), sNickName);
-
-                bool isValid = BBPAPI.ERCUtilities.ValidateMFA(u, sMFACode);
-                
+                u = BBPAPI.Model.UserFunctions.GetUserByNickName(IsTestNet(s), sNickName);
+                var isValid = BBPAPI.ERCUtilities.ValidateMFA(u, sMFACode);
                 if (isValid)
                 {
                     u.LoggedIn = true;
@@ -131,15 +110,13 @@ namespace BiblePay.BMS.DSQL
 
             return u;
         }
-
-
-
+        
 
 
         public static void SetUser(User u, HttpContext s)
         {
-            string sKey = IsTestNet(s) ? "tUser" : "User";
-            s.Session.SetObject(sKey, u);
+            string sTable = IsTestNet(s) ? "tUser" : "User";
+            s.Session.SetObject(sTable, u);
         }
 
         public static string GetLogInAction(HttpContext s)
@@ -162,15 +139,13 @@ namespace BiblePay.BMS.DSQL
             {
                 return "Guest";
             }
-
         }
         public static string GetLogInStatus(HttpContext s)
         {
             User u = GetUser(s);
             string status = String.Empty;
-            Encryption.KeyType k = GetKeyPair(s);
-
-            if (u == null || k.PubKey == null)
+            
+            if (u == null || String.IsNullOrEmpty(u.BBPAddress))
             {
                 status = "LOGGED OUT";
             }
@@ -180,9 +155,6 @@ namespace BiblePay.BMS.DSQL
             }
             return status;
         }
-
-
-
-
+       
     }
 }

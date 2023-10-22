@@ -8,6 +8,24 @@ using System.Threading.Tasks;
 
 namespace BiblePay.BMS.DSQL
 {
+
+
+    public class MyWebClient : System.Net.WebClient
+    {
+        private int DEFAULT_TIMEOUT = 30000;
+        public void SetTimeout(int iTimeout)
+        {
+            DEFAULT_TIMEOUT = iTimeout * 1000;
+        }
+        protected override System.Net.WebRequest GetWebRequest(Uri uri)
+        {
+            System.Net.WebRequest w = base.GetWebRequest(uri);
+            w.Timeout = DEFAULT_TIMEOUT;
+            return w;
+        }
+    }
+
+
     public static class Utility
     {
 
@@ -26,7 +44,7 @@ namespace BiblePay.BMS.DSQL
         public static string CleanseXSSAdvanced(string sData, bool fNeutralizeJS = false)
         {
             // Here is an evil one:
-            // https://unchained.biblepay.org/PrayerBlog?entity=townhall111%22%20onpointermove=alert%28document.cookie%29%3e
+            // https://pay.org/PrayerBlog?entity=townhall111%22%20onpointermove=alert%28document.cookie%29%3e
             // Note how the attacker does not use the word javascript.. And he encodes the left and right parentheses; and the semicolon.
             // So we catch the word script in other places, but we dont catch this.  Lets remove the %01-%99
 

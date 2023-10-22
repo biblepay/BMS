@@ -10,14 +10,13 @@ using static BMSCommon.Common;
 using BBPAPI;
 using static BMSCommon.Encryption;
 using BMSCommon;
+using NBitcoin;
+using BiblePay.BMS.Extensions;
 
 namespace BiblePay.BMS.DSQL
 {
     public static class UIWallet
     {
-        
-        
-
         public static double ConvertUSDToBiblePay(double nUSD)
         {
             price1 nBTCPrice = PricingService.GetCryptoPrice("BTC/USD");
@@ -36,54 +35,42 @@ namespace BiblePay.BMS.DSQL
             return nOut;
         }
 
+        /*
         public static Encryption.KeyType GetKeyPair(HttpContext h, string sNonce = "")
         {
+            // If they are running the Core Wallet, use the core keypair, otherwise use the HttpContext.
+            KeyType ukp = BBPAPI.ServiceInit.GetUserKeyPair(h.GetCurrentUser(),IsTestNet(h));
+            if (!String.IsNullOrEmpty(ukp.PrivKey))
+            {
+                return ukp;
+            }
             string ERC20Signature;
             string ERC20Address;
             Encryption.KeyType k = new Encryption.KeyType();
             h.Request.Cookies.TryGetValue("erc20signature", out ERC20Signature);
             h.Request.Cookies.TryGetValue("erc20address", out ERC20Address);
-            if (ERC20Signature != null)
-            {
-                BBPAPI.ERC712Authenticator b = new BBPAPI.ERC712Authenticator();
-                bool f = b.VerifyERC712Signature(ERC20Signature, ERC20Address);
-                if (f)
-                {
-                    string sDerivationSource = ERC20Signature + sNonce;
-                    k = Encryption.DeriveKey(IsTestNet(h), sDerivationSource);
-                    return k;
-                }
-            }
+
+
             return k;
         }
+        */
 
-        public static Encryption.KeyType GetKeyPairByGUID(bool fTestNet, string sGUID, string sNonce = "")
+
+        // This is only used by MFA - it derives a bbp key by 2fa seed
+        public static BBPKeyPair GetKeyPairByGUID(bool fTestNet, string sGUID, string sNonce = "")
         {
-            Encryption.KeyType k = new Encryption.KeyType();
+            //Encryption.KeyType k = new Encryption.KeyType();
+            BBPKeyPair p = new BBPKeyPair();
             string sDerivationSource = sGUID + sNonce;
-            k = Encryption.DeriveKey(fTestNet, sDerivationSource);
-            return k;
+            p = Encryption.DeriveKey(fTestNet, sDerivationSource);
+            return p;
         }
 
 
-        public static Encryption.KeyType GetKeyPair2(bool fTestNet, string sERC20Address, string sSig, string sNonce = "")
+        // Only used by GenerateToken() proof of concept:
+        public static BBPKeyPair GetKeyPair3(bool fTestNet, string sDerivSource)
         {
-            Encryption.KeyType k = new Encryption.KeyType();
-            BBPAPI.ERC712Authenticator b = new BBPAPI.ERC712Authenticator();
-            bool f = b.VerifyERC712Signature(sSig, sERC20Address);
-            if (f)
-            {
-                string sDerivationSource = sSig + sNonce;
-                k = Encryption.DeriveKey(fTestNet, sDerivationSource);
-                return k;
-            }
-            return k;
-        }
-
-        public static KeyType GetKeyPair3(bool fTestNet, string sDerivSource)
-        {
-            KeyType k = new KeyType();
-            k = Encryption.DeriveKey(fTestNet, sDerivSource);
+            BBPKeyPair k = Encryption.DeriveKey(fTestNet, sDerivSource);
             return k;
         }
 

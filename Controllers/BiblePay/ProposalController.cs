@@ -62,7 +62,12 @@ namespace BiblePay.BMS.Controllers
             if (!u0.LoggedIn)
                 sError = "You must be logged in.";
 
-            bool fValid = BBPAPI.Sanctuary.ValidateBiblePayAddress(IsTestNet(h), p.BBPAddress);
+            BBPNetAddress ba = new BBPNetAddress();
+            ba.TestNet = IsTestNet(h);
+            ba.Address = p.BBPAddress;
+
+            bool fValid = BBPAPI.Interface.WebRPC.ValidateBBPAddress(ba).Result;
+
             if (!fValid)
             {
                 sError = "Address is not valid for this chain.";
@@ -83,7 +88,10 @@ namespace BiblePay.BMS.Controllers
                 return sJson1;
             }
             // Submit
-            GovernanceProposal.gobject_serialize(IsTestNet(h), p);
+            p.TestNet = IsTestNet(h);
+            p.User = h.GetCurrentUser();
+            BBPAPI.Interface.Repository.GobjectSerialize(p);
+
             string sJson = MsgBoxJson(h, "Success", "Success", "Thank you.  Your proposal will be submitted in six blocks.");
             return sJson;
         }
@@ -91,8 +99,9 @@ namespace BiblePay.BMS.Controllers
         protected string GetProposalsList(HttpContext h)
         {
             string sChain = IsTestNet(h) ? "test" : "main";
-            GovernanceProposal.SubmitProposals(IsTestNet(h));
-            List<Proposal> dt = DB.GetDatabaseObjectsAsAdmin<Proposal>("proposal");
+            BBPAPI.Interface.WebRPC.SubmitProposals(h.GetCurrentUser(),IsTestNet(h));
+
+            List<Proposal> dt = BBPAPI.Interface.Repository.GetDatabaseObjects<Proposal>("proposal");
             dt = dt.Where(s => s.Chain == sChain && DateTime.Now.Subtract(s.Added).TotalSeconds < 86400 * 30).ToList();
             dt = dt.OrderByDescending(s => Convert.ToDateTime(s.Added)).ToList();
             string html = "<table class=saved><tr><th>UserName<th>Expense Type<th>Proposal Name<th>Amount<th>PrepareTXID<th>URL<th>Chain<th>Updated<th>Submit TXID<th>Vote Yes<th>Vote No</tr>\r\n";
@@ -123,11 +132,11 @@ namespace BiblePay.BMS.Controllers
         public IActionResult ProposalAdd()
         {
             List<BMSCommon.Model.DropDownItem> ddCharity = new List<DropDownItem>();
-            ddCharity.Add(new DropDownItem("Charity", "Charity"));
-            ddCharity.Add(new DropDownItem("PR", "PR"));
-            ddCharity.Add(new DropDownItem("P2P", "P2P"));
-            ddCharity.Add(new DropDownItem("IT", "IT"));
-            ddCharity.Add(new DropDownItem("XSPORK", "XSPORK"));
+            ddCharity.Add(new DropDownItem{ key0 = "Charity", text0 = "Charity" });
+            ddCharity.Add(new DropDownItem{ key0 = "PR", text0 = "PR" });
+            ddCharity.Add(new DropDownItem{ key0 = "P2P", text0 = "P2P" });
+            ddCharity.Add(new DropDownItem{ key0 = "IT", text0 = "IT" });
+            ddCharity.Add(new DropDownItem{ key0 = "XSPORK", text0 = "XSPORK" });
             ViewBag.ddCharity = ListToHTMLSelect(ddCharity, "Charity");
             return View();
         }

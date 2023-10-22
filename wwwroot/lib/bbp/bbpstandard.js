@@ -1,10 +1,21 @@
-function DoCallback(action, o, destURL) {
+
+
+
+function DoCallback(action, o, destURL, aft) {
     var CTS = new Object();
     CTS.BBPAddress = "";
     CTS.ExtraData = JSON.stringify(o);
     CTS.FormData = MemorizeForm();
     CTS.Action = action;
-    var postURL = 'intel/processdocallback';
+
+    CTS.RVT = "";
+    var o = document.getElementsByName("__RequestVerificationToken");
+    if (o && o.length > 0) {
+        CTS.RVT = o[0].value;
+        console.log('1'+CTS.RVT);
+    }
+
+    var postURL = 'admin/processdocallback';
     if (destURL != null && destURL != '') {
         postURL = destURL;
     }
@@ -12,15 +23,21 @@ function DoCallback(action, o, destURL) {
     console.log('2 ' + destURL);
     console.log(CTS);
     $.ajax({
+
+        beforeSend: function (request) {
+            request.setRequestHeader("RequestVerificationToken", CTS.RVT)
+        },
+
         type: "POST",
         url: postURL,
-        data: JSON.stringify(CTS),
+        data: JSON.stringify(CTS)
+        ,
         dataType: "json",
         contentType: "application/json; charset=utf-8",
         success: function (data, resObject) {
             if (data != null && data.length > 1)
             {
-                console.log('data[] ' + data);
+                //console.log('data[] ' + data);
                 var obj = JSON.parse(data);
                 if (obj.returntype == "modal") {
                     var implant = document.getElementById("implant");
@@ -75,6 +92,64 @@ function DoPostback(URL, EventName, o) {
     });
     return true;
 }
+
+function getUnixTime() {
+    return Math.floor(Date.now() / 1000)
+}
+
+var nMyLastLog = 0;
+function BackgroundPost(oMyLogger) {
+    var nElapsed = getUnixTime() - nMyLastLog;
+    if (nElapsed < 60) {
+        return;
+    }
+    
+
+    if (oMyLogger.length > 1000) {
+        nMyLastLog = getUnixTime();
+
+        var e = {};
+        e.Log = oMyLogger;
+        //DoCallback('Log_Save', e, 'paginator/processdocallback');
+        var CTS = new Object();
+        CTS.BBPAddress = "";
+        CTS.ExtraData = oMyLogger;
+        CTS.FormData = '';// MemorizeForm();
+        CTS.Action = 'Log_Save';
+
+        $.ajax({
+            type: "POST",
+            url: '../../paginator/processdocallback',
+            data: JSON.stringify(CTS),
+            dataType: "json",
+            contentType: "application/json",
+            success: function (response) {
+            },
+            error: function () {
+                //alert('Error while posting data to the server.');
+            }
+        });
+
+
+        oMyLogger = '';
+    }
+}
+
+// Global Error Handler - Future
+// Global Logging Handler
+
+var mylogger = '';
+(function () {
+    if (false) {
+        var oldLog = console.log;
+        console.log = function (message) {
+            // Implement centralized js logger here, if desired.
+            mylogger += JSON.stringify(message) + '\r\n';
+            BackgroundPost(mylogger);
+            oldLog.apply(console, arguments);
+        };
+    }
+})();
 
 
 
@@ -149,6 +224,13 @@ function closeModal(id) {
     $('#' + id).hide();
     $('#' + id).modal('hide');
 }
+
+function closeModalByDataTarget(id) {
+    var oID = document.getElementById(id);
+    //    var targetElement = document.getElementById(obj.getAttribute('data-target'));
+    oID.classList.toggle('tooltip');
+}
+
 
 function removeAllChildNodes(parent) {
     while (parent.firstChild) {

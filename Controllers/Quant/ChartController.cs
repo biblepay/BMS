@@ -4,7 +4,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Text;
-using OptionsShared;
 using System;
 
 namespace BiblePay.BMS.Controllers
@@ -49,7 +48,7 @@ namespace BiblePay.BMS.Controllers
             return sDataSet;
         }
 
-
+        /*
         public IActionResult ChartView()
         {
             string sID = Request.Query["id"].ToString();
@@ -154,5 +153,7 @@ namespace BiblePay.BMS.Controllers
             ViewBag.ChartJS = sJS;
             return View();
         }
+        */
+
     }
 }

@@ -38,6 +38,7 @@
     display: none;
     float: left;
     min-width: 160px;
+    min-height: 35px;
     padding: 5px 0;
     margin: 2px 0 0;
     list-style: none;
@@ -60,6 +61,7 @@
         line-height: 1.42857143;
         color: #333333;
         white-space: nowrap;
+
     }
 
 .ui-state-hover,
@@ -81,3 +83,14 @@
     position: absolute;
     width: 1px;
 }
+
+
+.ui-autocomplete .ui-state-focus {
+    background-color: #66afe9;
+}
+
+.ui-helper-hidden-accessible {
+    display: none;
+}
+
+

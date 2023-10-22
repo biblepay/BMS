@@ -8,7 +8,9 @@
 				<a href="javascript:void(0);" class="btn btn-icon btn-icon-light fs-xl mr-1" data-action="panel-fullscreen" data-toggle="tooltip" data-offset="0,10" data-original-title="Fullscreen" data-placement="bottom">
 					<i class="@(Settings.Theme.IconPrefix) fa-expand-alt"></i>
 				</a>
-				<a href="javascript:void(0);" class="btn btn-icon btn-icon-light fs-xl" data-action="toggle" data-class="d-flex" data-target="#panel-compose" data-toggle="tooltip" data-original-title="Save & Close" data-placement="bottom">
+
+
+				<a href="javascript:void(0);" class="btn btn-icon btn-icon-light fs-xl" data-action="toggle" data-class="d-flex" data-target="#panel-compose" data-toggle="tooltip" data-original-title="Close" data-placement="bottom">
 					<i class="@(Settings.Theme.IconPrefix) fa-times"></i>
 				</a>
 			</div>
@@ -22,7 +24,7 @@
 			</div>
 		</div>
 		<div class="panel-container show rounded-0 flex-1 d-flex flex-column">
-			<partial name="_ComposeLayout"/>
+			<partial name="Mail/_ComposeLayout"/>
 		</div>
 	</div>
 </div>

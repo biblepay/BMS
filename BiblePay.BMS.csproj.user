@@ -13,7 +13,7 @@
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Update="Program.cs">
+    <Compile Update="DSQL\Utilities\Utility.cs">
       <SubType>Component</SubType>
     </Compile>
   </ItemGroup>

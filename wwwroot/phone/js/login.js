@@ -24,11 +24,11 @@ const connectToVoxCloud = async (username, password, connectivityCheck = false) 
   }
   catch (e) {
     // disable inputs if the server IP is incorrect or if it's impossible to connect to the server with connectivity check on
-    console.log('unable to connect to cloud');
+    console.log('unable to connect to bbp phone svc');
     console.log(e);
     return;
   }
-  console.log('connected to cloud');
+  console.log('connected to bbp-phone-svc');
   await signIn(username, password);
 };
 
@@ -38,8 +38,8 @@ const signIn = async (username, password) => {
     console.log('signed in ');
     document.querySelector('.page_action').classList.remove('hidden');
     const authData = document.querySelector('.action_auth-data');
-    authData.querySelector('h2').innerText = `Logged in as ${username}`;
-    authData.querySelector('h3').innerText = `You're using Web SDK version ${sdk.version}`;
+    authData.querySelector('h2').innerText = `BBP pubkey ${username}`;
+    authData.querySelector('h3').innerText = `BBP v${sdk.version}`;
     console.log('finished sign in');
 
   } catch (e) {

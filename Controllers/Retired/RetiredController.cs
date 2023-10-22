@@ -1,4 +1,11 @@
-﻿namespace BiblePay.BMS.Controllers.Retired
+﻿using BBPAPI;
+using BMSCommon.Model;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
+using System;
+
+namespace BiblePay.BMS.Controllers.Retired
 {
     public class RetiredController
     {
@@ -6,6 +13,51 @@
 
 
         /*
+        public string GetAtomicSwapPriceReport(string sDogeAddress)
+        {
+            price1 nBTCPrice = BBPAPI.PricingService.GetCryptoPrice("BTC/USD");
+            price1 nBBPPrice = BBPAPI.PricingService.GetCryptoPrice("BBP/BTC");
+            price1 nDOGEPrice = BBPAPI.PricingService.GetCryptoPrice("DOGE/BTC");
+            double nUSDBBP = nBTCPrice.AmountUSD * nBBPPrice.Amount;
+            double nUSDDOGE = nBTCPrice.AmountUSD * nDOGEPrice.Amount;
+            string html = "<table class='saved'><tr><th>Symbol<th>USD Amount</tr>";
+
+            if (nUSDBBP < .000015)
+            {
+                //bbp price below 15 milli sat-usd
+                return "BBP_PRICE_TOO_LOW";
+            }
+
+            if (nUSDDOGE < .01)
+            {
+                return "DOGE_PRICE_TOO_LOW";
+            }
+            double nBBPPerDoge = Math.Round(nUSDDOGE / nUSDBBP, 4);
+
+            string sRow = "<td>BTC/USD<td>" + FormatCurrency(nBTCPrice.AmountUSD) + "</tr>";
+            html += sRow;
+            sRow = "<td>DOGE/USD<td>" + FormatCurrency(nUSDDOGE) + "</tr>";
+            html += sRow;
+            sRow = "<td>BBP/USD<td>" + FormatCurrency(nUSDBBP) + "</tr>";
+            html += sRow;
+            html += "<td>BBP/DOGE<td>" + FormatCurrency(nBBPPerDoge) + "</tr>";
+            double nExample = 1000 * nBBPPerDoge;
+            string sNarr = "You will receive " + nBBPPerDoge.ToString() + " BBP per DOGE.  Example: Send 1000 DOGE to " + sDogeAddress + " and you will receive " + nExample.ToString() + " BBP in your web wallet. ";
+
+            html += "</table>";
+
+            html += "<br>" + sNarr;
+            return html;
+
+        }
+        public async Task<IActionResult> AtomicSwap()
+        {
+            ViewBag.DogeAddress = DB.SouthXChange.GetSXAddressByERC20Address("doge", HttpContext.GetCurrentUser().ERC20Address);
+            ViewBag.PriceReport = GetAtomicSwapPriceReport(ViewBag.DogeAddress);
+            ViewBag.Atomic = await DB.SouthXChange.GetSouthXChangeReport(HttpContext.GetCurrentUser(), IsTestNet(HttpContext));
+            return View();
+        }
+
         public static async Task<bool> MigrateTable2()
         {
             string sTable = "bms1.NFT";
@@ -27,7 +79,7 @@
                 e.MinimumBidAmount = GetDouble(dt.Rows[i]["MinimumBidAmount"]);
                 e.ReserveAmount = GetDouble(dt.Rows[i]["ReserveAmount"]);
                 e.BuyItNowAmount = GetDouble(dt.Rows[i]["BuyItNowAmount"]);
-                e.OwnerERC20Address = dt.Rows[i]["OwnerERC20Address"].ToString();
+                e.Owneress = dt.Rows[i]["Owneress"].ToString();
                 e.nIteration = (int)GetDouble(dt.Rows[i]["nIteration"]);
                 e.Marketable = (int)GetDouble(dt.Rows[i]["Marketable"]);
                 e.Deleted = 0;
@@ -58,7 +110,7 @@
             {
                 User e = new User();
                 e.id = dt.Rows[i]["_id"].ToString();
-                e.ERC20Address = dt.Rows[i]["erc20address"].ToString();
+                e.ess = dt.Rows[i]["ess"].ToString();
                 e.EmailAddress = Encryption.EncryptAES256(dt.Rows[i]["EmailAddress"].ToString(), sPrivKey);
                 e.NickName = dt.Rows[i]["NickName"].ToString();
                 e.Updated = dt.Rows[i]["Updated"].ToString();

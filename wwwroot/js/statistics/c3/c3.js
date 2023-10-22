@@ -1,4 +1,6 @@
-/* @license C3.js v0.7.15 | (c) C3 Team and other contributors | http://c3js.org/ */
+
+
+ @licen C3.js v0.7.15 | (c) C3 Team and other contributors | http://c3js.org/ */
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :

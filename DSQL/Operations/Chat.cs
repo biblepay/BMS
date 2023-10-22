@@ -10,26 +10,29 @@ using System.Threading.Tasks;
 using static BiblePay.BMS.DSQL.SessionHelper;
 using static BiblePay.BMS.DSQL.UI;
 using BMSCommon.Model;
+using BiblePay.BMS.Extensions;
+using Org.BouncyCastle.Security;
 
 namespace BiblePay.BMS.DSQL
 {
     public static class Chat
     {
 
-        public static string GetChatMessages(HttpContext h)
+        public static string GetChatMessages(HttpContext h, string sUIDKey)
         {
             // chat messages
             string sMsgs = String.Empty;
             User u0 = GetUser(h);
             string sMyId = u0.ERC20Address;
-            string sChattingWithUID = h.Session.GetString("CHATTING_WITH");
+            // UIDKey = CHATTING_WITH or SMS_WITH
+            string sChattingWithUID = h.Session.GetString(sUIDKey);
             if (sMyId == null || sChattingWithUID == null)
             {
                 return "";
             }
             if (!chat_depersisted)
             {
-                DepersistChatItems(IsTestNet(h));
+                DepersistChatItems(h.GetCurrentUser(), IsTestNet(h));
             }
             if (dictChats.ContainsKey(sMyId))
             {
@@ -55,6 +58,45 @@ namespace BiblePay.BMS.DSQL
             return sMsgs;
         }
 
+
+        public static string GetSMSMessages(string sMe, string sChattingWith)
+        {
+            // chat messages
+            string sMsgs = String.Empty;
+            if (sChattingWith == null)
+            {
+                return "";
+            }
+            SMSMessage s1 = new SMSMessage();
+            s1.From = sMe;
+            s1.To = sChattingWith;
+
+            DataTable dtChats = BBPAPI.Interface.Phone.GetSMSMessages(s1);
+            for (int i = dtChats.Rows.Count-1; i >= 0; i--)
+            {
+                //                    ChatItem cs = dictChats[sMyId].chats[i];
+                DataRow dr = dtChats.Rows[i];
+                string sTheRecip = dr["recipient"].ToString().Trim();
+                string sTheSender = dr["sender"].ToString().Trim();
+
+                if (dr["sender"].ToString() == sMe && dr["recipient"].ToString() == sChattingWith)
+                {
+                      string chatsent = GetTemplate("chatsent.htm");
+                      chatsent = chatsent.Replace("@body", dr["body"].ToString());
+                      chatsent = chatsent.Replace("@time", dr["Added"].ToString());
+                      sMsgs += chatsent + "\r\n";
+                }
+                else if (dr["recipient"].ToString() == sMe && sChattingWith == dr["sender"].ToString())
+                {
+                        string chatreply = GetTemplate("chatreply.htm");
+                        chatreply = chatreply.Replace("@body", dr["body"].ToString());
+                        chatreply = chatreply.Replace("@time", dr["Added"].ToString());
+                        sMsgs += chatreply + "\r\n";
+                }
+            }
+            sMsgs = sMsgs.Replace("`", "");
+            return sMsgs;
+        }
 
 
         public class ChatSession
@@ -82,17 +124,19 @@ namespace BiblePay.BMS.DSQL
             string sURL = "/bbp/chat";
             if (fPersist)
             {
-                DB.OperationProcs.InsertChatNotification(fTestNet, ci.To, ci.From, 
-                    "You have received a chat message", "chat", sURL);
-                DB.OperationProcs.PersistDatabaseChatItem(fTestNet, ci);
+                ci.TestNet = fTestNet;
+                ci.body = "You have received a chat message";
+                ci.Type = "chat";
+                ci.URL = sURL;
+                BBPAPI.Interface.Repository.InsertChatNotification(ci);
+                BBPAPI.Interface.Repository.PersistChatItem(ci);
             }
         }
 
 
-        public static void DepersistChatItems(bool fTestNet)
+        public static void DepersistChatItems(User u, bool fTestNet)
         {
-            string sql = "Select * from chat order by Added;";
-            DataTable dt = DB.GetDataTableAsAdmin(sql);
+            DataTable dt = BBPAPI.Interface.Repository.GetChats(fTestNet);
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 ChatItem ci = new ChatItem();
@@ -104,8 +148,6 @@ namespace BiblePay.BMS.DSQL
             }
             chat_depersisted = true;
         }
-
-      
 
         public static bool chat_depersisted = false;
        
@@ -140,7 +182,10 @@ namespace BiblePay.BMS.DSQL
 
         public static string GetNotifications0(HttpContext h, string sUserID)
         {
-            DataTable dt = DB.OperationProcs.GetNotifications(IsTestNet(h), sUserID);
+            GetBusinessObject go = new GetBusinessObject();
+            go.TestNet = IsTestNet(h);
+            go.ParentID = sUserID;
+            DataTable dt = BBPAPI.Interface.Repository.GetNotifications(go);
             string html = String.Empty;
             if (dt.Rows.Count==0)
             {
@@ -148,9 +193,9 @@ namespace BiblePay.BMS.DSQL
             }
             for (int i = 0; i < dt.Rows.Count; i++)
             {
-                User uRow = BBPAPI.Model.User.GetCachedUser(IsTestNet(h), dt.Rows[i]["FromUser"].ToString());
+                User uRow = UserFunctions.GetCachedUser(IsTestNet(h), dt.Rows[i]["FromUser"].ToString());
                 DateTime dtTime = Convert.ToDateTime(dt.Rows[i]["added"]);
-                bool fActive = BBPAPI.Model.User.IsUserActive(false, uRow.ERC20Address);
+                bool fActive = UserFunctions.IsUserActive(false, uRow.ERC20Address);
                 string sStatus = fActive ? "status-success" : "status-danger";
                 string sAnchor = "<a href='" + dt.Rows[i]["URL"].ToString() + "'>";
                 string sFullMessage = sAnchor + dt.Rows[i]["body"].ToString() + "</a>";

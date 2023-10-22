@@ -1,4 +1,5 @@
 ﻿using BBPAPI;
+using BiblePay.BMS.Extensions;
 using BMSCommon.Model;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -73,7 +74,7 @@ namespace BiblePay.BMS.Controllers
 
         protected string GetStudies(bool fTestNet)
         {
-            List<Articles> lA = DB.GetDatabaseObjectsAsAdmin<Articles>("article");
+            List<Articles> lA = BBPAPI.Interface.Repository.GetDatabaseObjects<Articles>("article");
             lA = lA.OrderBy(s => s.Name).ThenBy(s => s.Description).ToList();
             string html = String.Empty;
             for (int i = 0; i < lA.Count; i++)
@@ -93,7 +94,7 @@ namespace BiblePay.BMS.Controllers
         }
         protected string GetOrphanCollage(bool fTestNet)
         {
-            List<SponsoredOrphan> lSPO = DB.GetDatabaseObjectsAsAdmin<SponsoredOrphan>("sponsoredorphan");
+            List<SponsoredOrphan> lSPO = BBPAPI.Interface.Repository.GetDatabaseObjects<SponsoredOrphan>("sponsoredorphan");
             lSPO = lSPO.Where(s => s.Active == 1).ToList();
             lSPO = lSPO.Where(s => s.ChildID != "Genevieve Umba").ToList();
             lSPO = lSPO.Where(s => s.Charity.ToLower() != "sai").ToList();
@@ -132,7 +133,7 @@ namespace BiblePay.BMS.Controllers
         protected string GetArticles(bool fTestNet,string type)
         {
             string prefix = String.Empty;
-            DataTable dt = DB.OperationProcs.GetArticles(type);
+            DataTable dt = BBPAPI.Interface.Repository.GetArticles(type);
             string html = String.Empty;
 
             for (int i = 0; i < dt.Rows.Count; i++)
@@ -197,8 +198,8 @@ namespace BiblePay.BMS.Controllers
         }
         protected IActionResult GenerateAccountingReport(int nYear)
         {
-            List<BMSCommon.Model.Expense> lExpenses = DB.GetDatabaseObjectsAsAdmin<Expense>("expense");
-            List<Revenue> lRevenue = DB.GetDatabaseObjectsAsAdmin<Revenue>("revenue");
+            List<BMSCommon.Model.Expense> lExpenses = BBPAPI.Interface.Repository.GetDatabaseObjects<Expense>("expense");
+            List<Revenue> lRevenue = BBPAPI.Interface.Repository.GetDatabaseObjects<Revenue>("revenue");
             if (nYear != 0)
             {
                 lExpenses = lExpenses.Where(s => Convert.ToDateTime(s.Added).Year == nYear).ToList();
@@ -245,10 +246,10 @@ namespace BiblePay.BMS.Controllers
         public IActionResult GenerateCharityReport(string sCharity)
         {
             // pull in the OrphanExpense Object first
-            List<OrphanExpense> l = DB.GetDatabaseObjectsAsAdmin<OrphanExpense>("orphanexpense");
+            List<OrphanExpense> l = BBPAPI.Interface.Repository.GetDatabaseObjects<OrphanExpense>("orphanexpense");
             List<OrphanExpense> lFiltered = l.Where(s => s.Charity.ToLower() == sCharity.ToLower()).ToList();
             lFiltered = lFiltered.OrderBy(s => Convert.ToDateTime(s.Added)).ToList();
-            List<SponsoredOrphan> lSPO = DB.GetDatabaseObjectsAsAdmin<SponsoredOrphan>("sponsoredorphan");
+            List<SponsoredOrphan> lSPO = BBPAPI.Interface.Repository.GetDatabaseObjects<SponsoredOrphan>("sponsoredorphan");
             string html = Report.GetCharityTableHTML(lFiltered, lSPO, 0);
             string accName = "Charity Report - " + sCharity + ".pdf";
             return ConvertHtmlToPDF(html,accName);

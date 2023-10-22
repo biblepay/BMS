@@ -243,7 +243,7 @@
           throw new NoTargetError;
         }
         this.el = document.createElement('div');
-        this.el.className = "pace pace-active";
+        this.el.className = "xpace xpace-active";
         document.body.className = document.body.className.replace(/pace-done/g, '');
         document.body.className += ' pace-running';
         this.el.innerHTML = '<div class="pace-progress">\n  <div class="pace-progress-inner"></div>\n</div>\n<div class="pace-activity"></div>';

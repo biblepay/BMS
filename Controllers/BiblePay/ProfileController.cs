@@ -1,66 +1,36 @@
-﻿using BiblePay.BMS.Extensions;
-using BMSShared;
+﻿using BBPAPI;
+using BBPAPI.Model;
+using BBPAPI.Utilities;
+using BiblePay.BMS.DSQL;
+using BiblePay.BMS.Extensions;
+using BMSCommon;
+using BMSCommon.Model;
+using Google.Authenticator;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NBitcoin;
 using Newtonsoft.Json;
-using Npgsql;
-using OptionsShared;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using static BiblePay.BMS.Controllers.AttachmentController;
 using static BiblePay.BMS.DSQL.DOMItem;
 using static BiblePay.BMS.DSQL.SessionHelper;
 using static BiblePay.BMS.DSQL.UIWallet;
 using static BMSCommon.Common;
-using BMSCommon;
-using BiblePay.BMS.DSQL;
-using Google.Authenticator;
-using BBPAPI.Model;
-using static BBPAPI.Model.User;
-using BBPAPI;
-using BMSCommon.Model;
+using static BMSCommon.Encryption;
 
 namespace BiblePay.BMS.Controllers
 {
-    public class ProfileController : Controller
+	public class ProfileController : Controller
     {
-        public string GenerateSignCommand(bool fTestNet, string sPBAddress, string sERC20Address, string sSigIn)
-        {
-            string sSigOut = String.Empty;
-            string sMsg = Encryption.GetSha256HashI(sERC20Address);
-
-            if (sERC20Address == String.Empty)
-            {
-                return "<font color=red>First you must populate your ERC-20 Address.</font>";
-
-            }
-            else if (sPBAddress == String.Empty)
-            {
-                return "<font color=red>First, you must populate your BBP Portfolio Builder Address.</font>";
-            }
-            else if (sSigIn != String.Empty)
-            {
-                bool fVerify = Sanctuary.VerifySignature(fTestNet, sPBAddress, sMsg, sSigIn);
-
-                if (!fVerify)
-                {
-                    sSigOut = "<font color=red>Signature invalid. </font> ";
-                }
-                else
-                {
-                    sSigOut = "<font color=red>Your stakes are signed.</font>";
-                    return sSigOut;
-                }
-            }
-            sSigOut += "<font color=red>signmessage " + sPBAddress + " " + sMsg + "</font>";
-            return sSigOut;
-        }
 
         public IActionResult Wallet()
         {
-            Encryption.KeyType k = GetKeyPair(HttpContext);
-            ViewBag.BBPAddress = k.PubKey;
+            //Encryption.KeyType k = GetKeyPair(HttpContext);
+            ViewBag.BBPAddress = HttpContext.GetCurrentUser().GetPublicKey();
+
             ViewBag.Balance = DSQL.UI.GetAvatarBalance(HttpContext, false);
             return View();
         }
@@ -79,7 +49,7 @@ namespace BiblePay.BMS.Controllers
 
             if (!fMatches)
                 sError = "Invalid URL.";
-            User u = BBPAPI.Model.User.GetUserByID(false, sUserID);
+            User u = BBPAPI.Model.UserFunctions.GetUserByID(false, sUserID);
             if (u == null)
                 sError = "Invalid User.";
             if (sError != String.Empty)
@@ -89,7 +59,7 @@ namespace BiblePay.BMS.Controllers
             }
             u.EmailAddressVerified = 1;
             u.LoggedIn = true;
-            bool fOK = DB.OperationProcs.UpdateUserEmailAddressVerified(sUserID);
+            bool fOK = BBPAPI.Interface.Repository.UpdateUserEmailAsVerified(sUserID);
             HttpContext.EraseUserCache();
             string sChain = IsTestNet(HttpContext) ? "tUser" : "User";
             HttpContext.Session.SetObject(sChain, u);
@@ -101,13 +71,31 @@ namespace BiblePay.BMS.Controllers
         {
             TwoFactorAuthenticator twoFactor = new TwoFactorAuthenticator();
             ViewBag.MFASecret = Guid.NewGuid().ToString();
-            Encryption.KeyType k = GetKeyPairByGUID(IsTestNet(HttpContext), ViewBag.MFASecret, String.Empty);
+            BBPKeyPair k = GetKeyPairByGUID(IsTestNet(HttpContext), ViewBag.MFASecret, String.Empty);
             string sSite = IsTestNet(HttpContext) ? "TEST unchained.biblepay.org" : "unchained.biblepay.org";
             var setupInfo = twoFactor.GenerateSetupCode(sSite, k.PubKey, ViewBag.MFASecret, false, 3);
             ViewBag.TwoFactorManualSetupCode = setupInfo.ManualEntryKey;
             ViewBag.TwoFactorQRImageUrl = setupInfo.QrCodeSetupImageUrl;
         }
 
+        public IActionResult EmailMaintenance()
+        {
+            List<EmailAccount> l = BBPAPI.Interface.Repository.GetEmailAccounts(HttpContext.GetCurrentUser().GetPublicKey());
+            if (l.Count > 0)
+            {
+                ViewBag.BBPAddress = l[0].BBPAddress;
+                ViewBag.txtUserName = l[0].UserName;
+                ViewBag.EmailAddress = l[0].UserName + "@biblepay.org";
+                ViewBag.ButtonDisabled = "disabled";
+            }
+            else
+            {
+                ViewBag.EmailAddress = "Not Provisioned";
+                ViewBag.BBPAddress = "?";
+                ViewBag.ButtonDisabled = "";
+            }
+            return View();
+        }
         public IActionResult Register()
         {
             SetupTwoFactorAuthentication();
@@ -115,32 +103,27 @@ namespace BiblePay.BMS.Controllers
         }
         public IActionResult Profile()
         {
-            HttpContext.EraseUserCache();
             User u = HttpContext.GetCurrentUser();
             ViewBag.NickName = u.NickName;
-            if (ViewBag.NickName == null || ViewBag.NickName == String.Empty)
+            if (String.IsNullOrEmpty(ViewBag.NickName))
                 ViewBag.NickName = "Guest";
             bool fTestNet = IsTestNet(HttpContext);
-            if (fTestNet)
+            try
             {
-                ViewBag.PortfolioBuilderAddress = u.tPortfolioBuilderAddress;
-                ViewBag.PBSignature = u.tPBSignature;
+                ViewBag.EmailAddress = BBPAPI.ERCUtilities.BindEmailAddressValue(u);
+                BMSCommon.Common.Log(ViewBag.EmailAddress);
+                ViewBag.EmailAddressVerified = u.EmailAddressVerified == 1 ? "Yes" : "No";
+                ViewBag.BioURL = DSQL.UI.GetBioURL(HttpContext);
+                ViewBag.Balance = DSQL.UI.GetAvatarBalance(HttpContext, false);
+                ViewBag.ERC20Address = u.ERC20Address;
+                if (String.IsNullOrEmpty(u.MFA) && u.LoggedIn)
+                {
+                    SetupTwoFactorAuthentication();
+                }
             }
-            else
+            catch (Exception ex1)
             {
-                ViewBag.PortfolioBuilderAddress = u.PortfolioBuilderAddress;
-                ViewBag.PBSignature = u.PBSignature;
-            }
-            ViewBag.SignRPC = GenerateSignCommand(IsTestNet(HttpContext), ViewBag.PortfolioBuilderAddress, u.ERC20Address, ViewBag.PBSignature);
-            // ToDo: Move from this encryption to something that will work long term
-            ViewBag.EmailAddress = BBPAPI.ERCUtilities.BindEmailAddressValue(u);
-            ViewBag.EmailAddressVerified = u.EmailAddressVerified == 1 ? "Yes" : "No";
-            ViewBag.BioURL = DSQL.UI.GetBioURL(HttpContext);
-            ViewBag.Balance = DSQL.UI.GetAvatarBalance(HttpContext, false);
-            ViewBag.ERC20Address = u.ERC20Address;
-            if (String.IsNullOrEmpty(u.MFA) && u.LoggedIn)
-            {
-                SetupTwoFactorAuthentication();
+                BMSCommon.Common.Log(ex1.Message);
             }
             return View();
         }
@@ -149,59 +132,34 @@ namespace BiblePay.BMS.Controllers
         [HttpPost]
         public async Task<IActionResult> Profile(List<IFormFile> file)
         {
-            try
-            {
-                if (file.Count > 0)
-                {
-                    for (int i = 0; i < file.Count;)
-                    {
-                        string _FileName = Path.GetFileName(file[i].FileName);
-                        bool fOK = DSQL.UI.IsAllowableExtension(_FileName);
-                        if (fOK)
-                        {
-                            FileInfo fi = new FileInfo(_FileName);
-                            string sGuid = Guid.NewGuid().ToString() + "" + fi.Extension;
-                            string sDestFN = Path.Combine(Path.GetTempPath(), sGuid);
-                            using (var stream = new FileStream(sDestFN, System.IO.FileMode.Create))
-                            {
-                                await file[i].CopyToAsync(stream);
-                            }
-                            // Change the avatar (check the extension too)
-                            // mission critical #2
-                            string sURL = await BBPAPI.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, GlobalSettings.GetCDN());
+            User u = HttpContext.GetCurrentUser();
+			if (file.Count < 1)
+			{
+				throw new Exception("no file");
+			}
 
-                            User u = HttpContext.GetCurrentUser();
-                            u.BioURL = sURL;
-                            u.Updated = System.DateTime.Now;
-
-                            SetUser(u, HttpContext);
-                            bool f = PersistUser(IsTestNet(HttpContext), u);
-                            break;
-                        }
-                        else
-                        {
-                            //throw new Exception("Extension not allowed");
-                            string modal = DSQL.UI.GetModalDialog("Save Avatar", "Extension not allowed");
-                            modal += "<script>openModal('modalid1');</script>";
-                            ViewBag.Alert = modal;
-                            return Profile();
-                        }
-                    }
-                }
-                ViewBag.Message = "Sent " + file[0].FileName + " successfully";
-                Response.Redirect("/profile/profile");
-                return View();
-            }
-            catch
+            for (int i = 0; i < file.Count;)
             {
-                ViewBag.Message = "File upload failed!!";
-                return View();
+				FreshUpload fresh = new FreshUpload(this, file[i]);
+				if (fresh.NotAllowedError != null)
+					return fresh.NotAllowedError;
+                // Change the avatar (check the extension too)
+                Pin p = new Pin();
+                p = PinLogic.StoreFile(u, fresh.FullDiskFileName, fresh.StorjDestination, "");
+                u.BioURL = p.URL;
+                u.Updated = System.DateTime.Now;
+                SetUser(u, HttpContext);
+                bool f = BBPAPI.Interface.Repository.PersistUser(u);
+				ViewBag.Message = "Sent " + file[0].FileName + " successfully";
+				Response.Redirect("/profile/profile");
+				return View();
             }
+            throw new Exception("no file.");
         }
 
 
         [HttpPost]
-        public JsonResult ProcessDoCallback([FromBody] ClientToServer o)
+        public async Task<JsonResult> ProcessDoCallback([FromBody] ClientToServer o)
         {
             ServerToClient returnVal = new ServerToClient();
             User u0 = GetUser(HttpContext);
@@ -210,37 +168,26 @@ namespace BiblePay.BMS.Controllers
             {
                 User u = GetUser(HttpContext);
                 bool fTestNet = IsTestNet(HttpContext);
-                BBPAPI.ERCUtilities.SetUserEmail(u,GetFormData(o.FormData, "txtEmailAddress"));
+                BBPAPI.ERCUtilities.SetUserEmail2(u,GetFormData(o.FormData, "txtEmailAddress"));
 
                 u.Updated = System.DateTime.Now;
                 u.NickName = GetFormData(o.FormData, "txtNickName");
-                //u.ERC20Address = GetFormData(o.FormData, "txtERC20Address");
+                
                 if (String.IsNullOrEmpty(u.id))
                 {
                     u.id = Guid.NewGuid().ToString();
                 }
-                if (fTestNet)
-                {
-                    u.tPBSignature = GetFormData(o.FormData, "txtPBSignature");
-                    u.tPortfolioBuilderAddress = GetFormData(o.FormData, "txtPortfolioBuilderAddress");
-                }
-                else
-                {
-                    u.PBSignature = GetFormData(o.FormData, "txtPBSignature");
-                    u.PortfolioBuilderAddress = GetFormData(o.FormData, "txtPortfolioBuilderAddress");
-                }
-
-                SetUser(u, HttpContext);
-                bool f = BBPAPI.Model.User.PersistUser(IsTestNet(HttpContext), u);
+                bool f = BBPAPI.Interface.Repository.PersistUser(u);
                 string sResult = f ? "Saved." : "Failed to save user record (are you logged in)?";
                 if (!f)
                 {
                     string modal = DSQL.UI.GetModalDialogJson("Save User Record", sResult, String.Empty);
                     return Json(modal);
-
                 }
                 else
                 {
+
+                    SetUser(u, HttpContext);
                     string m = "location.href='/profile/profile';";
                     returnVal.returnbody = m;
                     returnVal.returntype = "javascript";
@@ -273,7 +220,7 @@ namespace BiblePay.BMS.Controllers
             else if (o.Action == "Profile_RefreshBalance")
             {
                 DSQL.UI.GetAvatarBalance(HttpContext, true);
-                string m = "location.href='profile/profile';";
+                string m = "location.href='profile/wallet';";
                 returnVal.returnbody = m;
                 returnVal.returntype = "javascript";
                 string o1 = JsonConvert.SerializeObject(returnVal);
@@ -285,7 +232,7 @@ namespace BiblePay.BMS.Controllers
                 string sCode = GetFormData(o.FormData, "txtMFACode");
 
                 string sError = String.Empty;
-                string sMFASecret = DB.GetUserMFAByNickName(sNickName);
+                string sMFASecret = "";// ?? DB.GetUserMFAByNickName(sNickName);
                 if (sMFASecret == String.Empty)
                     sError = "Invalid Nick Name.";
                 if (sError != String.Empty)
@@ -298,7 +245,6 @@ namespace BiblePay.BMS.Controllers
                 {
                     return this.ShowModalDialog(o, "Error", sError, String.Empty);
                 }
-
                 User uDummy = new User();
                 uDummy.MFA = sMFASecret;
                 bool isValid = BBPAPI.ERCUtilities.ValidateMFA(uDummy, sCode);
@@ -361,7 +307,7 @@ namespace BiblePay.BMS.Controllers
                     return this.ShowModalDialog(o, "Error", sError, String.Empty);
                 }
                 // Save
-                bool fOK = DB.Financial.UpdateUserMFA(sMFASecret, u.id);
+                bool fOK = false;// DB.Financial.UpdateUserMFA(sMFASecret, u.id);
                 if (!fOK)
                 {
                     return this.ShowModalDialog(o, "Error", "Unable to save.", String.Empty);
@@ -371,12 +317,13 @@ namespace BiblePay.BMS.Controllers
             }
             else if (o.Action == "Profile_Register")
             {
+                // NOTE** This is only called from our MFA Profile_Register page which may or may not be used long term.
+
                 string sError = String.Empty;
                 string sNickName = GetFormData(o.FormData, "txtNickName");
                 string sEmail = GetFormData(o.FormData, "txtEmailAddress");
                 string sMFASecret = GetFormData(o.FormData, "txtMFASecret");
                 string sCode = GetFormData(o.FormData, "txtTwoFactorCode");
-                //string sUserID = GetFormData(o.FormData, "txtUserID");
                 if (sNickName==String.Empty)
                 {
                     sError = "Nick name must be populated.";
@@ -386,11 +333,11 @@ namespace BiblePay.BMS.Controllers
                 if (!IsValidEmailAddress(sEmail))
                     sError = "E-Mail address is invalid.";
                 // Check for duplicates
-                double nNNCt = DB.GetUserCountByNickName(sNickName);
+                double nNNCt = BBPAPI.Interface.Repository.GetUserCountByNickName(sNickName);
                 if (nNNCt > 0)
                     sError = "Sorry, this Nickname is already in use.";
 
-                double nECt = DB.GetUserCountByEmail(sEmail);
+                double nECt = BBPAPI.Interface.Repository.GetUserCountByEmail(sEmail);
                 if (nECt > 0)
                     sError = "Sorry, this e-mail address is already in use.";
                 if (sMFASecret == String.Empty || sMFASecret.Length < 20)
@@ -405,26 +352,24 @@ namespace BiblePay.BMS.Controllers
                 if (!isValid)
                     sError = "Sorry, the 2FA code you entered is not valid.  Please associate the QR code with your 2FA program first, then click the 2FA app and copy the code for this site, then paste the code in the Code textbox and try again.";
 
-
                 if (sError != String.Empty)
                 {
                     return this.ShowModalDialog(o, "Error", sError, String.Empty);
                 }
 
-
                 // Save
                 User u = new User();
                 u.id = Guid.NewGuid().ToString();
                 BBPAPI.ERCUtilities.SetMFAKey(u, sMFASecret);
-                Encryption.KeyType k = GetKeyPairByGUID(IsTestNet(HttpContext), sMFASecret, String.Empty);
+                BBPKeyPair k = GetKeyPairByGUID(IsTestNet(HttpContext), sMFASecret, String.Empty);
                 u.BBPAddress = k.PubKey;
                 u.NickName = sNickName;
                 u.EmailAddress = sEmail;
-                u.LoggedIn = true;
                 u.Added = DateTime.Now;
+                u.Updated = DateTime.Now;   
 
 
-                bool fSaved = PersistUser(IsTestNet(HttpContext), u);
+                bool fSaved = BBPAPI.Interface.Repository.PersistUser(u);
                 if (!fSaved)
                 {
                     return this.ShowModalDialog(o, "Error", "Unable to save record", String.Empty);
@@ -434,18 +379,54 @@ namespace BiblePay.BMS.Controllers
                 return Json(d2);
 
             }
+            else if (o.Action == "Profile_AddEmail")
+            {
+                // if user balance is too low, reject
+                // if email is already associated reject
+                double nBal = DSQL.UI.GetAvatarBalance(HttpContext, false).ToDouble();
+                if (nBal < 1000)
+                {
+                    return this.ShowModalDialog(o, "Error", "BBP Balance must be > 1000.", String.Empty);
+                }
+                BBPKeyPair k = HttpContext.GetCurrentUser().GetKeyPair();
+                List<EmailAccount> l = BBPAPI.Interface.Repository.GetEmailAccounts(k.PubKey);
+                if (l.Count > 0)
+                {
+                    return this.ShowModalDialog(o, "Error", "Sorry, you already have an e-mail account.", String.Empty);
+                }
+                string sName = GetFormData(o.FormData, "txtUserName");
+                if (sName.Length < 1 || sName==null || sName.Length > 64 || sName.Contains(" "))
+                {
+                    return this.ShowModalDialog(o, "Error", "Sorry, the email prefix must be valid.", String.Empty);
+                }
+
+                int nResp = BBPAPI.Interface.EMail.ProvisionBBPEmailService(sName, k.PrivKey).Result;
+                if (nResp != 1)
+                {
+                    return this.ShowModalDialog(o, "Error", "Sorry, the email account could not be provisioned, Error [" + nResp.ToString() + "].", String.Empty);
+                }
+
+                string sMsg = "Your E-Mail account has been provisioned.  Thank you for using BIBLEPAY!";
+                return this.ShowModalDialog(o, "Success", sMsg, "location.href='profile/emailmaintenance';");
+
+            }
             else if (o.Action == "Profile_SendBBP")
             {
                 string sToAddress = GetFormData(o.FormData, "txtSendToAddress");
                 double nAmount = GetDouble(GetFormData(o.FormData, "txtAmountToSend"));
                 string sPayload = "<XML>Send_BBP</XML>";
-                Encryption.KeyType k = GetKeyPair(HttpContext, string.Empty);
-
-                BMSCommon.Model.DACResult r0 = BBPAPI.Sanctuary.SendMoney(IsTestNet(HttpContext), k, nAmount, sToAddress, sPayload);
+                SendMoneyRequest smr = new SendMoneyRequest();
+                smr.PrivateKey = HttpContext.GetCurrentUser().GetPrivateKey();
+                smr.nAmount = nAmount;
+                smr.sToAddress = sToAddress;
+                smr.sOptPayload = sPayload;
+                smr.TestNet = IsTestNet(HttpContext);
+                BMSCommon.Model.DACResult r0 = await BBPAPI.Interface.WebRPC.SendMoney(smr);
                 string sResult = String.Empty;
                 if (r0.TXID != String.Empty)
                 {
-                    sResult = "Sent " + nAmount.ToString() + " to " + sToAddress + " on TXID " + r0.TXID;
+                    sResult = "Sent " + nAmount.ToString() + " to " + sToAddress + " on TXID <label style='font-size:7px;'>" + r0.TXID + "</label>.";
+
                     DSQL.UI.GetAvatarBalance(HttpContext, true);
                 }
                 else

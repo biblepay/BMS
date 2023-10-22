@@ -104,7 +104,7 @@ namespace BiblePay.BMS.Controllers
 
 		bool PopulateNewVerse(bool fTestNet)
 		{
-			List<VerseMemorizer> dt = DB.OperationProcs.GetVerseMemorizers();
+			List<VerseMemorizer> dt = BBPAPI.Interface.Repository.GetVerseMemorizers();
 			Random r = new Random();
 			int iChapter = 0;
 			string sBook = "";
@@ -167,10 +167,10 @@ namespace BiblePay.BMS.Controllers
 			// Populate the dropdown values with the books
 			List<string> lBooks = BibleRef._bible.GetBookList();
 			List<DropDownItem> ddBook = new List<DropDownItem>();
-			ddBook.Add(new DropDownItem(String.Empty, String.Empty));
+			ddBook.Add(new DropDownItem());
 			for (int i = 0; i < lBooks.Count; i++)
 			{
-				ddBook.Add(new DropDownItem(lBooks[i].ToUpper(), lBooks[i].ToUpper()));
+				ddBook.Add(new DropDownItem { key0 = lBooks[i].ToUpper(), text0 = lBooks[i].ToUpper() });
 			}
 			ViewBag.ddBook = ListToHTMLSelect(ddBook, sLocalBook);
 			// end of dropdown values

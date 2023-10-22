@@ -78,7 +78,7 @@
 <!-- Transition from body to JS -->
 @section ScriptsBlock {
 
-<script>
+    <script>
 
 	function URLExists(url, cb) {
 		jQuery.ajax({
@@ -352,7 +352,12 @@
 			},
 
 		};
+		
 
+		if (source.indexOf('.mp4') > 0 || source.indexOf('Video1') > 0 )
+		{
+			isHlsSupported=false;
+    	}
 		if (isHlsSupported) {
 			var hlsConfig = {
 				abrEwmaDefaultEstimate: 5000000,

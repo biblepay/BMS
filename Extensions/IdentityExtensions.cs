@@ -10,6 +10,7 @@ using System.Security.Principal;
 using Microsoft.AspNetCore.Http;
 using static BiblePay.BMS.DSQL.SessionHelper;
 using BBPAPI.Model;
+using BMSCommon.Model;
 
 namespace BiblePay.BMS.Extensions
 {
@@ -38,7 +39,7 @@ namespace BiblePay.BMS.Extensions
            
             h.Session.Set(sKey, new byte[0]);
 
-            User.EraseUserCache();
+            UserFunctions.EraseUserCache();
         }
         [DebuggerStepThrough]
         public static IEnumerable<ListItem> AuthorizeFor(this IEnumerable<ListItem> source, ClaimsPrincipal identity)

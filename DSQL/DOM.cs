@@ -95,14 +95,16 @@ namespace BiblePay.BMS.DSQL
 
         public DOMItem GetDOMItem(string sParentID, string sElementID)
         {
+            DOMItem d = new DOMItem();
+
             foreach (KeyValuePair<string, DOMItem> kvp in dictForm)
             {
-                if (kvp.Value.ParentID == sParentID && kvp.Value.ID == sElementID)
+                if ((kvp.Value.ParentID == sParentID || sParentID == String.Empty)&& kvp.Value.ID == sElementID)
                 {
                     return kvp.Value;
                 }
             }
-            return null;
+            return d;
         }
         public TransformDOM(string _FormData)
         {

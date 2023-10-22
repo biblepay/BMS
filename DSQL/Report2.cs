@@ -1,4 +1,5 @@
 ﻿using BBPAPI;
+using BBPAPI.Model;
 using BMSCommon;
 using BMSCommon.Model;
 using Microsoft.AspNetCore.Http;
@@ -171,36 +172,16 @@ namespace BiblePay.BMS
             return HTML.ToString();
         }
 
-        public static double GetChildBalance(string sChildID)
+        public static double GetChildBalance(User u,string sChildID)
         {
-            List<OrphanExpense> lOOE = DB.GetDatabaseObjectsAsAdmin<OrphanExpense>("orphanexpense");
+            List<OrphanExpense> lOOE = BBPAPI.Interface.Repository.GetDatabaseObjects<OrphanExpense>("orphanexpense");
             lOOE = lOOE.Where(s => s.ChildID.ToLower() == sChildID.ToLower()).ToList();
             lOOE = lOOE.OrderByDescending(s => Convert.ToDateTime(s.Added)).ToList();
             double nBal = lOOE[0].Balance;
             return nBal;
         }
 
-
-        public  static string TurnkeyReport(bool fTestNet, string sERC)
-        {
-            List<TurnkeySanc> dt = DB.OperationProcs.GetTurnkeySancs();
-            dt = dt.Where(s => s.erc20address == sERC).ToList();
-            dt = dt.OrderBy(s => Convert.ToDateTime(s.Added)).ToList();
-            string sData = String.Empty;
-            for (int i = 0; i < dt.Count; i++)
-            {
-                string sBBPAddress = dt[i].BBPAddress;
-                string sERC1 = dt[i].erc20address;
-                string sSig = dt[i].Signature;
-                string sNonce = dt[i].Nonce.ToString();
-                double nBalance = GetDouble(dt[i].Balance.ToString());
-                KeyType k = GetKeyPair2(fTestNet, sERC, sSig, sNonce);
-                string sRow = "BBPAddress: " + sBBPAddress + "/" + k.PrivKey.ToString() + ", ERC: " + sERC + ", Nonce: " + sNonce + ", Amount: " + nBalance.ToString();
-                sData += sRow + "<br>";
-            }
-            return sData;
-
-        }
+     
 
     }
 }

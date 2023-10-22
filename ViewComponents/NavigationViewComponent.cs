@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using BiblePay.BMS.Models;
 using BiblePay.BMS.Extensions;
 using BBPAPI.Model;
+using BMSCommon.Model;
 
 namespace BiblePay.BMS.ViewComponents
 {
@@ -14,8 +15,8 @@ namespace BiblePay.BMS.ViewComponents
         public IViewComponentResult Invoke()
         {
             User uGlobal = HttpContext.GetCurrentUser();
-
-            var items = NavigationModel.BuildNavigation(uGlobal.ERC20Address, false);
+            string sERC = uGlobal == null ? String.Empty : uGlobal.ERC20Address;
+            var items = NavigationModel.BuildNavigation(sERC, false);
             
             return View(items);
         }

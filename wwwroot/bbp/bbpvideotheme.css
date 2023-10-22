@@ -149,13 +149,13 @@
 
 .xplyr__controls__item plyr__spacer
 {
-    background-image:url('https://unchained.biblepay.org/Images/bbp24.png');
+    background-image:url('Images/bbp24.png');
     background-repeat: no-repeat;
     background-position: center;
 }
 
 .plyr--video .plyr__controls {
-  background: url('https://unchained.biblepay.org/Images/bbp24.png') 99% 0px no-repeat, linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .5))!important;
+  background: url('Images/bbp24.png') 99% 0px no-repeat, linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .5))!important;
 }
 
 .xplyr__video-wrapper::before {
@@ -163,7 +163,7 @@
   top: 5px;
   left: 5px;
   z-index: 10;
-  content: url('https://unchained.biblepay.org/Images/bbp24.png');
+  content: url('Images/bbp24.png');
 }
 
 

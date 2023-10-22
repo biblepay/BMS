@@ -1,14 +1,12 @@
-@{ ViewData["Title"] = "BBP Telephone Service";
+@{  ViewData["Title"] = "BBP Telephone Service";
     ViewData["PageName"] = "phone_phoneservice";
     ViewData["Heading"] = "<i class='subheader-icon fal fa-shield-alt'></i>Phone Service I";
     ViewData["PageDescription"] = "10% to orphan charity";
     ViewData["Category1"] = "Phone";
-    Layout = null;}
-
-@section HeadBlock {
-
+    Layout = null;
 }
 
+<!--Layout = null;-->
 
 <head>
     <meta charset="UTF-8" />
@@ -40,8 +38,11 @@
             <button class="nav-link hidden" id="nav-ep-tab" data-bs-toggle="tab" data-bs-target="#nav-ep" type="button" role="tab" aria-controls="nav-ep" aria-selected="false">Endpoint</button>
             <button class="nav-link hidden" id="nav-action-tab" data-bs-toggle="tab" data-bs-target="#nav-action" type="button" role="tab" aria-controls="nav-action" aria-selected="false">Action</button>
             <button class="nav-link" id="nav-settings-tab" data-bs-toggle="tab" data-bs-target="#nav-settings" type="button" role="tab" aria-controls="nav-ep" aria-selected="false">Settings</button>
-            <button class="nav-link" id="nav-provision-tab" data-bs-toggle="tab" data-bs-target="#nav-provision" onclick="$('#partial-load-provision').load('/Phone/AddPhoneNumber');" type="button" role="tab" aria-controls="nav-provision" aria-selected="false">Provision</button>
+            <!--
+            <button class="nav-link" id="nav-provision-tab" data-bs-toggle="tab" data-bs-target="#nav-provision" onclick="$('#partial-load-provision').load('');" type="button" role="tab" aria-controls="nav-provision" aria-selected="false">Provision</button>
+            -->
             <button class="nav-link" id="nav-callhistory-tab" data-bs-toggle="tab" data-bs-target="#nav-callhistory" onclick="$('#partial-load-callhistory').load('/Phone/CallHistory');" type="button" role="tab" aria-controls="nav-provision" aria-selected="false">Call History</button>
+          
         </div>
     </nav>
 
@@ -55,9 +56,6 @@
 
         <div class="tab-pane fade" id="nav-provision" role="tabpanel" aria-labelledby="nav-provision-tab">
             <div class="row provision" style="width:95%;height:90%;">
-                <div class="card">
-                    <div id="partial-load-provision"></div>
-                </div>
             </div>
         </div>
 
@@ -65,24 +63,16 @@
         <div class="tab-pane fade" id="nav-callhistory" role="tabpanel" aria-labelledby="nav-callhistory-tab">
             <div class="row provision" style="width: 95%; height: 90%;">
                 <div class="card">
-
                     <div id="partial-load-callhistory"></div>
-
                     <br />
                 </div>
             </div>
         </div>
 
 
-
-
-
         <div class="tab-pane fade" id="nav-settings" role="tabpanel" aria-labelledby="nav-settings-tab">
-
             <div class="row" style="width: 95%; height:95%;">
-
                 <div class="card">
-
                     <!-- Media settings -->
                     <div class="action_media-selector modernselect">
                         <div class="media-selector_block-camera">
@@ -150,14 +140,21 @@
 
         $(".digit").on('click', function () {
             var num = ($(this).clone().children().remove().end().text());
-            if (GetCount() < 12) {
+            if (GetCount() < 17) {
                 $("#numberDisplay").append('<span>' + num.trim() + '</span>');
             }
         });
 
         function makecall() {
+            if (nBBPBalance==0)
+            {
+                console.log('7');
+                location.reload();  
+                return;
+            }
+            console.log('8');
             if (nBBPBalance < 1000) {
-                alert('Please top up your BBP balance first to be above 1000 BBP.');
+                alert('Please top up your BBP balance first to be above 1000 BBP. [Balance: ' + nBBPBalance + ']');
                 location.reload();
                 return;
             }
@@ -180,8 +177,10 @@
             const serverIps = lastDataFromLocalStorage && lastDataFromLocalStorage.serverIps.length
                 ? lastDataFromLocalStorage.serverIps : [];
 
-            const username = '@ViewBag.PhoneUser.BBPUN';
+            const username = '@ViewBag.PhoneUser.BBPUserName';
             const password = '@ViewBag.PhoneUser.BBPPW';
+            const errormsg = '@ViewBag.PhoneUser.Error';
+
             lastData.username = username;
             lastData.password = password;
             lastData.serverIp = null;
@@ -209,17 +208,26 @@
         };
 
         var nBBPBalance = 0;
-        document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', async () => 
+        {
+            console.log('1000');
+
             await login();
             await setHardwareSettings(); // get available cameras, microphones and output devices and create a dropdown for selection (./js/hardware-settings.js)
+            console.log('1001');
+
+            
             accessFunctionality();       // add event listeners to interactive elements ('./js/actions.js')
             manageConnectingView();      // changes connection window interactive elements, depending on chosen option (./js/action.js)
             // Programatically choose the correct tab
-            var sBBPPhoneID = '@ViewBag.PhoneUser.BBPPhoneID';
-            var sBBPBalance = '@ViewBag.PhoneUser.Balance';
-            console.log('30');
+            var sBBPPhoneID = '@ViewBag.PhoneUser.UserId';
+            var sBBPBalance = '@ViewBag.PhoneUser.WalletBalance';
+            console.log(sBBPBalance);
+
             var nPhoneID = parseInt('0' + sBBPPhoneID);
             nBBPBalance = parseInt('0' + sBBPBalance);
+            console.log(nBBPBalance);
+
             if (true) {
                 if (nPhoneID == 0) {
                     $('#nav-home-tab').hide();

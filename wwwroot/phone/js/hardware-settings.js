@@ -1,5 +1,20 @@
 // get the output and input devices to create dropdown list to let user to use additional devices
-const setHardwareSettings = async () => {
+const setHardwareSettings = async () =>
+{
+
+  console.log('ascertaining hardware');
+
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+            console.log('Microphone approved');
+            //location.reload();
+        })
+        .catch(function (err) {
+            console.log('Microphone not approved')
+        });
+
+
   const cams = (await getCameras()) || [];
   if (!cams.map((cam) => cam.id).includes('default')) {
     cams.unshift({ id: 'default', name: 'default' });
@@ -17,6 +32,9 @@ const setHardwareSettings = async () => {
   if (!mics.map((mic) => mic.id).includes('default')) {
     mics.unshift({ id: 'default', name: 'default' });
   }
+
+  console.log(mics);
+
   const selectElementMicrophone = document.getElementById('change-microphone');
   const micItems = document.querySelector('.microphone-items');
   const selectedMic = document.querySelector('.selected-microphone');

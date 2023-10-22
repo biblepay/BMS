@@ -12,8 +12,5 @@ namespace BiblePay.BMS.Controllers
             return View();
         }
 
-        public IActionResult Interactive() => View();
-        public IActionResult Editions() => View();
-        public IActionResult Faq() => View();
     }
 }

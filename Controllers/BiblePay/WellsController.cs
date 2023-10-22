@@ -20,8 +20,8 @@ namespace BiblePay.BMS.Controllers
 	{
 		public string GetWellsReport()
         {
-			DataTable dtWells = BBPAPI.DB.Financial.GetWellsReport();
-            List<string> pins = BBPAPI.DB.Financial.GetWellsPinsReport();
+			DataTable dtWells = BBPAPI.Interface.Repository.GetWellsReport();
+            List<string> pins = BBPAPI.Interface.Repository.GetWellsPinsReport();
 			string html = "";
 
             for (int i = 0; i < dtWells.Rows.Count; i++)
@@ -30,7 +30,9 @@ namespace BiblePay.BMS.Controllers
                 string sWell = "<div class='row'>"
                     + "<div class='card border' style='width:100%;'>"
                         + "<h3> Well #" + dr["id"].ToString() + " - " + dr["Added"].ToShortDateString() + "</h3>";
-                string sCDN = "https://unchained.biblepay.org/wwwroot/wells2/";
+                //string sCDN = "https://unchained.biblepay.org/wwwroot/wells2/";
+                string sCDN = "/wwwroot/wells2/";
+
                 string sPrefix = "well" + dr["id"].ToString() + "_";
                 sWell += "<table><tr><td><h2>Site Selection:</h2>"
                      + "<img width=500 height=250 src='" + sCDN + "" + sPrefix + "location.jpg'/></td>";
@@ -39,18 +41,15 @@ namespace BiblePay.BMS.Controllers
                 sWell += "<td><h2>Handover:</h2>"
                         + "<img width=500 height=250 src='" + sCDN + sPrefix + "handover.jpg'/>";
                 if (matchH2 != null)
-                    {
+                {
                         sWell +="<img width=500 height=250 src='" + sCDN + sPrefix + "handover2.jpg'/>"
-
                         + "</td>";
-                    }
+                }
                 sWell += "</tr>";
-
                 string sWT = sPrefix + "watertest";
                 string sDed = sPrefix + "dedication";
                 var matchWaterTest = pins.FirstOrDefault(URL => URL.Contains(sWT));
                 var matchDed = pins.FirstOrDefault(URL => URL.Contains(sDed));
-
                 if (matchDed != null)
                 {
                     sWell += "<tr><td><h2>Dedication:</h2>"
@@ -73,7 +72,6 @@ namespace BiblePay.BMS.Controllers
 
             }
 			return html;
-
 		}
 
 		public IActionResult Wells()

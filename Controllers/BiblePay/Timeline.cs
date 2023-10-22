@@ -1,21 +1,16 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using BiblePay.BMS.Extensions;
+using BMSCommon.Model;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using static BiblePay.BMS.DSQL.DOMItem;
-using static BiblePay.BMS.DSQL.SessionHelper;
-using static BiblePay.BMS.DSQL.UI;
-using static BiblePay.BMS.DSQL.UIWallet;
-using static BMSCommon.BitcoinSync;
-using BMSCommon.Model;
-
 
 namespace BiblePay.BMS.Controllers
 {
-    public class TimelineController : Controller
+	public class TimelineController : Controller
     {
         [HttpPost]
         public async Task<IActionResult> UploadFileTimeline(List<IFormFile> file)
@@ -38,12 +33,15 @@ namespace BiblePay.BMS.Controllers
                                 await file[i].CopyToAsync(stream);
                             }
 
-                            string sURL = await BBPAPI.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, GlobalSettings.GetCDN());
+                            string sStorePath = "upload/photos/" + sGuid;
+                            Pin p = new Pin();
+                            p = BBPAPI.Utilities.PinLogic.StoreFile(HttpContext.GetCurrentUser(), sDestFN, sStorePath, "");
                             ServerToClient returnVal = new ServerToClient();
                             returnVal.returnbody = "";
                             returnVal.returntype = "uploadsuccess";
-                            returnVal.returnurl = sURL;
+                            returnVal.returnurl = p.URL;
                             string o1 = JsonConvert.SerializeObject(returnVal);
+
                             return Json(o1);
                         }
                         else
@@ -57,14 +55,12 @@ namespace BiblePay.BMS.Controllers
                         }
                     }
                 }
-                ViewBag.Message = "Sent " + file[0].FileName + " successfully";
-                Response.Redirect("/bbp/timeline");
-                return View();
+                throw new Exception("no file");
             }
             catch
             {
                 ViewBag.Message = "File upload failed!!";
-                return View();
+                throw;
             }
         }
 
@@ -73,9 +69,6 @@ namespace BiblePay.BMS.Controllers
             ViewBag.Timeline = DSQL.UI.GetTimelinePostDiv(HttpContext, "main");
             return View();
         }
-
-
-
 
     }
 }

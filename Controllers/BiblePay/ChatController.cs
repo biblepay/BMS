@@ -34,7 +34,7 @@ namespace BiblePay.BMS.Controllers
                     return Json(s1);
                 }
                 HttpContext.Session.SetString("CHATTING_WITH", sUID);
-                string m = "location.href='/bbp/chat';";
+                string m = "location.href='/chat/chat';";
                 returnVal.returnbody = m;
                 returnVal.returntype = "javascript";
                 string o1 = JsonConvert.SerializeObject(returnVal);
@@ -42,7 +42,7 @@ namespace BiblePay.BMS.Controllers
             }
             else if (o.Action == "Chat_Poll")
             {
-                string sMsgs = BiblePay.BMS.DSQL.Chat.GetChatMessages(HttpContext);
+                string sMsgs = BiblePay.BMS.DSQL.Chat.GetChatMessages(HttpContext, "CHATTING_WITH");
                 string m = "var p = document.getElementById('chat_container');"
                     + "if (p.innerHTML != `" + sMsgs + "`) { p.innerHTML=`" + sMsgs + "`;p.scrollTop = p.scrollHeight; } setTimeout(`DoCallback('Chat_Poll','','chat/processdocallback')`,5000);";
                 returnVal.returnbody = m;
@@ -79,7 +79,7 @@ namespace BiblePay.BMS.Controllers
                             return Json(s1);
                         }
                     }
-                    string sMsgs = DSQL.Chat.GetChatMessages(HttpContext);
+                    string sMsgs = DSQL.Chat.GetChatMessages(HttpContext, "CHATTING_WITH");
                     string m = "var b=document.getElementById('msgr_input');b.value='';var p = document.getElementById('chat_container');"
                         + "p.innerHTML=`" + sMsgs + "`;p.scrollTop = p.scrollHeight;";
                     returnVal.returnbody = m;
@@ -105,7 +105,7 @@ namespace BiblePay.BMS.Controllers
             string ci = String.Empty;
             // Set up the chat header
             string sUID = HttpContext.Session.GetString("CHATTING_WITH");
-            User dtUser = BBPAPI.Model.User.GetCachedUser(IsTestNet(HttpContext), sUID);
+            User dtUser = UserFunctions.GetCachedUser(IsTestNet(HttpContext), sUID);
             if (dtUser != null)
             {
                 data = data.Replace("@FriendsName", dtUser.NickName);
@@ -119,7 +119,7 @@ namespace BiblePay.BMS.Controllers
                 data = data.Replace("@FriendsName", "Choose someone to chat with from the right menu");
                 data = data.Replace("FriendsAvatar", "/img/demo/avatars/emptyavatar.png");
             }
-            DataTable dt = DB.OperationProcs.GetChats(IsTestNet(HttpContext));
+            DataTable dt = BBPAPI.Interface.Repository.GetChats(IsTestNet(HttpContext));
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 string sUserID = dt.Rows[i]["erc20address"].ToString();
@@ -127,7 +127,7 @@ namespace BiblePay.BMS.Controllers
                 string contactitem = GetTemplate("contactlistitem.htm");
                 contactitem = contactitem.Replace("@myname", dt.Rows[i]["nickname"].ToString());
                 contactitem = contactitem.Replace("@uid", sUserID);
-                bool fActive = BBPAPI.Model.User.IsUserActive(false, sUserID);
+                bool fActive = UserFunctions.IsUserActive(false, sUserID);
                 string sUserStatus = fActive ? "status-success" : "status-danger";
                 string sUserStatusHR = fActive ? "Active" : "Off";
 
@@ -145,7 +145,7 @@ namespace BiblePay.BMS.Controllers
                 ci += contactitem + "\r\n";
             }
             data = data.Replace("@contactlistitems", ci);
-            string sMsgs = BMS.DSQL.Chat.GetChatMessages(HttpContext);
+            string sMsgs = BMS.DSQL.Chat.GetChatMessages(HttpContext, "CHATTING_WITH");
             data = data.Replace("@chatmessages", sMsgs);
             // Chat poll
             string js = "<script>setTimeout(`DoCallback('Chat_Poll','','chat/processdocallback');`, 5000);</script>";

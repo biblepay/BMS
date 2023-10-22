@@ -42,8 +42,21 @@ namespace BiblePay.BMS.DSQL
             controller.HttpContext.Session.SetString("msgbox_body", sBody);
             return controller.Redirect("../bbp/messagepage");
         }
-        
-        public static JsonResult RedirectToSection(this Controller controller, ClientToServer o, string sDiv, string sHandler)
+
+        public static JsonResult RenderDivToClient(this Controller controller, ClientToServer o, string sDiv, string sMyData)
+        {
+            //controller.HttpContext.Session.SetObject("formdata", o);
+            ServerToClient returnVal = new ServerToClient();
+            returnVal.returnbody = "$('#" + sDiv + "').html(`" + sMyData + "`);";
+            returnVal.returntype = "javascript";
+            string o1 = JsonConvert.SerializeObject(returnVal);
+            return controller.Json(o1);
+        }
+
+
+
+
+		public static JsonResult RedirectToSection(this Controller controller, ClientToServer o, string sDiv, string sHandler)
         {
             controller.HttpContext.Session.SetObject("formdata", o);
             ServerToClient returnVal = new ServerToClient();
@@ -90,19 +103,6 @@ namespace BiblePay.BMS.DSQL
 
     public static class UI
     {
-
-        /*
-        public static JsonResult ReturnJavascript(string sScript)
-        {
-            ServerToClient returnVal = new ServerToClient();
-            returnVal.returnbody = sScript;
-            returnVal.returntype = "javascript";
-            string o1 = JsonConvert.SerializeObject(returnVal);
-            return Json(o1);
-            //return returnVal;
-        }
-        */
-
 
 
         public static async Task<string> WebPageScraper(string url)
@@ -174,7 +174,8 @@ namespace BiblePay.BMS.DSQL
         public static string GetBioURL(HttpContext h)
         {
             User u = h.GetCurrentUser();
-            string sBIO = GetBioURL(u.BioURL);
+            
+            string sBIO = GetBioURL(u==null ? String.Empty : u.BioURL);
             return sBIO;
         }
         public static string GetBioURL(string URL)
@@ -190,7 +191,7 @@ namespace BiblePay.BMS.DSQL
             string ext = Path.GetExtension(path).ToLower();
             if (ext.Length < 1) return false;
             ext = ext.Substring(1, ext.Length - 1).ToLower();
-            string allowed = "jpg;jpeg;gif;bmp;png";
+            string allowed = "jpg;jpeg;gif;bmp;png;mp4";
             string[] vallowed = allowed.Split(";");
             for (int i = 0; i < vallowed.Length; i++)
             {
@@ -206,9 +207,9 @@ namespace BiblePay.BMS.DSQL
             {
                 DropDownItem di = s[i];
                 string narr = String.Empty;
-                if (s[i].key.ToLower() == sSelected.ToLower())
+                if (s[i].key0.ToLower() == sSelected.ToLower())
                     narr = " SELECTED";
-                string row = "<option " + narr + " value='" + s[i].key + "'>" + s[i].text + "</option>";
+                string row = "<option " + narr + " value='" + s[i].key0 + "'>" + s[i].text0 + "</option>";
                 html += row + "\r\n";
             }
             return html;
@@ -229,13 +230,13 @@ namespace BiblePay.BMS.DSQL
 
         public static string GetAvatarBalance(HttpContext h, bool fEraseCache)
         {
-            EnsurePMCached(h);
+            
             return FormatUSD(GetAvatarBalanceNumeric(h, fEraseCache));
         }
 
         public static string GetAvatarPictureWithName(bool fTestNet, string sUserID)
         {
-            User u1 = BBPAPI.Model.User.GetCachedUser(fTestNet, sUserID);
+            User u1 = UserFunctions.GetCachedUser(fTestNet, sUserID);
             string sBioURL = String.Empty;
             if (u1 == null)
             {
@@ -252,7 +253,7 @@ namespace BiblePay.BMS.DSQL
 
         public static string GetAvatarPicture(bool fTestNet, string sUserID)
         {
-            User u1 = BBPAPI.Model.User.GetCachedUser(fTestNet, sUserID);
+            User u1 = UserFunctions.GetCachedUser(fTestNet, sUserID);
             string sBioURL = String.Empty;
             if (u1 == null || String.IsNullOrEmpty(u1.BioURL))
             {
@@ -269,14 +270,21 @@ namespace BiblePay.BMS.DSQL
         public static double GetAvatarBalanceNumeric(HttpContext h, bool fEraseCache)
         {
             User u = h.GetCurrentUser();
+
+
+            if (u == null)
+            {
+                return 0;
+            }
             long nElapsed = (long)(UnixTimestamp() - GetSessionDouble(h, "lastbalancecheck"));
             string sChain = GetChain(h);
-            User.SetLastUserActivity(IsTestNet(h), u.ERC20Address);
-            if (nElapsed < 60*2 && !fEraseCache)
+
+            UserFunctions.SetLastUserActivity(IsTestNet(h), u.ERC20Address ?? String.Empty);
+            if (nElapsed < 60*1 && !fEraseCache)
             {
-                double nNewBal = GetDouble(h.Session.GetString(sChain + "_balance"));
-                //BMSCommon.Common.Log("(1)AVATAR_BALANCE::" + nElapsed.ToString() + "," + nNewBal.ToString());
-                return nNewBal;
+               double nNewBal = GetDouble(h.Session.GetString(sChain + "_balance"));
+               BMSCommon.Common.Log("(1)AVATAR_BALANCE::" + nElapsed.ToString() + "," + nNewBal.ToString());
+               return nNewBal;
             }
             double nBal = BBPAPI.ERCUtilities.QueryAddressBalance(IsTestNet(h), u.BBPAddress);
             if (nBal == 0)
@@ -286,81 +294,42 @@ namespace BiblePay.BMS.DSQL
             return nBal;
         }
 
+        
 
-        public static string GetLeaderboard(HttpContext h, bool fTestNet)
+        public static string StripLeading(string Data, int iLeadingChars)
         {
-            string sMode = GetPBMode(h);
-
-            string html = "<div style='font-size:10px;'><table class=saved>";
-            // Column headers
-            string sRow = "<tr><th width=5%>Address<th width=7%>User";
-            if (sMode.ToLower() != "summary")
-            {
-                sRow += "<th width=7%>Symbol";
-            }
-            sRow += "<th>Total BBP<th>USD Value BBP<th>Assessed USD<th>Coverage<th>Earnings<th>Strength</tr>";
-            html += sRow;
-            Dictionary<string, PortfolioBuilder.PortfolioParticipant> u = BBPAPI.BlockChairTestHarness.GenerateUTXOReport(fTestNet);
-
-            double nRXMagnitude = 0;
-            // Calculate the total magnitude of RX miners
-            foreach (KeyValuePair<string, PortfolioBuilder.PortfolioParticipant> pp in u)
-            {
-                if (pp.Value.RXRewards > 100)
-                {
-                    nRXMagnitude += pp.Value.Strength;
-                }
-            }
-            double nRXMultiplier = 1 / (nRXMagnitude + .01);
-
-            foreach (KeyValuePair<string, PortfolioBuilder.PortfolioParticipant> pp in u)
-            {
-                double nEarnings = PortfolioBuilder.nSuperblockLimit * pp.Value.Strength;
-                if (pp.Value.Strength > -1)
-                {
-                    string sBioURL = DSQL.UI.GetAvatarPicture(fTestNet, pp.Value.UserID);
-                    string sAvatar = sBioURL + pp.Value.NickName;
-                    sRow = "<tr><td><font style='font-size:7px;'>" + pp.Value.RewardAddress
-                        + "</font>" + "<td>" + sAvatar;
-                    if (sMode.ToLower() != "summary")
-                    {
-                        sRow += "<td>";
-                    }
-                    sRow += "<td>" + Math.Round(pp.Value.AmountBBP, 2).ToString()
-                        + "<td>" + Math.Round(pp.Value.AmountUSDBBP, 2).ToString()
-                        + "<td>" + Math.Round(pp.Value.AmountUSD, 2).ToString()
-                        + "<td>" + Math.Round(pp.Value.Coverage * 100, 2).ToString() + "%"
-                        + "<td>" + Math.Round(nEarnings, 2).ToString()
-                        + "<td>" + Math.Round(pp.Value.Strength * 100, 2).ToString() + "%</tr>";
-                    html += sRow;
-                    if (sMode.ToLower() == "detail")
-                    {
-                        string sTD = "<td class='highlight'>";
-                        for (int i = 0; i < pp.Value.lPortfolios.Count; i++)
-                        {
-                            if (pp.Value.lPortfolios[i].AmountBBP > 0 || pp.Value.lPortfolios[i].AmountForeign > 0)
-                            {
-                                sRow = "<tr>" + sTD + sTD + sTD + pp.Value.lPortfolios[i].Ticker
-                                    + sTD + Math.Round(pp.Value.lPortfolios[i].AmountBBP, 2).ToString()
-                                    + sTD + Math.Round(pp.Value.lPortfolios[i].AmountUSDBBP, 2).ToString()
-                                    + sTD + sTD + sTD + sTD;
-                                html += sRow;
-                            }
-                        }
-                    }
-                }
-            }
-            html += "</table></div>";
-            return html;
+            if (iLeadingChars > Data.Length)
+                return Data;
+            string sOut = Data.Substring(iLeadingChars - 1, Data.Length - iLeadingChars + 1);
+            return sOut;
         }
 
-        public static void EnsurePMCached(HttpContext h)
+        public static string ReqPathToFilePath(string ContextRequestPath)
         {
-            string sDate = h.Session.GetString("pmcached");
-            if (sDate == null || sDate != System.DateTime.Now.ToShortDateString())
+            string sOrigReqPath = ContextRequestPath;
+
+            string sReqPath = sOrigReqPath;
+
+            //            string sReqPath = StripLeading(sOrigReqPath, 2);
+            if (IsWindows())
             {
+                sReqPath = sReqPath.Replace("/", "\\");
             }
+            string Sourcepath = Path.Combine(GetFolder(""), sReqPath);
+
+            System.IO.FileInfo fi = new FileInfo(Sourcepath);
+            if (!System.IO.Directory.Exists(fi.Directory.FullName))
+            {
+                System.IO.Directory.CreateDirectory(fi.Directory.FullName);
+            }
+            if (IsWindows())
+            {
+                Sourcepath = Sourcepath.Replace("\\\\", "\\");
+            }
+            return Sourcepath;
         }
+
+
 
         public static string GetTemplate(string sName)
         {
@@ -386,10 +355,13 @@ namespace BiblePay.BMS.DSQL
             data = data.Replace("@BioURL",GetBioURL(h));
             data = data.Replace("@parentid", sParentID);
             // Append the posts, one by one from all who posted on this thread.
-            List<Timeline> l = Timeline.Get(IsTestNet(h), sParentID);
+            GetBusinessObject bo = new GetBusinessObject();
+            bo.TestNet = IsTestNet(h);
+            bo.ParentID = sParentID;
+            List<Timeline> l = BBPAPI.Interface.Repository.GetTimeLine(bo);
             for (int i = 0; i < l.Count; i++)
             {
-                User uRow = User.GetCachedUser(IsTestNet(h), l[i].ERC20Address);
+                User uRow = UserFunctions.GetCachedUser(IsTestNet(h), l[i].ERC20Address);
                 if (uRow != null)
                 {
                     string entry = GetTemplate("timelinepost.htm");
@@ -405,7 +377,7 @@ namespace BiblePay.BMS.DSQL
         public static string GetModalDialogJson(string title, string body, string optjs="")
         {
             ServerToClient returnVal = new ServerToClient();
-            string modal = DSQL.UI.GetModalDialog(title, body);
+            string modal = DSQL.UI.GetModalDialog(title, body, optjs);
             returnVal.returnbody = modal;
             returnVal.returntype = "modal";
             string outdata = JsonConvert.SerializeObject(returnVal);

@@ -1,4 +1,5 @@
-﻿using BBPAPI.Model;
+﻿using BBPAPI;
+using BBPAPI.Model;
 using BiblePay.BMS.Extensions;
 using BMSCommon;
 using BMSCommon.Model;
@@ -9,7 +10,9 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
+using static BiblePay.BMS.Controllers.AttachmentController;
 using static BiblePay.BMS.DSQL.DOMItem;
 using static BiblePay.BMS.DSQL.SessionHelper;
 using static BiblePay.BMS.DSQL.UI;
@@ -45,67 +48,24 @@ namespace BiblePay.BMS.Controllers
 				dynamic oExtra = Newtonsoft.Json.JsonConvert.DeserializeObject(o.ExtraData);
 				string sNFTID = oExtra.nftid.Value;
 				double nBuyItNowAmount = oExtra.Amount.Value;
-				string sChain = IsTestNet(HttpContext) ? "test" : "main";
-				NFT n = NFT.GetNFT(sChain, sNFTID);
-				string sError = String.Empty;
-				if (n == null)
-				{
-					sError = "NFT not found";
-					string s1 = MsgBoxJson(HttpContext, "Error", "Error", "NFT not found.");
-					return Json(s1);
-				}
-				if (n.OwnerERC20Address == String.Empty || n.OwnerBBPAddress == String.Empty || n.OwnerERC20Address == null)
-				{
-					sError += "NFT ERC 20 address is not populated; invalid nft.";
-				}
-
-				bool fValid = BBPAPI.Sanctuary.ValidateBiblePayAddress(IsTestNet(HttpContext), n.OwnerBBPAddress);
-				if (!fValid)
-				{
-					sError += "Owner BBP address is not valid. ";
-				}
-
-				if (sError != String.Empty)
-				{
-					string s1 = MsgBoxJson(HttpContext, "Error", "Error", "NFT not found.");
-					return Json(s1);
-				}
-
-				double nAmount = nBuyItNowAmount;
-
-				if (nAmount <= 0)
-				{
-					sError += "Buy amount must be > 0.";
-				}
-
-				if (n.LowestAcceptableAmount() <= 0 || nAmount < n.LowestAcceptableAmount())
-				{
-					sError += "Lowest acceptable amount is too low.";
-				}
-				string sPayload = "<XML>BuyNFT " + nAmount.ToString() + "</XML>";
-				KeyType k = GetKeyPair(HttpContext, String.Empty);
-
-				DACResult r0 = BBPAPI.Sanctuary.SendMoney(IsTestNet(HttpContext), k, nAmount, n.OwnerBBPAddress, sPayload);
-				if (r0.TXID != String.Empty)
-				{
-				    User uBuyer = HttpContext.GetCurrentUser();
-                    User dtSeller = BBPAPI.Model.User.GetCachedUser(IsTestNet(HttpContext), n.OwnerERC20Address);
-					BBPAPI.ERCUtilities.SendNFTEmail(uBuyer, dtSeller, n, nAmount);
-			        // Transfer the actual NFT
-                    n.TXID = r0.TXID;
-					n.Action = "buy";
-					n.OwnerERC20Address = u0.ERC20Address;
-					n.OwnerBBPAddress = u0.BBPAddress;
-					n.Marketable = 0;
-					n.time = UnixTimestamp();
-					n.Save(IsTestNet(HttpContext));
-					string s2 = MsgBoxJson(HttpContext, "Success", "Success", "You have successfully purchased this NFT on TXID " + r0.TXID + ".  ");
-					return Json(s2);
+                User uBuyer = HttpContext.GetCurrentUser();
+				NFTBuy n = new NFTBuy();
+				n.ID = sNFTID;
+				n.TestNet = IsTestNet(HttpContext);
+				n.Amount = nBuyItNowAmount;
+				n.PrivateKey = uBuyer.GetPrivateKey();
+				n.Buyer = uBuyer;
+				DACResult r1 = BBPAPI.Interface.NFTLogic.BuyNFT(n).Result;
+				if (!String.IsNullOrEmpty(r1.Error))
+                {
+                    string s1 = MsgBoxJson(HttpContext, "Error", "Error", r1.Error);
+                    return Json(s1);
 				}
 				else
-				{
-					string s3 = MsgBoxJson(HttpContext, "Error", "Error", "Purchase error. ");
-					return Json(s3);
+                {
+                    string s2 = MsgBoxJson(HttpContext, "Success", "Success",
+                        r1.Response);
+                    return Json(s2);
 				}
 			}
 			else if (o.Action == "nft_edit")
@@ -127,7 +87,10 @@ namespace BiblePay.BMS.Controllers
 		public NFT GetNFT(HttpContext h, string sID)
 		{
 			string sChain = IsTestNet(h) ? "test" : "main";
-			NFT n = NFT.GetNFT(sChain, sID);
+			NFTSearch n1 = new NFTSearch();
+			n1.Chain = sChain;
+			n1.ID = sID;
+			NFT n = BBPAPI.Interface.NFTLogic.GetNFT(n1).Result;
 			return n;
 		}
 
@@ -138,13 +101,19 @@ namespace BiblePay.BMS.Controllers
 			int nTotal = 0;
 			string sChain = IsTestNet(h) ? "test" : "main";
 			User u0 = GetUser(h);
-			List<NFT> l = NFT.GetListOfNFTs(sChain, u0.ERC20Address, sType);
+			NFTSearch ns = new NFTSearch();
+			ns.Chain = sChain;
+			ns.Address = u0.ERC20Address;
+			ns.Types = sType;
+			List<NFT> l = BBPAPI.Interface.NFTLogic.GetListOfNFTs(ns).Result;
 
 			for (int i = 0; i < l.Count; i++)
 			{
 				NFT n = l[i];
 				bool fBuyable = (n.LowestAcceptableAmount() > 0 && n.Marketable == 1);
 				bool fIncludeHere = n.Marketable == nMarketable || nMarketable == -1;
+				if (n.Description == null)
+					fIncludeHere = false;
 				if (fIncludeHere)
 				{
 					string sScrollY = n.Description.Length > 100 ? "overflow-y:scroll;" : "";
@@ -161,7 +130,7 @@ namespace BiblePay.BMS.Controllers
 					string sIntro = "<div class='col-xl-4'><div id='c_3' class='card border shadow-0 mb-g shadow-sm-hover' data-filter-tags='nft_cool'><div class='d-flex flex-row align-items-center'>";
 					sIntro += "<div class='card-body border-faded border-top-0 border-left-0 border-right-0 rounded-top'>";
 					string sOutro = "</div></div></div></div>";
-					string sAsset = "";// "<iframe xwidth=95% style='height: 200px;width:300px;' src='" + sURLLow + "'></iframe>
+                    string sAsset = String.Empty;
 					if (sURLLow.Contains(".gif") || sURLLow.Contains("=w600") || sURLLow.Contains(".jpg") || sURLLow.Contains(".jpeg") || sURLLow.Contains(".png"))
 					{
 						string sUrlToClick = fOrphan ? n.AssetBIO : n.AssetURL;
@@ -216,7 +185,6 @@ namespace BiblePay.BMS.Controllers
         {
             ViewBag.NFTList = GetNFTDisplayList(HttpContext, "general",1);
 			ViewBag.NFTListOwned = GetNFTDisplayList(HttpContext, "general", 0);
-
 			return View();
         }
 
@@ -230,20 +198,23 @@ namespace BiblePay.BMS.Controllers
 		public IActionResult NFTAdd()
         {
 			List<DropDownItem> ddTypes = new List<DropDownItem>();
-			ddTypes.Add(new DropDownItem("General", "General (Digital Goods, MP3, PNG, GIF, JPEG, PDF, MP4, Social Media, Tweet, Post, URL"));
-			ddTypes.Add(new DropDownItem("Christian", "Christian"));
-			ddTypes.Add(new DropDownItem("Orphan", "Orphan (Child to be sponsored)"));
+			ddTypes.Add(new DropDownItem { key0 = "General", text0 = "General (Digital Goods, MP3, PNG, GIF, JPEG, PDF, MP4, Social Media, Tweet, Post, URL" });
+			ddTypes.Add(new DropDownItem{ key0 = "Christian", text0 = "Christian" });
+			ddTypes.Add(new DropDownItem{ key0 = "Orphan", text0 = "Orphan (Child to be sponsored)" });
 
 			// In edit mode, we prepopulate the values.
 			string sID = Request.Query["id"].ToString() ?? "";
 			string sMode = Request.Query["mode"].ToString() ?? "";
+
 			if (sMode == "edit" && sID != String.Empty)
 			{
 				NFT n = GetNFT(HttpContext, sID);
+                ViewBag.NFT = n;
+
 				ViewBag.txtName = n.Name;
 				ViewBag.txtDescription = n.Description;
 				ViewBag.txtURL = n.AssetURL;
-                ViewBag.AssetURL = n.AssetURL;
+				ViewBag.AssetURL = n.AssetURL;
 				ViewBag.txtReserveAmount = n.ReserveAmount.ToString();
                 ViewBag.txtBuyItNowAmount = n.BuyItNowAmount.ToString();
 				ViewBag.txtid = sID;
@@ -276,53 +247,36 @@ namespace BiblePay.BMS.Controllers
 		[HttpPost]
 		public async Task<IActionResult> UploadFileNFT(List<IFormFile> file)
 		{
-			try
-			{
-				if (file.Count > 0)
-				{
-					for (int i = 0; i < file.Count;)
-					{
-						string _FileName = Path.GetFileName(file[i].FileName);
-						bool fOK = DSQL.UI.IsAllowableExtension(_FileName);
-						if (fOK)
-						{
-							FileInfo fi = new FileInfo(_FileName);
-							string sGuid = Guid.NewGuid().ToString() + "" + fi.Extension;
-							string sDestFN = Path.Combine(Path.GetTempPath(), sGuid);
-							using (var stream = new FileStream(sDestFN, System.IO.FileMode.Create))
-							{
-								await file[i].CopyToAsync(stream);
-							}
-							string sURL = await BBPAPI.IPFS.UploadIPFS(sDestFN, "upload/photos/" + sGuid, GlobalSettings.GetCDN());
-							ServerToClient returnVal = new ServerToClient();
-							returnVal.returnbody = "";
-							returnVal.returntype = "uploadsuccess";
-							returnVal.returnurl = sURL;
-							string o1 = JsonConvert.SerializeObject(returnVal);
-							return Json(o1);
-						}
-						else
-						{
-							string modal = DSQL.UI.GetModalDialog("Save NFT Image", "Extension not allowed");
-                            BMSCommon.Model.ServerToClient returnVal = new ServerToClient();
-							returnVal.returntype = "modal";
-							returnVal.returnbody = modal;
-							string o1 = JsonConvert.SerializeObject(returnVal);
-							return Json(o1);
-						}
-					}
-				}
-				ViewBag.Message = "Sent " + file[0].FileName + " successfully";
-				Response.Redirect("/profile/profile");
-				return View();
-			}
-			catch
-			{
-				ViewBag.Message = "File upload failed!!";
-				return View();
-			}
+	        for (int i = 0; i < file.Count;)
+            {
+				FreshUpload fresh = new FreshUpload(this, file[i]);
+				if (fresh.NotAllowedError != null)
+					return fresh.NotAllowedError;
+                Pin p = new Pin();
+                p = BBPAPI.Utilities.PinLogic.StoreFile(HttpContext.GetCurrentUser(), fresh.FullDiskFileName, fresh.StorjDestination, "");
+                ServerToClient returnVal = new ServerToClient();
+                returnVal.returnbody = "";
+                returnVal.returntype = "uploadsuccess";
+                returnVal.returnurl = p.URL;
+                string o1 = JsonConvert.SerializeObject(returnVal);
+                return Json(o1);
+            }
+            throw new Exception("no file");
 		}
 
+        public static string DacToMsgBox(HttpContext h, DACResult r0, string sTitle)
+        {
+            if (r0.Error == String.Empty)
+            {
+                string s1 = DSQL.UI.MsgBoxJson(h, sTitle, "Success", r0.Response);
+                return s1;
+            }
+            else
+            {
+                string s2 = DSQL.UI.MsgBoxJson(h, sTitle, "Failure", r0.Error);
+                return s2;
+            }
+		}
 
 		public static string btnSubmitNFT_Click(HttpContext h, string sFormData, string _msMode)
 		{
@@ -418,31 +372,17 @@ namespace BiblePay.BMS.Controllers
 					sError += "Sorry, you must have more than 250 bbp available to create an NFT. ";
 			
 				// Pay for this NFT charge first
-				string sToAddress = BBPAPI.Sanctuary.GetFDPubKey(IsTestNet(h));
-				Encryption.KeyType k = GetKeyPair(h, String.Empty);
-                DACResult r0 = BBPAPI.Sanctuary.SendMoney(IsTestNet(h), k, 250, sToAddress, String.Empty);
-				if (r0.TXID == String.Empty)
-                {
-					sError += "Sorry, your 250 BBP payment failed.";
-                }
-				string sNarr = (sError == String.Empty) ? "Successfully submitted this NFT on TXID " + r0.TXID + ". <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>"
-					+ "NOTE:  Please wait for one sidechain block to pass before you can view the NFT.  " : sError;
-				if (sError == String.Empty)
-				{
-					bool f1 = n.Save(IsTestNet(h));
-					if (!f1)
-                    {
-						throw new Exception("Unable to save.");
-                    }
-					sNarr += "<br><br>";
-					string s1 = DSQL.UI.MsgBoxJson(h, "Edit NFT", "Success", sNarr);
-					return s1;
-				}
-				else
-				{
-					string s2 = DSQL.UI.MsgBoxJson(h, "Process NFT", "Failure", sNarr);
-					return s2;
-				}
+				NFTBuy n11 = new NFTBuy();
+				n11.TestNet = IsTestNet(h);
+				n11.PrivateKey = h.GetCurrentUser().GetPrivateKey();
+				n11.NFT = n;
+				DACResult r0 = BBPAPI.Interface.NFTLogic.Save(n11).Result;
+				string sNarr = (r0.Error == String.Empty) ? "Successfully submitted this NFT on TXID " 
+                                                          + r0.TXID 
+                                                          + ". <br><br>Thank you for using BiblePay Non Fungible Tokens.<br><br>"
+					+ "NOTE:  Please wait for one block to pass before you view the NFT.  " : sError;
+                r0.Response = sNarr;
+                return DacToMsgBox(h, r0,"Process NFT");
 			}
 			catch (Exception ex)
 			{

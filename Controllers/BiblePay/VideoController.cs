@@ -1,4 +1,5 @@
 ﻿using BiblePay.BMS.Extensions;
+using BMSCommon.Model;
 using BMSCommon.Models;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -16,19 +17,28 @@ namespace BiblePay.BMS.Controllers
 		public string GetVideo()
         {
 			string sID = Request.Query["id"];
-			List<Video> lVideo = Video.Get(IsTestNet(HttpContext), sID);
+            if (sID == "1")
+            {
+                ViewBag.VideoFileName = "/bbp/JesusVideo.mp4";
+                ViewBag.VideoComments = "Debug video";
+                return String.Empty;
+            }
+			GetBusinessObject bo = new GetBusinessObject();
+			bo.ParentID = sID;
+			bo.TestNet = IsTestNet(HttpContext);
+
+            List<Video> lVideo = BBPAPI.Interface.Repository.GetVideos(bo);
 			if (lVideo.Count > 0)
 			{
 				ViewBag.VideoPoster = lVideo[0].Cover ?? String.Empty;
-
-				if (!String.IsNullOrEmpty(lVideo[0].BBPAddress))
-				{ // bbpaddr/video/hlspath/1.m3u8
-					ViewBag.VideoFileName =  ""+ lVideo[0].BBPAddress + "/video/" + lVideo[0].Source + "/1.m3u8";
+				if (lVideo[0].Source.Contains(".mp4"))
+				{
+					ViewBag.VideoFileName = "BMS/WatchVideo?video=" + lVideo[0].BBPAddress + "/video/" + lVideo[0].Source;
 				}
-                else
-                {
-					ViewBag.VideoFileName = "/video/" + lVideo[0].Source + "/1.m3u8";
-                }
+				else
+				{
+					ViewBag.VideoFileName =  "/video/" + lVideo[0].Source + "/1.m3u8";
+				}
 				// Tack on the comments for this video.
 				ViewBag.VideoComments = GetTimelinePostDiv(HttpContext, sID);
 				return String.Empty;
@@ -47,16 +57,28 @@ namespace BiblePay.BMS.Controllers
 			return View();
 		}
 
+		public int GetOctetLength(string sData, int nOrdinal)
+		{
+			string[] vSplit = sData.Split("/");
+			if (nOrdinal < vSplit.Length)
+			{
+				return vSplit[nOrdinal].Length;
+			}
+			return 0;
+		}
 		public string GetVideoList()
         {
-			List<Video> lVideo = Video.Get(IsTestNet(HttpContext), String.Empty);
+			GetBusinessObject bo = new GetBusinessObject();
+			bo.TestNet = IsTestNet(HttpContext);
+			
+			List<Video> lVideo = BBPAPI.Interface.Repository.GetVideos(bo);
 			lVideo = lVideo.Where(s => s.Description != String.Empty && s.Description != null).ToList();
 			int nPag = (int)GetDouble(Request.Query["pag"]);
 			string html = "<div class='row js-list-filter' id='nftlist'>";
 			int nTotal = 0;
 			int nItemNo = 0;
-			bool fAdmin = (HttpContext.GetCurrentUser().ERC20Address == "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5");
-			int iLength = 100;
+            bool fAdmin = (HttpContext.GetCurrentUser().Permissions.Administrator == 1);
+            int iLength = 100;
 			for (int i = nPag; i < nPag + iLength && i < lVideo.Count; i++)
 			{
 				Video v = lVideo[i];
@@ -69,8 +91,24 @@ namespace BiblePay.BMS.Controllers
 					+"<div class='d-flex flex-row align-items-center'>";
 				sIntro += "<div class='card-body border-faded border-top-0 border-left-0 border-right-0 rounded-top'>";
 				string sAsset = "";
-				string sImg = GlobalSettings.GetCDN() + "/" + v.Cover;
-				nItemNo++;
+				string sImg = "" + "/" + v.Cover;
+				if (v.BBPAddress != null)
+				{
+					int nOctLen = GetOctetLength(v.Cover, 0);
+
+					if (nOctLen == 34)
+					{
+                        sImg = "" + "/" + v.Cover;
+
+                    }
+                    else
+					{
+						sImg = "" + "/" + v.BBPAddress + "/" + v.Cover;
+					}
+
+                }
+
+                nItemNo++;
 				string sUrlToClick = "bbp/watchvideo?id=" + v.id.ToString();
 				string sTrash = fAdmin ? GetStandardButton("btndeletevideo", "Delete", "video_delete", 
 					"var e={};e.id='" + v.Source + "';", String.Empty, "") : String.Empty;

@@ -13,12 +13,13 @@
 
     Image:
     <br>
-    <img id='imgNFT' style="max-width:400px;max-height:400px;" width='400px' height='400px' src="@ViewBag.AssetURL" class="rounded-circle shadow-2 img-thumbnail" onclick="document.getElementById('file').click();" alt="">
+    <img id='imgNFT' style="max-width:400px;max-height:400px;height:400px;width:400px" src="@ViewBag.AssetURL" 
+         class="rounded-circle shadow-2 img-thumbnail" onclick="document.getElementById('file').click();" alt="">
     &nbsp;Click on Image to Upload your Asset
     <br>
     Name:
     <br />
-    <input id='txtName' style='xwidth:450px;' class="form-control" value='@ViewBag.txtName' />
+    <input id='txtName' style='' class="form-control" value='@ViewBag.txtName' />
 
     <br />
 
@@ -31,7 +32,7 @@
 
     Asset Image URL: <small><font color="red">(This is the Image URL.  You can either populate it here, or click the image above to upload one.)</font></small>
     <br />
-    <input id='txtURL' style='xwidth:600px;' class="form-control" value='@ViewBag.txtURL' />
+    <input id='txtURL' style='' class="form-control" value='@ViewBag.AssetURL' />
 
     <div id="divBIO" style="visibility:hidden;">
         <br />
@@ -70,7 +71,7 @@
     <br />
 
 
-    <button class="btn btn-info xshadow-0 ml-auto" class="btn-default" id='btnSubmit' onclick="DoCallback('nft_@ViewBag.Mode',null,'nft/processdocallback');">Submit</button>
+    <button class="btn btn-info xshadow-0 ml-auto btn-default" id='btnSubmit' onclick="DoCallback('nft_@ViewBag.Mode',null,'nft/processdocallback');">Submit</button>
     <br />
 
     <span>@ViewBag.lblInfo</span>
@@ -89,14 +90,16 @@
 
 
 
-@section ScriptsBlock 
+@section ScriptsBlock
 {
-        
+
     <script>
 
         window.onload = changeNFTType();
 
         function changeNFTType() {
+            
+
             // When they choose Orphan, BIO should be visible.
             var o = document.getElementById('ddNFTType');
             var oDiv = document.getElementById('divBIO');
@@ -111,7 +114,16 @@
 
     function upl_changed() 
     {
-        UploadFile();
+            var mode = '@ViewBag.Mode';
+            console.log(mode);
+            if (mode == 'editme' || mode =='edit')
+            {
+                alert('Sorry, only the price, deleted, and marketable fields can be edited.');
+            }
+            else
+            {
+                UploadFile();
+            }
     };
 
 
@@ -139,7 +151,7 @@ function UploadProgress(evt) {
         var percentComplete = Math.round(evt.loaded * 100 / evt.total);
         $("#uploading").text(percentComplete + "% ");        
     }
-}
+    }
 
 function UploadComplete(evt) 
 {
@@ -179,7 +191,7 @@ function UploadComplete(evt)
     {
         alert("Error Uploading File");
     }
-}
+    }
 
 function UploadFailed(evt) {    
     alert("There was an error attempting to upload the file.");

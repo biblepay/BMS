@@ -4,7 +4,9 @@
 
     <table width="75%">
         <tr><td>Address:</td><td>@ViewBag.PhoneUser.BBPAddress</td></tr>
-        <tr><td>Balance:</td><td>@ViewBag.PhoneUser.Balance BBP</td></tr>
+        <tr><td>BBP Balance:</td><td>@ViewBag.PhoneUser.WalletBalance BBP</td></tr>
+        <tr><td>Outstanding Owed:<td>@ViewBag.PhoneUser.OutstandingOwed BBP</td></tr>
+        <tr><td>Error:</td><td>@ViewBag.PhoneUser.Error</td></tr>
         <tr><td>Phone Number:</td><td>@ViewBag.PhoneUser.PhoneNumber</td></tr>
     </table>
 
@@ -12,7 +14,7 @@
 
 
     <div class="phonecontainer">
-        <div id="slogan" class="phonetoprow">BBP Phone</div>
+        <div id="slogan" class="phonetoprow">BBP Phone <small>v1.2</small></div>
         <div id="numberDisplay" class="clsPhoneDisplay"> </div>
 
         <div class="row">
@@ -78,7 +80,15 @@
                 </div>
             </div>
         </div>
-        <div class="phoneoutput" id="divPhoneOutput"> ... </div>
+        <!--
+        <div class="smsarea" id="smsarea">
+            <button onclick="var e={};e.id=GetOutboundNumber();DoCallback('sms_select',e,'../../phone/processdocallback');" value="SMS">
+                SMS <i class='fa fa-envelope'></i>
+            </button> 
+        </div>
+        -->
+
+        <div class="phoneoutput" id="divPhoneOutput">  </div>
 
 
     </div>

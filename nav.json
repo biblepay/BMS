@@ -44,25 +44,23 @@
     {
       "title": "Portfolio",
       "icon": "fal fa-chart-bar",
-      "roles": [
-        ""
-      ],
+      "roles": [ "" ],
       "items": [
         {
           "title": "Portfolio Builder",
           "href": "portfoliobuilder_portfoliobuilder.html",
-          "roles": []
+          "roles": [ "sanc" ]
         },
         {
           "title": "PB Leaderboard",
           "href": "portfoliobuilder_portfoliobuilderleaderboard.html",
-          "roles": []
+          "roles": [ "sanc" ]
         },
         {
           "title": "Atomic Swap",
           "showOnSeed": false,
           "href": "bbp_atomicswap.html",
-          "roles": []
+          "roles": [ "sanc" ]
         }
       ]
     },
@@ -172,46 +170,6 @@
 
       ]
     },
-
-
-
-    {
-      "title": "Pool",
-      "icon": "fal fa-water",
-      "roles": [
-        ""
-      ],
-      "items": [
-        {
-          "title": "Pool Metrics",
-          "href": "pool_poolabout.html",
-          "roles": []
-        },
-        {
-          "title": "Leaderboard",
-          "href": "pool_poolleaderboard.html",
-          "roles": []
-        },
-        {
-          "title": "Getting Started",
-          "href": "pool_poolgettingstarted.html",
-          "roles": []
-        },
-        {
-          "title": "XMR Owed",
-          "href": "gospel/viewer?type=xmrinquiry",
-          "roles": []
-        },
-        {
-          "title": "Block History",
-          "href": "pool_blockhistory.html",
-          "roles": []
-        }
-      ]
-    },
-
-
-
     {
       "title": "Social Media",
       "icon": "fal fa-comment",
@@ -240,9 +198,69 @@
       ]
     },
 
+    {
+      "title": "Phone Service",
+      "icon": "fal fa-phone",
+      "roles": [ "" ],
+      "items": [
+        {
+          "title": "Phone",
+          "href": "phone_phoneservice.html",
+          "roles": [ "AnyUser" ],
+          "target": "_blank"
+        },
+        {
+          "title": "Rates",
+          "href": "phone_rates.html",
+          "roles": [ "AnyUser" ]
+        },
+        {
+          "title": "Rate Override",
+          "href": "phone_rateoverride.html",
+          "roles": [ "AnyUser" ]
+        },
+        {
+          "title": "Voice Mail",
+          "href": "phone_voicemailreview.html",
+          "roles": [ "AnyUser" ]
+        },
+        {
+          "title": "Hardware",
+          "href": "phone_hardwaresettings.html",
+          "roles": [ "AnyUser" ]
+        },
+        {
+          "title": "SMS",
+          "href": "sms_sms.html",
+          "roles": [ "AnyUser" ]
+        },
+        {
+          "title": "Extension Mapping",
+          "href": "phone_phonemapmaintenance.html",
+          "roles": [ "AnyUser" ]
+        },
+        {
+          "title": "Add Phone Number",
+          "href": "phone_addphonenumber.html",
+          "roles": [ "AnyUser" ]
+        }
+
+      ]
+    },
 
 
-
+    {
+      "title": "E-Mail Service",
+      "icon": "fal fa-envelope",
+      "roles": [ "" ],
+      "items": [
+        {
+          "title": "E-Mail",
+          "href": "profile_emailmaintenance.html",
+          "roles": [ "HomeUser" ]
+        }
+      ]
+    },
 
 
     {
@@ -302,6 +320,20 @@
         "Administrator"
       ],
       "items": [
+
+        {
+          "title": "Mail Inbox",
+          "href": "mail_inboxgeneral.html",
+          "roles": []
+
+
+        },
+        {
+          "title": "GridInlineEditing",
+          "href": "grid_inlineediting.html",
+          "roles": []
+        },
+
         {
           "title": "Black Box Edit",
           "href": "quant_blackboxedit.html",
@@ -337,10 +369,10 @@
           "href": "ticket_ticketadd.html",
           "roles": []
         }
-   
+
       ]
     }
 
 
   ]
-  }
+    }

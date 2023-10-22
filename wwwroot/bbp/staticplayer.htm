@@ -29,28 +29,24 @@
 <body id="body">
 
 
-
+<!--
 <?php
-require_once('assets/init.php');
-
-
-header("X-Frame-Options: *");
-$post = GetWoPostData($_GET['embedid']);
-
-$tz = GetTimeZone();
-
-
-if ($_GET['vembedid'])
-{
-   $poster = $s3_site_url . '/video/' . $_GET['vembedid'] . '/p.jpg';
-   $url = $s3_site_url . '/video/' . $_GET['vembedid'].'/1.m3u8';
-}
-else
-{
-  $poster = $s3_site_url . '/' . $post['postFileThumb'];
-  $url = $s3_site_url . '/video/' . $post['postFileName'];
-}
+    require_once('assets/init.php');
+    header("X-Frame-Options: *");
+    $post = GetWoPostData($_GET['embedid']);
+    $tz = GetTimeZone();
+    if ($_GET['vembedid'])
+    {
+    $poster = $s3_site_url . '/video/' . $_GET['vembedid'] . '/p.jpg';
+    $url = $s3_site_url . '/video/' . $_GET['vembedid'].'/1.m3u8';
+    }
+    else
+    {
+    $poster = $s3_site_url . '/' . $post['postFileThumb'];
+    $url = $s3_site_url . '/video/' . $post['postFileName'];
+    }
 ?>
+-->
 
 
 	<div class="container" id="video-container">
@@ -483,5 +479,5 @@ function st1()
 		window.addEventListener("resize", centerVertically);
 	</script>
 </body>
-</html>
+
 

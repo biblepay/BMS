@@ -90,7 +90,8 @@
                 <input id="txtNickName" class="form-control" value="@ViewBag.NickName" />
                 <br />
 
-
+                
+                <!--
                 BBP Portfolio Builder Address:
                 <br />
                 <input id="txtPortfolioBuilderAddress" class="form-control" value="@ViewBag.PortfolioBuilderAddress" />
@@ -100,6 +101,8 @@
                 <br />
                 <textarea id="txtPBSignature" class="form-control" cols="70" rows="4">@ViewBag.PBSignature</textarea>
                 <br />
+                -->
+                
 
                 E-Mail Address:
                 <br />
@@ -110,7 +113,7 @@
                 <input id="txtEmailVerified" readonly class="form-control" value="@ViewBag.EmailAddressVerified" />
 
                 
-        @if (ViewBag.EmailAddressVerified.ToLower() != "yes")
+        @if (false && ViewBag.EmailAddressVerified.ToLower() != "yes")
         {
                 <button class="btn-default" onclick="DoCallback('Profile_SendVerificationEmail', null, 'profile/processdocallback');">Send Verification Email</button>
         }
@@ -125,7 +128,7 @@
             </div>
         </div>
 
-        @if (ViewBag.TwoFactorQRImageUrl != null)
+        @if (ViewBag.TwoFactorQRImageUrl != null && false)
         {
         <div class="card mb-g">
             <div class="card-body pb-0 px-4">

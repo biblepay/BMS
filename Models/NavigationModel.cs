@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BiblePay.BMS.Extensions;
+using BMSCommon;
 using Microsoft.AspNetCore.Http;
 
 namespace BiblePay.BMS.Models
@@ -26,6 +27,10 @@ namespace BiblePay.BMS.Models
         private static List<ListItem> FillProperties(string sERC20, IEnumerable<ListItem> items, bool seedOnly, ListItem parent = null)
         {
             var result = new List<ListItem>();
+            bool fSanc = BBPAPI.Service.IsSanctuary();
+            bool fIsWebNode = BBPAPI.Service.IsPrimary();
+            //Common.Log("iswebnode=" + fIsWebNode.ToString());
+
             foreach (var item in items)
             {
                 item.Text ??= item.Title;
@@ -38,6 +43,7 @@ namespace BiblePay.BMS.Models
                 item.Route = route.Length > 1 ? $"/{route.First()}/{string.Join(Empty, route.Skip(1))}" : item.Href;
                 if (false)
                 {
+                    /*
                     if (item.Route != null)
                     {
                         if (item.Route.ToLower().Contains("nft") || item.Route == "/proposal/proposaladd" 
@@ -47,10 +53,14 @@ namespace BiblePay.BMS.Models
                             fDisabled = true;
                         }
                     }
+                    */
                 }
 
+                //string sCurItem = item.Route.ToString() ?? String.Empty;
+                //sCurItem = sCurItem.ToLower();
+
                 //Quant Security
-                bool fQuant = sERC20 == "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5" || sERC20 == "0xb847ef0e5a428e2f81b7ac52524bda9ee416870c";
+                bool fQuant = sERC20 == "0xafe8c2709541e72f245e0da0035f52de5bdf3ee5" || sERC20== "BFjZ9eMmjCNZCBrtvBZSYqxvwhSPwxLBCT" || sERC20 == "0xb847ef0e5a428e2f81b7ac52524bda9ee416870c";
                 if (!fQuant)
                 {
                     if (item.Route != null)
@@ -61,6 +71,45 @@ namespace BiblePay.BMS.Models
                         }
                     }
                 }
+
+                if (!fSanc)
+                {
+                    if (item.Route != null)
+                    {
+
+                        if (item.Roles.Contains("sanc"))
+                        {
+                            fDisabled = true;
+                        }
+                    }
+                }
+
+                if (fIsWebNode)
+                {
+                    if (item.Route != null)
+                    {
+
+                        if (item.Roles.Contains("HomeUser"))
+                        {
+                            fDisabled = true;
+                        }
+                    }
+                }
+                /*
+                if (!fIsWebNode)
+                {
+                    if (item.Route != null)
+                    {
+                        if (curItem.Contains("Pool") || sCurItem.Contains("Pool Metrics") || sCurItem.Contains("XMR Owed") || sCurItem.
+                        {
+                            fDisabled = true;
+                        }
+                    }
+
+                }
+                */
+
+
                 item.I18n = parent == null
                     ? $"nav.{item.Title.ToLower().Replace(Space, Underscore)}"
                     : $"{parent.I18n}_{item.Title.ToLower().Replace(Space, Underscore)}";

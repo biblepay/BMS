@@ -2,13 +2,11 @@
 using BiblePay.BMS.Models;
 using BMSCommon.Model;
 using Google.Authenticator;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
 using static BiblePay.BMS.DSQL.DOMItem;
 
 
@@ -16,147 +14,85 @@ namespace BiblePay.BMS.Controllers
 {
     public class TestController : Controller
     {
-        
-        public static object ChangeType(object value, Type type)
-        {
-            if (type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(Nullable<>)))
-            {
-                if (value == null)
-                {
-                    return null;
-                }
 
-                return Convert.ChangeType(value, Nullable.GetUnderlyingType(type));
-            }
-            string sSourceType = value.GetType().ToString();
-            string sDestType = type.ToString();
-            if (sDestType == "System.String" && sSourceType == "System.Guid")
-            {
-                return value.ToString();
-            }
-            return Convert.ChangeType(value, type);
-        }
 
-        public static void BindObject<T>(object item, ClientToServer cts)
-        {
+		public ActionResult AssociateTwoFA()
+		{
+			TwoFactorAuthenticator twoFactor = new TwoFactorAuthenticator();
+			string sSecret = "1";
+			var setupInfo = twoFactor.GenerateSetupCode("TEST_UNCHAINED",
+				"you@biblepay.org", sSecret, false, 3);
+			ViewBag.SetupCode = setupInfo.ManualEntryKey;
+			ViewBag.BarcodeImageUrl = setupInfo.QrCodeSetupImageUrl;
+			return View("TestPage");
+		}
 
-            Type t = typeof(T);
-            var myFields = item.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var prop in myFields)
-            {
-                string newValue = GetFormData(cts.FormData, prop.Name);
-                if (prop != null && !String.IsNullOrEmpty(newValue))
-                {
-                    prop.SetValue(item, ChangeType(newValue, prop.FieldType));
-                }
-            }
+		public JsonResult Check2FA([FromBody] ClientToServer o)
+		{
+			TwoFactorAuthenticator twoFactor = new TwoFactorAuthenticator();
+			string sSecret = "1";
+			string sCode = GetFormData(o.FormData, "txtCode");
+			bool isValid = twoFactor.ValidateTwoFactorPIN(sSecret, sCode);
+			string sNarr = isValid ? "Success" : "Failed";
+			return this.ShowModalDialog(o, "auth", sNarr, "");
+		}
 
-            var myProps = item.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-            foreach (var prop in myProps)
-            {
-                string newValue = GetFormData(cts.FormData, prop.Name);
-                if (prop != null && !String.IsNullOrEmpty(newValue))
-                {
-                    prop.SetValue(item, ChangeType(newValue, prop.PropertyType), null);
-                }
-
-            }
-
-        }
-
-        public ActionResult TestPage()
+		public ActionResult TestPage()
         {
             Models.City c = new City();
-            c.Name1 = "Satoshi";
+            c.Name1 = "Satoshi 1";
             c.Id = 1;
             return View(c);
         }
         
-        public ActionResult TestSection10()
+
+
+
+
+
+		public async Task<JsonResult> TestSection10([FromBody] BMSCommon.Model.ClientToServer o)
         {
-            ClientToServer cts = HttpContext.Session.GetObject<ClientToServer>("post10");
             City c = new City();
-            if (cts != null)
-            {
-                c = new City();
-                BindObject<City>(c, cts);
-            }
-            c.Zip++;
-            return PartialView("_TestSection10", c);
+				ControllerExtensions2.BindObject<City>(c, o);
+			c.Zip++;
+            return await this.RenderDivToClient<City>("_TestSection10", c, "partial-section10", true);
         }
 
-
-        public JsonResult Test10([FromBody] BMSCommon.Model.ClientToServer o)
-        {
-            HttpContext.Session.SetObject("post10", o);
-            return this.RedirectToSection(o, "partial-load-section10", "/Test/TestSection10");
-        }
-
-        public ActionResult TestSection1()
-        {
-             ViewBag.txtName = HttpContext.Session.GetFormValue("txtName");
-             if (ViewBag.txtName.Length < 1)
-             {
-                 ViewBag.txtError = "<font color=red>YOU MUST ENTER IT</font>";
-             }
-             else
-             {
-                 ViewBag.txtError = "";
-             }
-            return PartialView("_TestSection1");
-        }
-
- 
-        public JsonResult PostSection1([FromBody] ClientToServer o)
-        {
-            return this.RedirectToSection(o, "partial-load-section1", "/Test/TestPage");
-        }
-
-        public ActionResult AssociateTwoFA()
-        {
-            TwoFactorAuthenticator twoFactor = new TwoFactorAuthenticator();
-            string sSecret = "1";
-            var setupInfo = twoFactor.GenerateSetupCode("TEST_UNCHAINED",
-                "you@biblepay.org", sSecret, false, 3);
-            ViewBag.SetupCode = setupInfo.ManualEntryKey;
-            ViewBag.BarcodeImageUrl = setupInfo.QrCodeSetupImageUrl;
-            return View("TestPage");
-        }
-
-        public ActionResult TestSection2()
-        {
-            ViewBag.txtCity = this.GetFormValue("txtCity");
-            return PartialView("_TestSection2");
-        }
-
-        public JsonResult PostSection2([FromBody] ClientToServer o)
-        {
-            return this.RedirectToSection(o, "partial-load-section2", "/Test/TestSection2");
-        }
-
-        public ActionResult TestSection3()
-        {
-            ViewBag.txtState = this.GetFormValue("txtState2");
-
-            return PartialView("_TestSection3");
-        }
         
-        public JsonResult PostSection3([FromBody] BMSCommon.Model.ClientToServer o)
+
+
+        [ValidateAntiForgeryToken]
+        public JsonResult TestSection1([FromBody] ClientToServer o)
         {
-            string sJS = this.RedirectToSectionJS("partial-load-section3", "/Test/TestSection3");
-            return this.ShowModalDialog(o, GetFormData(o.FormData,"txtState2"), "The value of the dialog", sJS);
+			ViewBag.txtName = GetFormData(o.FormData,"txtName");
+			if (ViewBag.txtName.Length < 1)
+			{
+				ViewBag.txtError = "<font color=red>YOU MUST ENTER IT</font>";
+			}
+			else
+			{
+				ViewBag.txtError = "";
+			}
+
+            return this.RenderDivToClient<City>("_TestSection1", null, "partial-load-section1", true).Result;
+		}
+
+
+
+        public JsonResult TestSection2([FromBody] ClientToServer o)
+        {
+            ViewBag.txtCity = GetFormData(o.FormData, "txtCity");
+            return this.RenderDivToClient<string>("_TestSection2", null, "partial-load-section2", true).Result;
         }
 
-        public JsonResult Check2FA([FromBody] ClientToServer o)
+        
+        public async Task<JsonResult> TestSection3([FromBody] BMSCommon.Model.ClientToServer o)
         {
-            TwoFactorAuthenticator twoFactor = new TwoFactorAuthenticator();
-            string sSecret = "1";
-            string sCode = GetFormData(o.FormData, "txtCode");
-            bool isValid = twoFactor.ValidateTwoFactorPIN(sSecret, sCode);
-            string sNarr = isValid ? "Success" : "Failed";
-            return this.ShowModalDialog(o, "auth", sNarr, "");
+            ViewBag.txtState = GetFormData(o.FormData, "txtState2");
+            return await this.RenderDivToClient<string>("_TestSection3", null, "partial-load-section3", true);
         }
+
 
         [HttpPost]
         public JsonResult AutoCity(string Prefix)
@@ -174,7 +110,7 @@ namespace BiblePay.BMS.Controllers
             };
             //Searching records from list using LINQ query  
             var Name = (from N in ObjList
-                        where N.Name1.StartsWith(Prefix)
+                        where N.Name1.ToLower().StartsWith(Prefix.ToLower())
                         select new { N.Name1 });
             return Json(Name);//, JsonRequestBehavior.AllowGet);
         }
